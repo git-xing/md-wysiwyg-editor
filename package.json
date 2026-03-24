@@ -1,0 +1,167 @@
+{
+  "name": "markdown-wysiwyg-editor",
+  "displayName": "Markdown WYSIWYG Editor",
+  "description": "WYSIWYG Markdown editor with live table editing",
+  "version": "0.0.1",
+  "publisher": "Chance Liu",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "packageManager": "pnpm@10.6.1",
+  "extensionKind": [
+    "ui"
+  ],
+  "icon": "images/icon.jpg",
+  "categories": [
+    "Editors"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "l10n": "./l10n",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "markdownWysiwyg.editor",
+        "displayName": "Markdown WYSIWYG Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          },
+          {
+            "filenamePattern": "*.markdown"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "markdownWysiwyg.switchToTextEditor",
+        "title": "%command.switchToTextEditor.title%",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "markdownWysiwyg.switchToPreview",
+        "title": "%command.switchToPreview.title%",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "markdownWysiwyg.debugModeEnable",
+        "title": "%command.debugModeEnable.title%"
+      },
+      {
+        "command": "markdownWysiwyg.debugModeDisable",
+        "title": "%command.debugModeDisable.title%"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "markdownWysiwyg.switchToTextEditor",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m",
+        "when": "activeCustomEditorId == 'markdownWysiwyg.editor'"
+      },
+      {
+        "command": "markdownWysiwyg.switchToPreview",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m",
+        "when": "resourceExtname == '.md' && activeCustomEditorId != 'markdownWysiwyg.editor'"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "markdownWysiwyg.switchToTextEditor",
+          "group": "navigation",
+          "when": "activeCustomEditorId == 'markdownWysiwyg.editor'"
+        },
+        {
+          "command": "markdownWysiwyg.switchToPreview",
+          "group": "navigation",
+          "when": "resourceExtname == '.md' && activeCustomEditorId != 'markdownWysiwyg.editor'"
+        },
+        {
+          "command": "markdownWysiwyg.debugModeEnable",
+          "group": "9_debug",
+          "when": "activeCustomEditorId == 'markdownWysiwyg.editor' && !markdownWysiwyg.debugModeActive"
+        },
+        {
+          "command": "markdownWysiwyg.debugModeDisable",
+          "group": "9_debug",
+          "when": "activeCustomEditorId == 'markdownWysiwyg.editor' && markdownWysiwyg.debugModeActive"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Markdown WYSIWYG Editor",
+      "properties": {
+        "markdownWysiwyg.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.autoSave.description%"
+        },
+        "markdownWysiwyg.autoSaveDelay": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 100,
+          "maximum": 10000,
+          "description": "%config.autoSaveDelay.description%"
+        },
+        "markdownWysiwyg.codeBlockMaxHeight": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "description": "%config.codeBlockMaxHeight.description%"
+        },
+        "markdownWysiwyg.defaultMode": {
+          "type": "string",
+          "enum": [
+            "preview",
+            "markdown"
+          ],
+          "enumDescriptions": [
+            "%config.defaultMode.preview%",
+            "%config.defaultMode.markdown%"
+          ],
+          "default": "preview",
+          "description": "%config.defaultMode.description%"
+        },
+        "markdownWysiwyg.fontFamily": {
+          "type": "string",
+          "default": "",
+          "description": "%config.fontFamily.description%"
+        },
+        "markdownWysiwyg.debugMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.debugMode.description%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "node esbuild.mjs --production",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "vsce package --no-dependencies --out releases/ --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@milkdown/core": "^7.5.0",
+    "@milkdown/plugin-listener": "^7.5.0",
+    "@milkdown/plugin-prism": "^7.19.0",
+    "@milkdown/preset-commonmark": "^7.5.0",
+    "@milkdown/preset-gfm": "^7.5.0",
+    "@milkdown/prose": "^7.19.0",
+    "@milkdown/transformer": "^7.5.0",
+    "@milkdown/utils": "^7.19.0",
+    "prosemirror-tables": "^1.8.5",
+    "refractor": "^5.0.0"
+  }
+}

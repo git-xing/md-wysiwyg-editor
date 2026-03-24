@@ -1,0 +1,14 @@
+{
+  "command.switchToTextEditor.title": "关闭预览",
+  "command.switchToPreview.title": "打开预览",
+  "config.autoSave.description": "编辑 Markdown 内容后自动保存到磁盘（无需 Cmd+S / Ctrl+S）。",
+  "config.autoSaveDelay.description": "自动保存的防抖延迟（毫秒），停止编辑后等待此时间再写盘。",
+  "config.codeBlockMaxHeight.description": "代码块最大显示高度（像素），超出后出现滚动条。",
+  "config.defaultMode.description": "打开 .md 文件时的默认编辑模式。",
+  "config.defaultMode.preview": "打开 .md 文件时使用 WYSIWYG 预览编辑器（默认）。",
+  "config.defaultMode.markdown": "打开 .md 文件时使用 VS Code 文本编辑器。",
+  "config.fontFamily.description": "编辑器正文字体。留空则继承 VSCode 编辑器字体设置。示例：Georgia, serif 或 PingFang SC, sans-serif。",
+  "command.debugModeEnable.title": "调试模式",
+  "command.debugModeDisable.title": "✓ 调试模式",
+  "config.debugMode.description": "显示调试叠层（如表格插入线触发范围），供开发调试使用。"
+}

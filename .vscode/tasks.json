@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["build"],
+      "group": "build",
+      "label": "pnpm: build",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["watch"],
+      "group": "build",
+      "label": "pnpm: watch",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^\\[ERROR\\] (.+)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Watching",
+          "endsPattern": "^\\[watch\\]"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1184 @@
+/* 全局重置，使用 VSCode 编辑器主题变量 */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  padding-top: 10px;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--custom-font-family, var(--vscode-editor-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif));
+  font-size: var(--vscode-editor-font-size, 14px);
+  line-height: 1.6;
+}
+
+/* 编辑器容器 */
+#editor {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 8px 48px 80px;
+  min-height: 100vh;
+  outline: none;
+}
+
+/* Milkdown 根容器 */
+.milkdown {
+  outline: none;
+}
+
+.milkdown .editor {
+  outline: none;
+  background: transparent;
+  color: inherit;
+  white-space: pre-wrap; /* ProseMirror 要求 */
+  word-wrap: break-word;
+}
+
+/* 段落 */
+.milkdown .editor p {
+  margin: 0 0 0.4em;
+}
+
+/* 表格单元格内段落不留底部 margin */
+.milkdown .editor td > p,
+.milkdown .editor th > p {
+  margin-bottom: 0;
+}
+
+/* 标题 */
+.milkdown .editor h1,
+.milkdown .editor h2,
+.milkdown .editor h3,
+.milkdown .editor h4,
+.milkdown .editor h5,
+.milkdown .editor h6 {
+  color: var(--vscode-editor-foreground);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.2em 0 0.5em;
+}
+
+.milkdown .editor h1 {
+  font-size: 2em;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  padding-bottom: 0.25em;
+}
+
+.milkdown .editor h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  padding-bottom: 0.2em;
+}
+
+.milkdown .editor h3 {
+  font-size: 1.25em;
+}
+
+/* 粗体、斜体 */
+.milkdown .editor strong {
+  color: var(--vscode-editor-foreground);
+  font-weight: 700;
+}
+
+.milkdown .editor em {
+  color: var(--vscode-editor-foreground);
+}
+
+/* 行内代码 */
+.milkdown .editor code {
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+  color: var(--vscode-textPreformat-foreground, var(--vscode-editor-foreground));
+  border-radius: 3px;
+  padding: 0.15em 0.4em;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+}
+
+/* 代码块 */
+.milkdown .editor pre {
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+  border-radius: 6px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+
+.milkdown .editor pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+/* 引用块 */
+.milkdown .editor blockquote {
+  border-left: 3px solid var(--vscode-textBlockQuote-border, #007acc);
+  background: var(--vscode-textBlockQuote-background, rgba(0, 122, 204, 0.05));
+  margin: 0 0 1em;
+  padding: 0.5em 1em;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.85;
+}
+
+/* 列表 */
+.milkdown .editor ul,
+.milkdown .editor ol {
+  padding-left: 1.8em;
+  margin: 0 0 0.75em;
+}
+
+.milkdown .editor li {
+  margin: 0.2em 0;
+}
+
+/* 有序列表多层级数字样式 */
+.milkdown .editor ol {
+  list-style-type: decimal;
+}
+
+.milkdown .editor ol ol {
+  list-style-type: lower-alpha;
+}
+
+.milkdown .editor ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.milkdown .editor ol ol ol ol {
+  list-style-type: decimal;
+}
+
+/* ── 任务列表（Milkdown v7 实际 DOM）───────────────────── */
+
+/* 任务列表：减小 ul 左缩进，消除复选框左侧多余空间 */
+.milkdown .editor ul:has(> li[data-item-type="task"]) {
+  padding-left: 4px;
+}
+
+/* 任务列表项：消除原始 bullet，用 position 定位伪元素 */
+.milkdown .editor li[data-item-type="task"] {
+  list-style: none;
+  position: relative;
+  padding-left: 22px;
+  cursor: default;
+}
+
+.milkdown .editor li[data-item-type="task"]::marker {
+  content: '';
+}
+
+/* 伪元素模拟 checkbox（未勾选） */
+.milkdown .editor li[data-item-type="task"]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.2em;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--vscode-checkbox-border, #6c6c6c);
+  border-radius: 2px;
+  background: var(--vscode-checkbox-background, transparent);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+/* 已勾选状态：蓝色背景 */
+.milkdown .editor li[data-item-type="task"][data-checked="true"]::before {
+  background: var(--vscode-checkbox-selectBackground, #007acc);
+  border-color: var(--vscode-checkbox-selectBackground, #007acc);
+}
+
+/* 已勾选：纯 CSS 勾选标记（旋转 L 形边框） */
+.milkdown .editor li[data-item-type="task"][data-checked="true"]::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: calc(0.2em + 1px);
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(45deg) translate(-1px, -2px);
+  transform-origin: center;
+  box-sizing: border-box;
+}
+
+/* 已勾选的文字加删除线（可选视觉提示） */
+.milkdown .editor li[data-item-type="task"][data-checked="true"] > p {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* 链接 */
+.milkdown .editor a {
+  color: var(--vscode-textLink-foreground, #4ea6ea);
+  text-decoration: none;
+}
+
+.milkdown .editor a:hover {
+  text-decoration: underline;
+  color: var(--vscode-textLink-activeForeground, #4ea6ea);
+}
+
+/* 水平分割线 */
+.milkdown .editor hr {
+  border: none;
+  border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  margin: 1.5em 0;
+}
+
+/* 删除线 */
+.milkdown .editor del {
+  opacity: 0.6;
+}
+
+/* 表格 */
+.milkdown .editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 1em;
+  overflow-x: auto;
+  display: block;
+}
+
+.milkdown .editor th,
+.milkdown .editor td {
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  padding: 6px 12px;
+  text-align: left;
+  position: relative; /* 供 .selectedCell::after 绝对定位 */
+  min-width: 60px;
+  overflow-wrap: anywhere; /* 连续长字符（URL、变量名等）自动换行，不撑宽列 */
+}
+
+/* 空单元格内的段落撑开行高，确保空表格行高一致 */
+.milkdown .editor td > p,
+.milkdown .editor th > p {
+  min-height: 1.2em;
+}
+
+.milkdown .editor th {
+  background: rgba(128, 128, 128, 0.08);
+  font-weight: 600;
+}
+
+.milkdown .editor tbody tr:nth-child(even) td {
+  background: var(--vscode-editor-lineHighlightBackground, rgba(128, 128, 128, 0.04));
+}
+
+/* 选中高亮 */
+.milkdown .editor ::selection {
+  background: var(--vscode-editor-selectionBackground, rgba(0, 122, 204, 0.3));
+}
+
+/* ─── 表格单元格范围选择（prosemirror-tables CellSelection）─── */
+.milkdown .editor .selectedCell {
+  position: relative;
+  background: rgba(52, 211, 153, 0.15) !important;
+}
+
+.milkdown .editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 2px solid rgba(52, 211, 153, 0.6);
+  pointer-events: none;
+  z-index: 1;
+}
+
+
+/* 列宽拖拽手柄 */
+.milkdown .editor .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--vscode-focusBorder, #007acc);
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.milkdown .editor.resize-cursor,
+.milkdown .editor.resize-cursor * {
+  cursor: col-resize !important;
+}
+
+/* 光标 */
+.milkdown .editor .ProseMirror-focused {
+  outline: none;
+}
+
+/* ─── 顶部工具栏 ─── */
+.editor-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  padding: 5px 48px;
+  background-color: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  user-select: none;
+}
+
+/* ─── 自定义 Tooltip ─── */
+.custom-tooltip {
+  position: fixed;
+  z-index: 10000;
+  display: none;
+  padding: 4px 8px;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  color: var(--vscode-editorHoverWidget-foreground, #cccccc);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
+}
+
+/* ─── 工具栏扩展 ─── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  margin-left: 12px;
+}
+
+.tb-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+
+.tb-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+  border-color: var(--vscode-toolbar-hoverOutline, transparent);
+}
+
+.tb-btn:active {
+  background: var(--vscode-toolbar-activeBackground, rgba(128, 128, 128, 0.3));
+}
+
+.tb-btn code {
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.tb-select-wrapper {
+  position: relative;
+}
+
+.tb-select {
+  height: 24px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.tb-select:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
+.tb-select option {
+  background: var(--vscode-dropdown-background, var(--vscode-editor-background));
+  color: var(--vscode-editor-foreground);
+}
+
+/* ─── 顶部工具栏格式选择器（hover 展开，与浮动工具栏风格一致）─── */
+.tb-fmt-wrap {
+  position: relative;
+}
+
+.tb-fmt-btn {
+  gap: 1px;
+}
+
+.tb-fmt-menu {
+  position: absolute;
+  left: 0;
+  display: none;
+  flex-direction: column;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  overflow: hidden;
+  min-width: 52px;
+  z-index: 200;
+}
+
+.tb-fmt-item {
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--vscode-editorHoverWidget-foreground, #ccc);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tb-fmt-item:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255,255,255,.08));
+}
+
+.tb-fmt-item--active {
+  color: var(--vscode-focusBorder, #007acc);
+  font-weight: 600;
+}
+
+.tb-fmt-item--active::after {
+  content: ' ✓';
+  font-size: 10px;
+}
+
+/* ─── 代码块 NodeView ─── */
+.code-block-wrapper {
+  margin: 0 0 1em;
+  border-radius: 6px;
+  /* overflow: visible 保留，避免裁剪语言下拉菜单 */
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--vscode-editor-lineHighlightBackground, rgba(128, 128, 128, 0.12));
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  gap: 8px;
+  border-radius: 6px 6px 0 0; /* 顶部圆角（替代 wrapper overflow:hidden） */
+}
+
+/* ─── lang-picker 自定义搜索下拉 ─── */
+.lang-picker {
+  position: relative;
+}
+
+.lang-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+  border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  height: 22px;
+  white-space: nowrap;
+}
+
+.lang-picker-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+.lang-picker-btn--open {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.lang-picker-dropdown {
+  position: fixed;
+  /* top / left / bottom set by JS */
+  z-index: 1000;
+  background: var(--vscode-dropdown-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-focusBorder, #007acc);
+  border-radius: 4px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.lang-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.3));
+  background: transparent;
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.lang-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* 覆盖 .milkdown .editor ul { padding-left: 1.8em } 的高优先级规则 */
+.milkdown .editor .lang-picker-list {
+  padding-left: 0;
+  list-style: none;
+  margin: 0;
+}
+
+.lang-picker-item {
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--vscode-dropdown-foreground, var(--vscode-editor-foreground));
+}
+
+.lang-picker-item:hover,
+.lang-picker-item--focused {
+  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
+.lang-picker-item--active {
+  color: var(--vscode-focusBorder, #007acc);
+  font-weight: 600;
+}
+
+/* ─── 代码块拖拽调整高度 handle（wrapper 底部整行） ─── */
+.code-block-resize-handle {
+  height: 6px;
+  background: transparent;
+  cursor: ns-resize;
+  border-radius: 0 0 6px 6px;
+  transition: background 0.15s;
+}
+
+.code-block-resize-handle:hover {
+  background: var(--vscode-focusBorder, #007acc);
+  opacity: 0.3;
+}
+
+/* 复制按钮（SVG 图标） */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.1s, background 0.1s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+  border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+}
+
+.copy-btn--done {
+  opacity: 1;
+  color: var(--vscode-charts-green, #4caf50);
+}
+
+/* 更高特异性（覆盖 .milkdown .editor pre），确保 padding:0 和 flex 布局生效 */
+.milkdown .editor .code-block-wrapper pre {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start; /* 允许子元素按内容高度增长，而非被拉伸到容器高度（使 overflow-y 生效） */
+  margin: 0;
+  padding: 0;
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+  border-radius: 0 0 6px 6px;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: var(--code-block-max-height, 500px);
+}
+
+/* 行号侧栏 */
+.line-numbers-gutter {
+  padding: 1em 0.75em;
+  min-width: 2.5em;
+  text-align: right;
+  user-select: none;
+  pointer-events: none;
+  flex-shrink: 0;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--vscode-editorLineNumber-foreground, rgba(128, 128, 128, 0.6));
+  border-right: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  pointer-events: none; /* 防止行号栏拦截鼠标事件，避免干扰代码区的拖拽选择 */
+}
+
+.line-numbers-gutter span {
+  display: block;
+  line-height: 1.5;
+}
+
+/* 更高特异性（覆盖 .milkdown .editor pre code），确保 padding:1em 和 flex:1 生效 */
+.milkdown .editor .code-block-wrapper pre code {
+  flex: 1;
+  min-width: 0;
+  padding: 1em;
+  background: none;
+  font-size: 0.9em;
+  line-height: 1.5; /* 与 .line-numbers-gutter 保持一致，避免行号错位 */
+  border-radius: 0;
+}
+
+/* ─── 链接 Hover 弹框 ─── */
+.link-popup {
+  position: absolute;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.4));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.link-popup-text,
+.link-popup-url {
+  height: 22px;
+  padding: 0 6px;
+  background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+  border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.link-popup-text {
+  width: 100px;
+}
+
+.link-popup-url {
+  width: 180px;
+}
+
+.link-popup-text:focus,
+.link-popup-url:focus {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.link-popup-confirm,
+.link-popup-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+
+.link-popup-confirm:hover {
+  background: var(--vscode-button-background, #007acc);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.link-popup-remove:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(200, 50, 50, 0.2));
+  color: var(--vscode-errorForeground, #f44);
+}
+
+/* ─── 图片 Hover 弹框 ─── */
+.img-popup {
+  flex-wrap: nowrap;
+  align-items: center;
+  max-width: 520px;
+}
+
+.img-popup-preview {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+  flex-shrink: 0;
+  background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+}
+
+.img-popup-src {
+  width: 220px;
+}
+
+/* ─── Prism 语法高亮 Token 颜色 ─── */
+/* 使用 VSCode 内置 token 颜色变量，深色/浅色主题自动适配 */
+
+.milkdown .editor .token.comment,
+.milkdown .editor .token.prolog,
+.milkdown .editor .token.doctype,
+.milkdown .editor .token.cdata {
+  color: var(--vscode-terminal-ansiGreen, #6a9955);
+  font-style: italic;
+}
+
+.milkdown .editor .token.punctuation {
+  color: var(--vscode-editor-foreground);
+  opacity: 0.7;
+}
+
+.milkdown .editor .token.property,
+.milkdown .editor .token.tag,
+.milkdown .editor .token.constant,
+.milkdown .editor .token.symbol,
+.milkdown .editor .token.deleted {
+  color: var(--vscode-terminal-ansiRed, #f44747);
+}
+
+.milkdown .editor .token.boolean,
+.milkdown .editor .token.number {
+  color: var(--vscode-terminal-ansiBlue, #b5cea8);
+}
+
+.milkdown .editor .token.selector,
+.milkdown .editor .token.attr-name,
+.milkdown .editor .token.string,
+.milkdown .editor .token.char,
+.milkdown .editor .token.builtin,
+.milkdown .editor .token.inserted {
+  color: var(--vscode-terminal-ansiYellow, #ce9178);
+}
+
+.milkdown .editor .token.operator,
+.milkdown .editor .token.entity,
+.milkdown .editor .token.url,
+.milkdown .editor .language-css .token.string,
+.milkdown .editor .style .token.string {
+  color: var(--vscode-editor-foreground);
+}
+
+.milkdown .editor .token.atrule,
+.milkdown .editor .token.attr-value,
+.milkdown .editor .token.keyword {
+  color: var(--vscode-terminal-ansiCyan, #569cd6);
+}
+
+.milkdown .editor .token.function,
+.milkdown .editor .token.class-name {
+  color: var(--vscode-terminal-ansiMagenta, #dcdcaa);
+}
+
+.milkdown .editor .token.regex,
+.milkdown .editor .token.important,
+.milkdown .editor .token.variable {
+  color: var(--vscode-terminal-ansiYellow, #d7ba7d);
+}
+
+.milkdown .editor .token.important,
+.milkdown .editor .token.bold {
+  font-weight: bold;
+}
+
+.milkdown .editor .token.italic {
+  font-style: italic;
+}
+
+/* ─── 工具栏内联 URL 输入框（替代沙箱禁止的 window.prompt） ─── */
+.tb-prompt-overlay {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-focusBorder, #007acc);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tb-prompt-input {
+  height: 22px;
+  padding: 0 6px;
+  background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+  border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  width: 170px;
+}
+
+.tb-prompt-input--short {
+  width: 100px;
+}
+
+.tb-prompt-input:focus {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.tb-prompt-ok,
+.tb-prompt-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+
+.tb-prompt-ok:hover {
+  background: var(--vscode-button-background, #007acc);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.tb-prompt-cancel:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(200, 50, 50, 0.2));
+  color: var(--vscode-errorForeground, #f44);
+}
+
+/* ─── 选中文字浮动工具栏 ─────────────────────────────── */
+.sel-toolbar {
+  position: fixed;
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  user-select: none;
+}
+
+.sel-tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 5px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--vscode-editorHoverWidget-foreground, #ccc);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.sel-tb-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(255,255,255,.1));
+}
+
+.sel-tb-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sel-tb-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--vscode-editorHoverWidget-border, #454545);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+/* 格式下拉包装（relative 定位，用于子菜单绝对定位） */
+.sel-tb-fmt-wrap {
+  position: relative;
+}
+
+.sel-tb-fmt-btn {
+  gap: 1px;
+}
+
+.sel-tb-fmt-label {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* 格式子菜单：显示在工具栏上方 */
+.sel-tb-fmt-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: none;
+  flex-direction: column;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  overflow: hidden;
+  min-width: 52px;
+}
+
+.sel-tb-fmt-item {
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--vscode-editorHoverWidget-foreground, #ccc);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sel-tb-fmt-item:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255,255,255,.08));
+}
+
+.sel-tb-fmt-item--active {
+  color: var(--vscode-focusBorder, #007acc);
+  font-weight: 600;
+}
+
+.sel-tb-fmt-item--active::after {
+  content: ' ✓';
+  font-size: 10px;
+}
+
+/* 对齐方式子菜单项（图标而非文字，居中显示） */
+.sel-tb-align-item {
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── 表格边框高亮线段 overlay（不操作 ProseMirror 节点）── */
+.table-add-line {
+  position: fixed;
+  z-index: 999;
+  pointer-events: none;
+  background: rgba(52, 211, 153, 0.8);
+}
+.table-add-line--h {
+  height: 2px;
+  pointer-events: none;
+}
+.table-add-line--v {
+  width: 2px;
+  pointer-events: none;
+}
+
+/* ─── 表格 + 插入按钮 ───────────────────────────────── */
+.table-add-btn {
+  position: fixed;
+  z-index: 1000;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--vscode-focusBorder, rgba(52, 211, 153, 0.6));
+  background: var(--vscode-editor-background);
+  color: var(--vscode-focusBorder, rgba(52, 211, 153, 0.9));
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: all;
+  padding: 0;
+}
+.table-add-btn:hover {
+  background: var(--vscode-focusBorder, rgba(52, 211, 153, 0.9));
+  color: var(--vscode-editor-background, #1e1e1e);
+}
+
+/* ─── 表格行/列拖拽 handle ─── */
+.table-handle {
+  position: fixed;
+  z-index: 998;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+  border-radius: 3px;
+  cursor: grab;
+  color: var(--vscode-editor-foreground);
+  font-size: 11px;
+  opacity: 0.6;
+  pointer-events: all;
+  user-select: none;
+}
+
+.table-handle:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-activeBackground, rgba(128, 128, 128, 0.25));
+}
+
+.table-handle--row {
+  width: 18px;
+  height: 20px;
+}
+
+.table-handle--col {
+  width: 20px;
+  height: 18px;
+}
+
+/* 拖拽时的目标占位线 */
+.table-drag-line {
+  position: fixed;
+  z-index: 1001;
+  background: var(--vscode-focusBorder, #007acc);
+  pointer-events: none;
+  display: none;
+}
+
+.table-drag-line--h { height: 2px; }
+.table-drag-line--v { width: 2px; }
+
+/* 拖拽时跟随鼠标的行/列 ghost 覆盖层 */
+.table-drag-ghost {
+  position: fixed;
+  z-index: 1002;
+  pointer-events: none;
+  background: var(--vscode-editor-selectionBackground, rgba(52, 211, 153, 0.18));
+  border: 1px solid var(--vscode-focusBorder, rgba(52, 211, 153, 0.5));
+  display: none;
+}
+
+/* ─── TOC 目录面板 ───────────────────────────────────── */
+.toc-panel {
+  position: fixed;
+  top: 40px;
+  left: 0;
+  width: 220px;
+  height: calc(100vh - 40px);
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  border-right: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+  overflow: hidden;
+}
+
+.toc-panel--open {
+  transform: translateX(0);
+}
+
+.toc-header {
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.toc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.toc-item {
+  display: block;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 3px;
+  margin: 1px 4px;
+  user-select: none;
+}
+
+.toc-item:hover {
+  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
+.toc-item--h1 { font-weight: 600; }
+.toc-item--h2 { opacity: 0.92; }
+.toc-item--h3 { opacity: 0.84; font-size: 11.5px; }
+.toc-item--h4,
+.toc-item--h5,
+.toc-item--h6 { opacity: 0.72; font-size: 11px; }
+
+.toc-empty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.7));
+  text-align: center;
+}
+
+/* ─── TOC 右侧收起/展开 Tab（独立 fixed 元素，panel overflow:hidden 不影响）─── */
+.toc-toggle-tab {
+  position: fixed;
+  /* left / top 由 JS 动态设置 */
+  width: 20px;
+  height: 48px;
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  user-select: none;
+  z-index: 100;
+  padding: 0;
+  transition: left 0.2s ease; /* 与 panel transform 动画同步 */
+}
+
+.toc-toggle-tab:hover {
+  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+}

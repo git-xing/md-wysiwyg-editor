@@ -1,0 +1,14 @@
+{
+  "command.switchToTextEditor.title": "Close Preview",
+  "command.switchToPreview.title": "Open Preview",
+  "config.autoSave.description": "Automatically save to disk after editing Markdown (no need to press Cmd+S / Ctrl+S).",
+  "config.autoSaveDelay.description": "Debounce delay in milliseconds for auto-save. The file is written after editing stops for this duration.",
+  "config.codeBlockMaxHeight.description": "Maximum display height of code blocks in pixels. A scrollbar appears when content exceeds this height.",
+  "config.defaultMode.description": "Default editing mode when opening a .md file.",
+  "config.defaultMode.preview": "Open .md files with the WYSIWYG preview editor (default).",
+  "config.defaultMode.markdown": "Open .md files with the VS Code text editor.",
+  "config.fontFamily.description": "Font family for the editor body text. Leave empty to inherit the VS Code editor font. Example: Georgia, serif or PingFang SC, sans-serif.",
+  "command.debugModeEnable.title": "Debug Mode",
+  "command.debugModeDisable.title": "✓ Debug Mode",
+  "config.debugMode.description": "Show debug overlays (e.g. table insert trigger zones). Intended for development use."
+}
