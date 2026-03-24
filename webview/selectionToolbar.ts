@@ -190,6 +190,36 @@ function getBlockContainerText($pos: ResolvedPos): string {
   return '';
 }
 
+/** CellSelection 专用：直接从表格结构计算单元格所在的源码行号（1-indexed），失败返回 null */
+function getCellRowSourceLine(
+  doc: any,
+  posInsideCell: number,
+  getLineMapFn: () => number[]
+): number | null {
+  try {
+    const $pos = doc.resolve(posInsideCell);
+    let tableDepth = -1, cellDepth = -1;
+    for (let d = $pos.depth; d >= 0; d--) {
+      const name = $pos.node(d).type.name;
+      if (name === 'table') { tableDepth = d; break; }
+      if (name === 'table_cell' || name === 'table_header') { cellDepth = d; }
+    }
+    if (tableDepth < 0 || cellDepth < 0) { return null; }
+    const tableNode = $pos.node(tableDepth);
+    const tableStart = $pos.start(tableDepth);
+    const tableMap = TableMap.get(tableNode);
+    const cellRelPos = $pos.before(cellDepth) - tableStart;
+    const rect = tableMap.findCell(cellRelPos);
+    const rowIdx = rect.top; // 0-indexed: 0=header, 1=first data row...
+    const lineMap = getLineMapFn();
+    const tableTopIdx = $pos.index(0); // 表格在顶层 doc 中的下标
+    const tableStartLine = lineMap[tableTopIdx];
+    if (!tableStartLine) { return null; }
+    // GFM table: header(rowIdx=0)→tableStartLine, separator 占一行, data row N→tableStartLine+N+1
+    return tableStartLine + rowIdx + (rowIdx > 0 ? 1 : 0);
+  } catch { return null; }
+}
+
 /** 在原始 markdown 中搜索块文本所在行号（1-indexed），未找到返回 -1 */
 function findLineInOriginalSource(source: string, blockText: string): number {
   if (!blockText || blockText.length < 3) return -1;
@@ -336,23 +366,32 @@ export function setupSelectionToolbar(
 
     if (!text.trim()) { hideToolbar(); return; }
 
-    // 用容器节点文本在原始 markdown 中搜索行号，fallback 到 lineMap
+    // 行号计算：CellSelection 直接从表格结构算，其余用文本搜索
     const $from = view.state.doc.resolve(selection.from);
     const $to   = view.state.doc.resolve(selection.to);
-    const source = getMarkdownSource();
-    const startBlockText = getBlockContainerText($from);
-    const endBlockText   = getBlockContainerText($to);
-    let startLine = findLineInOriginalSource(source, startBlockText);
-    let endLine   = findLineInOriginalSource(source, endBlockText);
-    if (startLine === -1) {
-      const map = getLineMap();
-      const textBefore = view.state.doc.textBetween(0, selection.from, '\n');
-      const fallbackStart = (textBefore.match(/\n/g) ?? []).length + 1;
-      startLine = map[$from.index(0)] ?? fallbackStart;
-    }
-    if (endLine === -1) {
-      const map = getLineMap();
-      endLine = map[$to.index(0)] ?? startLine;
+    let startLine: number;
+    let endLine: number;
+    if (selection instanceof CellSelection) {
+      startLine = getCellRowSourceLine(view.state.doc, selection.from + 1, getLineMap)
+        ?? (getLineMap()[$from.index(0)] ?? 1);
+      endLine = getCellRowSourceLine(view.state.doc, selection.to - 1, getLineMap)
+        ?? startLine;
+    } else {
+      const source = getMarkdownSource();
+      const startBlockText = getBlockContainerText($from);
+      const endBlockText   = getBlockContainerText($to);
+      startLine = findLineInOriginalSource(source, startBlockText);
+      endLine   = findLineInOriginalSource(source, endBlockText);
+      if (startLine === -1) {
+        const map = getLineMap();
+        const textBefore = view.state.doc.textBetween(0, selection.from, '\n');
+        const fallbackStart = (textBefore.match(/\n/g) ?? []).length + 1;
+        startLine = map[$from.index(0)] ?? fallbackStart;
+      }
+      if (endLine === -1) {
+        const map = getLineMap();
+        endLine = map[$to.index(0)] ?? startLine;
+      }
     }
 
     notifySendToClaudeChat(text, startLine, endLine);
@@ -557,8 +596,8 @@ export function setupSelectionToolbar(
   }
 
   function showAndPosition(view: EditorView): void {
-    if (isDragging) { hideToolbar(); return; }
     lastView = view;
+    if (isDragging) { hideToolbar(); return; }
     const { selection } = view.state;
 
     // ── 表格 CellSelection 模式 ────────────────────

@@ -1,4 +1,8 @@
-declare const window: Window & { __i18n?: { translations: Record<string, string>; isMac: boolean } };
+declare global {
+  interface Window {
+    __i18n?: { translations: Record<string, string>; isMac: boolean; debugMode?: boolean };
+  }
+}
 
 const _t: Record<string, string> = window.__i18n?.translations ?? {};
 const _isMac: boolean = window.__i18n?.isMac ?? false;

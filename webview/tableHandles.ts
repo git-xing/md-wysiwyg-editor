@@ -84,6 +84,7 @@ export function setupTableHandles(
     tableNode: PMNode;
     startX: number;
     startY: number;
+    startTime: number;
     dragging: boolean;
     allRows: HTMLElement[];
     allCols: HTMLElement[];
@@ -257,6 +258,7 @@ export function setupTableHandles(
       tableNode,
       startX: e.clientX,
       startY: e.clientY,
+      startTime: Date.now(),
       dragging: false,
       allRows,
       allCols,
@@ -275,7 +277,7 @@ export function setupTableHandles(
     const dx = e.clientX - drag.startX;
     const dy = e.clientY - drag.startY;
 
-    if (!drag.dragging && Math.sqrt(dx * dx + dy * dy) > 4) {
+    if (!drag.dragging && Math.sqrt(dx * dx + dy * dy) > 8) {
       drag.dragging = true;
     }
     if (!drag.dragging) { return; }
@@ -351,8 +353,9 @@ export function setupTableHandles(
     const view = getView();
     if (!view) { return; }
 
-    if (!d.dragging) {
-      // 未拖拽 → 点击：选中整行或整列，工具栏出现在鼠标位置附近
+    const elapsed = Date.now() - d.startTime;
+    if (!d.dragging || elapsed < 150) {
+      // 未拖拽或快速触碰（< 150ms）→ 点击：选中整行或整列
       if (currentCell) {
         setPendingToolbarPos(e.clientX, e.clientY);
         d.kind === 'row'

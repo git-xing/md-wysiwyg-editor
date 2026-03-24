@@ -13,7 +13,15 @@
   ],
   "icon": "images/icon.jpg",
   "categories": [
-    "Editors"
+    "Formatters",
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "wysiwyg",
+    "editor",
+    "table",
+    "milkdown"
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",

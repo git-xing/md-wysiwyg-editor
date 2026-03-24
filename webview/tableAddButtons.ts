@@ -11,7 +11,7 @@ import type { EditorView } from "@milkdown/prose/view";
 import { IconPlus } from "./icons";
 
 // ── 调试模式：由 Extension 侧通过设置/菜单控制，默认关闭 ───────────────
-let debugMode: boolean = (window as any).__i18n?.debugMode ?? false;
+let debugMode: boolean = window.__i18n?.debugMode ?? false;
 export function setDebugMode(enabled: boolean): void { debugMode = enabled; }
 
 type GetView = () => EditorView | null;

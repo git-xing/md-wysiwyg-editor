@@ -1,5 +1,5 @@
 import './style.css';
-import { createEditor, getEditorView, registerSelectionChangeHandler } from './editor';
+import { createEditor, getEditorView, registerSelectionChangeHandler, setLogTableSel } from './editor';
 import { notifyReady, notifyUpdate, onMessage, notifySendToClaudeChat, notifySwitchToTextEditor } from './messaging';
 import { setupLinkPopup } from './linkPopup';
 import { setupTableAddButtons, setDebugMode } from './tableAddButtons';
@@ -157,5 +157,6 @@ onMessage(async (msg) => {
     currentLineMap = msg.lineMap;
   } else if (msg.type === 'setDebugMode') {
     setDebugMode(msg.enabled);
+    setLogTableSel(msg.enabled);
   }
 });

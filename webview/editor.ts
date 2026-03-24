@@ -13,9 +13,13 @@ import type { EditorView } from '@milkdown/prose/view';
 import { history, undo, redo } from '@milkdown/prose/history';
 import { keymap } from '@milkdown/prose/keymap';
 import { Plugin, NodeSelection, TextSelection } from '@milkdown/prose/state';
-import { CellSelection } from '@milkdown/prose/tables';
+import { CellSelection, TableMap } from '@milkdown/prose/tables';
 import { liftListItem } from '@milkdown/prose/schema-list';
 import { $prose } from '@milkdown/utils';
+
+// 调试日志开关：可通过 setLogTableSel(true/false) 动态切换（无需重载页面）
+let logTableSel = Boolean(window.__i18n?.debugMode);
+export function setLogTableSel(enabled: boolean): void { logTableSel = enabled; }
 
 // 注册 ProseMirror history 插件（支持 undo/redo）
 const historyPlugin = $prose(() => history());
@@ -85,12 +89,38 @@ export function registerSelectionChangeHandler(cb: (view: EditorView) => void): 
   _onSelectionChange = cb;
 }
 
+// 诊断日志辅助：从文档位置获取 1-indexed 行列号
+function getCellCoords(doc: any, pos: number): { row: number; col: number } | null {
+  try {
+    const $pos = doc.resolve(pos);
+    for (let d = $pos.depth; d >= 0; d--) {
+      const typeName = $pos.node(d).type.name;
+      if (typeName === 'table_cell' || typeName === 'table_header') {
+        for (let td = d - 1; td >= 0; td--) {
+          if ($pos.node(td).type.name === 'table') {
+            const tableNode = $pos.node(td);
+            const tableStart = $pos.start(td);
+            const cellRelPos = $pos.before(d) - tableStart;
+            const map = TableMap.get(tableNode);
+            const rect = map.findCell(cellRelPos);
+            return { row: rect.top + 1, col: rect.left + 1 };
+          }
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
 // 单击表格单元格：将单格 CellSelection 转为 TextSelection，光标定位到点击位置
 // 用 appendTransaction 确保修正在首次渲染前同步完成（无绿色闪烁）
 // 格内文字拖拽：从点击位到当前鼠标位构造 TextSelection，恢复正常选区
 const cellClickFixPlugin = $prose(() => {
   let pendingClickPos: number | null = null;
   let clickIsPlain = true;    // mousedown 后未移动 > 4px 时为 true
+  let wasCrossCell = false;   // 拖拽中是否出现过多格 CellSelection
+  let lastGoodCellSelection: CellSelection | null = null; // 最后一次有效的多格 CellSelection
+  let multiSelectCount = 0;   // 诊断计数器：本次会话的多选次数
   let lastMouseX = 0;
   let lastMouseY = 0;
   let capturedView: EditorView | null = null;
@@ -113,6 +143,8 @@ const cellClickFixPlugin = $prose(() => {
           const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
           pendingClickPos = pos ? pos.pos : null;
           clickIsPlain = true;
+          wasCrossCell = false;
+          lastGoodCellSelection = null;
           lastMouseX = event.clientX;
           lastMouseY = event.clientY;
 
@@ -129,12 +161,43 @@ const cellClickFixPlugin = $prose(() => {
           const cleanup = () => {
             document.removeEventListener('mouseup', cleanup, true);
             document.removeEventListener('mousemove', onMove, true);
-            Promise.resolve().then(() => { pendingClickPos = null; clickIsPlain = true; });
+            if (wasCrossCell) {
+              // 跨格拖拽：同步清除，阻止 ProseMirror mouseup dispatch 再触发 appendTransaction
+              pendingClickPos = null;
+              clickIsPlain = true;
+              wasCrossCell = false;
+              // 诊断日志（调试模式）
+              if (logTableSel && lastGoodCellSelection) {
+                const headCoords = capturedView
+                  ? getCellCoords(capturedView.state.doc, lastGoodCellSelection.$headCell.pos + 1) : null;
+                let cellCount = 0;
+                lastGoodCellSelection.forEachCell(() => { cellCount++; });
+                console.log(`[TableSel] 拖拽结束 ${headCoords ? `${headCoords.row}行${headCoords.col}列` : '?行?列'} 共选中${cellCount}个表格内容`);
+              }
+              // filterTransaction 在此期间保护 CellSelection 不被 readDOMChange 覆盖
+              // 200ms 后过期（readDOMChange 通常在 20ms 内执行；mousedown 也会立即清除）
+              const savedCellSel = lastGoodCellSelection;
+              setTimeout(() => {
+                if (lastGoodCellSelection === savedCellSel) { lastGoodCellSelection = null; }
+              }, 200);
+            } else {
+              // 单击 / 格内拖拽：微任务清除，保证 ProseMirror mouseup dispatch 也能修正 CellSelection
+              Promise.resolve().then(() => { pendingClickPos = null; clickIsPlain = true; });
+            }
           };
           document.addEventListener('mouseup', cleanup, true);
           return false;
         },
       },
+    },
+    filterTransaction(tr, state) {
+      // 跨格拖拽结束后的保护窗口（200ms）：阻止 readDOMChange 用 TextSelection 覆盖 CellSelection
+      if (!lastGoodCellSelection) { return true; }
+      if (state.selection instanceof CellSelection && !(tr.selection instanceof CellSelection)) {
+        if (logTableSel) { console.log('[TableSel] filterTransaction: 已阻止覆盖CellSelection'); }
+        return false;
+      }
+      return true;
     },
     appendTransaction(_trs, _oldState, newState) {
       if (pendingClickPos === null) return null;
@@ -142,16 +205,44 @@ const cellClickFixPlugin = $prose(() => {
       if (!(sel instanceof CellSelection) || sel.isRowSelection() || sel.isColSelection()) {
         return null;
       }
-      // 多格跨格拖拽（anchor ≠ head）：保留 CellSelection
-      if (sel.$anchorCell.pos !== sel.$headCell.pos) { return null; }
+      // 多格跨格拖拽（anchor ≠ head）：保留 CellSelection，并记录已出现跨格选区
+      if (sel.$anchorCell.pos !== sel.$headCell.pos) {
+        if (!wasCrossCell && logTableSel) {
+          // 首次检测到跨格：打印开始日志
+          multiSelectCount++;
+          const startCoords = pendingClickPos !== null
+            ? getCellCoords(newState.doc, pendingClickPos) : null;
+          console.log(`[TableSel] 第${multiSelectCount}次多选表格`);
+          console.log(`[TableSel] 开始拖拽 ${startCoords ? `${startCoords.row}行${startCoords.col}列` : '?行?列'}`);
+        }
+        wasCrossCell = true;
+        lastGoodCellSelection = sel; // 记录最后一次有效多格选区
+        return null;
+      }
       try {
         if (!clickIsPlain && capturedView) {
           // 格内拖拽：TextSelection 从原点击位到当前鼠标位
           const toCoords = capturedView.posAtCoords({ left: lastMouseX, top: lastMouseY });
           if (toCoords) {
-            const anchor = Math.min(pendingClickPos, newState.doc.content.size);
-            const head   = Math.min(toCoords.pos,    newState.doc.content.size);
-            return newState.tr.setSelection(TextSelection.create(newState.doc, anchor, head));
+            const anchorP = Math.min(pendingClickPos, newState.doc.content.size);
+            const headP   = Math.min(toCoords.pos,    newState.doc.content.size);
+            // 同格检查：anchor 与 head 必须在同一 table_cell / table_header 内
+            // 若跨格，说明是跨格拖拽的误判，保留 CellSelection 不转换
+            try {
+              const $a = newState.doc.resolve(anchorP);
+              const $h = newState.doc.resolve(headP);
+              let aCellStart = -1, hCellStart = -1;
+              for (let d = $a.depth; d >= 0; d--) {
+                const n = $a.node(d).type.name;
+                if (n === 'table_cell' || n === 'table_header') { aCellStart = $a.start(d); break; }
+              }
+              for (let d = $h.depth; d >= 0; d--) {
+                const n = $h.node(d).type.name;
+                if (n === 'table_cell' || n === 'table_header') { hCellStart = $h.start(d); break; }
+              }
+              if (aCellStart !== hCellStart) { return null; } // 跨格 → 不转换
+            } catch { /* ignore, 继续转换 */ }
+            return newState.tr.setSelection(TextSelection.create(newState.doc, anchorP, headP));
           }
         }
         // 单击：TextSelection 定位到点击位
@@ -167,6 +258,11 @@ const selectionPlugin = $prose(() => new Plugin({
     update(view, prevState) {
       if (_onSelectionChange && !view.state.selection.eq(prevState.selection)) {
         _onSelectionChange(view);
+      }
+      if (logTableSel &&
+          prevState.selection instanceof CellSelection &&
+          !(view.state.selection instanceof CellSelection)) {
+        console.trace('[TableSel] 取消表格选中');
       }
     },
   }),

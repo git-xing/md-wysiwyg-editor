@@ -6,6 +6,142 @@
 
 ***
 
+## \[022] 2026-03-24 — 调试日志真正动态化 + Handle 点击时间保护 + CellSelection 行号直接从表格结构计算
+
+**涉及文件：** `webview/editor.ts`, `webview/index.ts`, `webview/tableHandles.ts`, `webview/selectionToolbar.ts`
+
+### 完成内容
+
+- **调试日志真正动态化**：`editor.ts` 将 `const LOG_TABLE_SEL` 改为 `let logTableSel` + `export function setLogTableSel()`，`index.ts` 在 `setDebugMode` 消息处理中同时调用 `setLogTableSel(msg.enabled)`，无需重载页面即可开关 `[TableSel]` 日志
+- **Handle 点击时间保护**：`tableHandles.ts` drag 对象新增 `startTime: number`，`onDragEnd` 加入时间判断 `elapsed < 150ms` → 强制视为点击；防止触控板快速点击被误识别为拖拽
+- **CellSelection 行号直接从表格结构计算**：`selectionToolbar.ts` 新增 `getCellRowSourceLine`，通过 `TableMap.findCell(cellRelPos).top`（行索引）+ `lineMap[tableTopIdx]`（表格起始行）直接得出源码行号（GFM 公式：header→tableStartLine，data row N→tableStartLine+N+1），彻底绕过文本搜索失败问题
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B059 | 开启 debugMode 后 `[TableSel]` 日志不出现 | `LOG_TABLE_SEL` 是模块加载时的 `const`，`setDebugMode` 消息未更新 `editor.ts` 变量 | 改为 `let logTableSel` + 导出 setter，index.ts 同步调用 | ✅ 已修复 |
+| B060 | 触控板点击 Handle ⠿ 仍有概率被识别为拖拽 | 8px 距离阈值对触控板不足，缺乏时间保护 | `startTime` + 150ms 时间判断，快速点击强制为点击 | ✅ 已修复 |
+| B061 | CellSelection 多选表格行号错误（如 `#35` 而非 `#39-40`） | 短文本 cell（< 3 字）`getBlockContainerText` 回退到 table_row，文本无法在 markdown 源中匹配，fallback 返回表格起始行 | 新增 `getCellRowSourceLine` 直接用 `TableMap` + lineMap 计算，不依赖文本匹配 | ✅ 已修复 |
+
+### 备注
+
+- GFM 表格行号公式：`header(rowIdx=0)→tableStartLine`，`data row N(rowIdx≥1)→tableStartLine+N+1`（+1 为分隔线）
+- `from+1`/`to-1` 的 CellSelection 位置修正已不再需要，CellSelection 完全走 `getCellRowSourceLine` 新路径
+
+---
+
+## \[021] 2026-03-24 — 日志调试化 + Handle 误触阈值 + CellSelection 行号范围
+
+**涉及文件：** `webview/i18n.ts`, `webview/editor.ts`, `webview/tableAddButtons.ts`, `webview/tableHandles.ts`, `webview/selectionToolbar.ts`
+
+### 完成内容
+
+- **Window 类型声明修复**：`webview/i18n.ts` 的 `declare const window` 改为 `declare global { interface Window { ... } }` 全局扩展，补充 `debugMode?: boolean` 字段，消除其他文件的 `(window as any)` 转换
+- **`[TableSel]` 日志调试化**：在 `editor.ts` 顶部新增 `LOG_TABLE_SEL = Boolean(window.__i18n?.debugMode)`，所有 5 处 `[TableSel]` 日志改为 debug 模式下才打印（`debugMode=true` 开启）
+- **Handle 点击阈值**：`tableHandles.ts` 第 278 行拖拽识别阈值从 `> 4` 改为 `> 8`，防止触控板点击微抖误触发拖拽（应为点击选中整行/列）
+- **CellSelection 行号范围**：`selectionToolbar.ts` 发送 Claude 时，CellSelection 的 `$from`/`$to` 解析改用 `from+1`/`to-1` 进入 cell 内部，`getBlockContainerText` 能正确返回单个 cell 文本，行号从 `#81` 修复为 `#79-81`
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B057 | Handle 点击被误识别为拖拽 | 触控板点击微抖超过 4px 阈值 | 阈值改为 8px | ✅ 已修复 |
+| B058 | CellSelection 发送 Claude 行号只有末行 | `selection.from/to` 在 cell 边界外，`getBlockContainerText` 返回 table_row 文本 | `from+1`/`to-1` 进入 cell 内部 | ✅ 已修复 |
+
+### 备注
+
+- `[TableSel]` 日志关闭后控制台不再有调试输出；需要时在 devtools 执行 `location.reload()` 前设置 `window.__i18n.debugMode = true`（实际上需重载页面生效，因为是模块级常量）
+- `window.__i18n` 类型现为全局可见，其他 webview 文件无需转换即可访问
+
+---
+
+## \[020] 2026-03-24 — 通过 filterTransaction 彻底修复多格拖拽选区丢失（B056）
+
+**涉及文件：** `webview/editor.ts`
+
+### 完成内容
+
+* **B056 终极修复**。通过诊断日志的调用栈确认根因：不是 ProseMirror 的 `mouseDown.up()`，而是 DOM `selectionchange` 事件触发的 `onSelectionChange → flush → readDOMChange → dispatch`，且通过 `setTimeout/rAF` 延迟执行，在 `Promise.resolve()` 微任务**之后**才运行。旧的微任务恢复机制时机错误（检查时 CellSelection 还在，但覆盖发生在之后）。
+* 新修复方案：在 `cellClickFixPlugin` Plugin spec 加入 `filterTransaction`，当 `lastGoodCellSelection` 有效时直接拒绝将 CellSelection 替换为非 CellSelection 的事务（`readDOMChange` 的 dispatch 被拒绝，不会到达 apply）。`lastGoodCellSelection` 通过 `setTimeout(200)` 过期（远长于 readDOMChange 的执行时机），mousedown 也立即清除。
+* 删除原有微任务恢复块（`Promise.resolve().then`），代码更简洁。同时添加诊断日志（行列坐标修复 `$headCell.pos+1`、微任务日志、`console.trace` 取消来源）。
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B056 | 多格拖拽松手后 CellSelection 偶发消失 | DOM `selectionchange` → `readDOMChange` 通过 `setTimeout/rAF` 延迟覆盖，在微任务后执行，所有微任务恢复机制均失效 | 新增 `filterTransaction` 在事务层拦截，保护窗口 200ms | ✅ 已修复 |
+
+### 备注
+
+- 调用栈分析：成功路径触发源为 `setCellSelection → move`（用户新操作）；失败路径触发源为 `readDOMChange → flush → onSelectionChange`（DOM selectionchange 延迟）
+- `filterTransaction` 是 ProseMirror Plugin spec 的标准接口，不影响其他插件
+
+---
+
+## \[019] 2026-03-24 — 修复多格拖拽选区松手后偶发丢失（微任务恢复机制）
+
+**涉及文件：** `webview/editor.ts`
+
+### 完成内容
+
+* **B056** 多格拖拽松手后 CellSelection 绿色背景偶发消失（B054+B055 修复后仍残留）。根因：ProseMirror 原生 `mouseDown.up()` 在 mouseup 冒泡阶段读取浏览器 DOM 选区并 dispatch，浏览器不理解 `CellSelection`，`createSelectionBetween` 偶发失败时会产生 TextSelection 覆盖正确的 CellSelection，而此时 `appendTransaction` 已无法拦截（入口不再是 CellSelection）。修复方案：在 `cellClickFixPlugin` 中新增 `lastGoodCellSelection` 变量，每次 `appendTransaction` 检测到多格 CellSelection 时保存；cleanup 的跨格拖拽分支在同步清除后安排微任务，微任务中若当前选区已不是 CellSelection 则用 `lastGoodCellSelection` 恢复。微任务在所有 mouseup 处理完成后、浏览器重绘前执行，无视觉闪烁。
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B056 | 多格拖拽松手后 CellSelection 绿色背景偶发消失（B054+B055 后仍残留） | ProseMirror 原生 mouseup 读浏览器 DOM 选区并 dispatch，偶发产生 TextSelection 覆盖 CellSelection；`appendTransaction` 无法拦截 TextSelection 入口 | 新增 `lastGoodCellSelection` 保存多格 CellSelection，cleanup 安排微任务在 mouseup 后恢复（若当前已非 CellSelection） | ✅ 已修复 |
+
+### 备注
+
+- 三层防线：① `wasCrossCell` 同步清除（主路径）② 同格检查（appendTransaction 兜底）③ `lastGoodCellSelection` 微任务恢复（终极兜底）
+- 新增变量 `lastGoodCellSelection`，mousedown 时重置为 null
+
+---
+
+## \[018] 2026-03-24 — 补全多格拖拽防线：格内拖拽分支加同格检查
+
+**涉及文件：** `webview/editor.ts`
+
+### 完成内容
+
+* **B055** 多格拖拽仍有小概率失效（`wasCrossCell` 未被设置时兜底缺失）。在 `cellClickFixPlugin.appendTransaction` 的格内拖拽分支中新增**同格检查**：创建 TextSelection 之前，验证 `pendingClickPos`（anchor，在 cell A）和 `posAtCoords(lastMouseX/Y)` 得到的 head 是否在同一个 `table_cell` / `table_header` 内。若 anchor 与 head 分属不同格（`aCellStart !== hCellStart`），则 `return null` 保留现有 CellSelection，不创建跨格 TextSelection。此检查与 `wasCrossCell` 同步清除机制互为补充：前者是最后防线，覆盖一切 edge case。
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B055 | 多格拖拽偶发失效仍残留（B054 修复后小概率复现） | `wasCrossCell` 依赖 `pendingClickPos !== null` 时的 `appendTransaction`，若在极端 edge case 下 `wasCrossCell` 未被设置，cleanup 走微任务路径，ProseMirror mouseup dispatch 的单格 CellSelection 仍被错误转换为跨格 TextSelection | 在格内拖拽分支加同格检查（anchor/head cell start 必须相等），跨格时 `return null` 保留 CellSelection | ✅ 已修复 |
+
+### 备注
+
+- 格内文字拖拽（anchor/head 在同格）不受影响，同格检查通过
+- `wasCrossCell` 机制保留，两者互为双保险
+
+---
+
+## \[017] 2026-03-24 — 修复多格拖拽偶发性失效（appendTransaction 跨格 race condition）
+
+**涉及文件：** `webview/editor.ts`, `webview/selectionToolbar.ts`
+
+### 完成内容
+
+* **B054** 多格拖拽松手后偶发变成 TextSelection 选中大量文字。根因：`cellClickFixPlugin` 中 `pendingClickPos` 通过微任务延迟清除，而 ProseMirror 冒泡阶段 mouseup dispatch 触发的 `appendTransaction` 在微任务运行前就已执行，此时 cross-cell drag 后 selection 为单格 CellSelection（cell B），`clickIsPlain = false`，误走「格内拖拽」分支，创建了 TextSelection(posA→posB)。修复：新增 `wasCrossCell` 标志，`appendTransaction` 检测到多格选区时设为 true，cleanup 中若 `wasCrossCell` 则**同步**清除 `pendingClickPos`，确保 ProseMirror mouseup dispatch 时已无 pendingClickPos，appendTransaction 直接跳过。另外将 `lastView = view` 移至 `isDragging` 判断前，避免极端情况下 lastView 为 null。
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B054 | 多格拖拽偶发失效：松手后变成 TextSelection（选中从 cell A 到 cell B 的文字） | `pendingClickPos` 微任务清除，ProseMirror mouseup dispatch（冒泡阶段）先于微任务执行，`appendTransaction` 以 `clickIsPlain=false` + 单格 CellSelection 误创建 TextSelection | 新增 `wasCrossCell` 标志，跨格拖拽时同步清除 `pendingClickPos`，阻止 mouseup dispatch 触发 `appendTransaction` | ✅ 已修复 |
+
+### 备注
+
+- 单击和格内拖拽路径不受影响（`wasCrossCell = false`，仍走微任务清除）
+- `wasCrossCell` 在每次 mousedown 时重置为 false
+
+---
+
 ## \[016] 2026-03-23 — 拖拽多选表格时隐藏浮动工具栏
 
 **涉及文件：** `webview/selectionToolbar.ts`
