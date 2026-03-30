@@ -6,6 +6,32 @@
 
 ***
 
+## \[034] 2026-03-30 — 项目开源到 GitHub，建立分支管理和 CI/CD 流程
+
+**涉及文件：** `.gitignore`, `package.json`, `CLAUDE.md`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `CONTRIBUTING.md`
+
+### 完成内容
+- **更新 .gitignore**：新增 `.claude/`（私有记忆目录）、`releases/`、`.env*` 忽略规则
+- **更新 package.json**：添加 `repository`/`bugs`/`homepage` 字段，修正 `package` 脚本 URL（`git-xing/md-wysiwyg-editor`），去掉 `--allow-missing-repository`
+- **更新 CLAUDE.md**：添加 Git commit 中文描述规范（类型前缀保留英文）；更新关键文件速查表至最新目录结构
+- **创建 GitHub 仓库**：`https://github.com/git-xing/md-wysiwyg-editor`，设置 topics、描述
+- **分支策略**：`main`（稳定发布）+ `dev`（日常开发，已设为默认分支），两层结构
+- **main 分支保护**：开启 Require PR before merging（0 approvals）、禁止 force push、禁止删除
+- **CI/CD**：
+  - `ci.yml`：push/PR 到 main/dev 时自动构建验证
+  - `release.yml`：打 `v*.*.*` tag 时自动打包并发布到 VS Code Marketplace + 创建 GitHub Release
+- **社区文件**：Bug Report 模板、Feature Request 模板、PR 模板、CONTRIBUTING.md
+
+### Bug / 问题
+（无新 bug）
+
+### 备注
+- 发布 CI 需在 GitHub Secrets 中配置 `VSCE_PAT`（Azure DevOps → Marketplace → Manage 权限的 PAT）
+- 首次 CI 运行后可在分支保护规则中补充 "Require status checks: build" 选项
+- 今后日常工作在 `dev` 分支，发版时从 `dev` 开 PR 到 `main`，merge 后打 tag 触发自动发布
+
+---
+
 ## \[033] 2026-03-30 — 链接点击行为重构：阻止直接导航，支持 Cmd/Ctrl+单击打开
 
 **涉及文件：** `webview/components/linkPopup/index.ts`, `webview/messaging.ts`, `src/MarkdownEditorProvider.ts`
