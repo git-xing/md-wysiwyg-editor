@@ -74,4 +74,12 @@ export const ZH_CN_WEBVIEW: Record<string, string> = {
     '⌘ Click to open': '⌘ 点击打开',
     'Ctrl+Click to open': 'Ctrl+点击打开',
     'URL https://...': 'URL https://...',
+    // mermaid
+    'Preview Diagram': '预览图表',
+    'Edit Code': '编辑代码',
+    'Zoom In': '放大',
+    'Zoom Out': '缩小',
+    'Reset Zoom': '重置缩放',
+    'View Fullscreen': '全屏查看',
+    'Rendering...': '渲染中...',
 };

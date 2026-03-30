@@ -4,6 +4,7 @@ import { MarkdownDocument } from "./MarkdownDocument";
 import { getNonce } from "./utils/getNonce";
 import { ZH_CN_WEBVIEW } from "./i18n/webviewTranslations";
 import { saveImageLocally, uploadImageToServer } from "./utils/imageService";
+import type { ToExtensionMessage, ToWebviewMessage } from "../shared/messages";
 
 function computeLineMap(content: string): number[] {
     const lines = content.split('\n');
@@ -54,7 +55,7 @@ export class MarkdownEditorProvider
 
     public static current: MarkdownEditorProvider | null = null;
 
-    public postToAll(msg: object): void {
+    public postToAll(msg: ToWebviewMessage): void {
         for (const panel of this._webviewPanels.values()) {
             panel.webview.postMessage(msg);
         }
@@ -126,7 +127,7 @@ export class MarkdownEditorProvider
         );
 
         webviewPanel.webview.onDidReceiveMessage(
-            async (message: { type: string; content?: string; url?: string; text?: string; startLine?: number; endLine?: number; id?: string; data?: Uint8Array; mimeType?: string; altText?: string; webviewUri?: string; newBasename?: string }) => {
+            async (message: ToExtensionMessage) => {
                 const panel = webviewPanel;
                 switch (message.type) {
                     case "ready": {

@@ -27,7 +27,11 @@ body {
 
 /* 编辑器容器 */
 #editor {
-    max-width: var(--editor-max-width, 900px);
+    /* 用户未设置 editorMaxWidth 时：自适应视口宽度
+       - 小屏：92vw 先收窄，永不超出
+       - 大屏（2K/4K）：1400px 封顶，保持舒适阅读列宽
+       用户在设置中显式设定宽度时，--editor-max-width 生效，覆盖默认 */
+    max-width: var(--editor-max-width, min(1400px, 92vw));
     margin: 0 auto;
     padding: 8px 48px 80px;
     min-height: 100vh;
@@ -520,7 +524,7 @@ body {
 .code-block-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    /* 移除 justify-content:space-between，改用 spacer flex:1 推右侧按钮 */
     padding: 4px 8px;
     background: var(
         --vscode-editor-lineHighlightBackground,
@@ -528,8 +532,8 @@ body {
     );
     border-bottom: 1px solid
         var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
-    gap: 8px;
-    border-radius: 6px 6px 0 0; /* 顶部圆角（替代 wrapper overflow:hidden） */
+    gap: 4px;
+    border-radius: 6px 6px 0 0;
 }
 
 /* ─── lang-picker 自定义搜索下拉 ─── */
@@ -1847,4 +1851,293 @@ body {
 .img-editor-lightbox-close:hover {
     opacity: 1;
     background: rgba(255, 255, 255, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Mermaid 图表渲染
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 内联预览区域 ─── */
+.mermaid-preview {
+    /* display 由 JS 控制（none / flex） */
+    display: none;
+    /* flex 居中：SVG 自然尺寸，不依赖 % 撑满 */
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    /* mermaid 默认比普通代码块高，复杂图表需要足够空间 */
+    min-height: 500px;
+    max-height: var(--code-block-max-height, 900px);
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+    border-radius: 0 0 6px 6px;
+    cursor: grab;
+    user-select: none;
+}
+
+.mermaid-preview--panning {
+    cursor: grabbing;
+}
+
+/* SVG 容器：只作 transform 目标，不撑满父容器 */
+.mermaid-svg-container {
+    display: inline-block;
+    flex-shrink: 0;
+    will-change: transform;
+    transform-origin: center center;
+}
+
+.mermaid-svg-container svg {
+    display: block;
+    /* 无 max-width/max-height：尺寸由 viewBox + width/height 属性决定，
+       拖拽调整容器高度时图表不跟着缩放 */
+    /* 抗锯齿：使文字和图形线条更清晰 */
+    text-rendering: geometricPrecision;
+    shape-rendering: geometricPrecision;
+}
+
+.mermaid-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.8));
+    font-size: 13px;
+}
+
+.mermaid-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 24px;
+    color: var(--vscode-errorForeground, #f48771);
+    max-width: 100%;
+    overflow: auto;
+}
+
+.mermaid-error-msg {
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+    max-height: 120px;
+    overflow-y: auto;
+    color: var(--vscode-editor-foreground);
+    opacity: 0.85;
+}
+
+/* ─── Header 通用按钮（zoom overlay / lightbox / toggle / fullscreen）─── */
+.mermaid-zoom-btn,
+.code-view-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 22px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.1s, background 0.1s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.mermaid-zoom-btn:hover,
+.code-view-toggle-btn:hover {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+}
+
+/* 激活态：用背景色指示，保持前景色一致（避免 focusBorder 蓝色让图标显暗）*/
+.code-view-toggle-btn--active {
+    opacity: 1;
+    background: var(--vscode-toolbar-activeBackground, rgba(128, 128, 128, 0.25));
+    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.4));
+}
+
+/* ─── 右上角缩放 overlay（预览区浮层）─── */
+.mermaid-zoom-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+    background: var(--vscode-editorHoverWidget-background, rgba(30, 30, 30, 0.75));
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    padding: 1px 2px;
+}
+
+.mermaid-overlay-btn {
+    pointer-events: all;
+    opacity: 0.7;
+    width: 22px !important;
+    height: 20px !important;
+}
+
+.mermaid-overlay-btn:hover {
+    opacity: 1;
+}
+
+/* 中间百分比按钮宽一些 */
+.mermaid-overlay-val {
+    min-width: 40px !important;
+    width: auto !important;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family, monospace);
+    letter-spacing: -0.3px;
+}
+
+/* ─── Lightbox 全屏 ─── */
+.mermaid-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.88);
+    display: flex;
+    flex-direction: column;
+}
+
+.mermaid-lightbox-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+    flex-shrink: 0;
+}
+
+.mermaid-lightbox-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.mermaid-lightbox-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* lightbox SVG 容器：同样不用 % 尺寸，防止缩放跳变 */
+.mermaid-lightbox-svg {
+    display: inline-block;
+    flex-shrink: 0;
+    will-change: transform;
+    transform-origin: center center;
+}
+
+.mermaid-lightbox-svg svg {
+    display: block;
+    filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
+    text-rendering: geometricPrecision;
+    shape-rendering: geometricPrecision;
+}
+
+.mermaid-lightbox-header .mermaid-zoom-btn {
+    color: #e0e0e0;
+    min-width: 38px;
+    opacity: 0.8;
+}
+
+.mermaid-lightbox-header .mermaid-zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+}
+
+/* ─── 方向控制按钮（预览区右下角十字布局）─── */
+.mermaid-pan-controls {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.mermaid-pan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 22px);
+    grid-template-rows: repeat(3, 22px);
+    gap: 1px;
+    pointer-events: none;
+}
+
+.mermaid-pan-btn {
+    pointer-events: all;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--vscode-editorHoverWidget-background, rgba(30, 30, 30, 0.85));
+    color: var(--vscode-editor-foreground);
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.1s, background 0.1s;
+    padding: 0;
+}
+
+.mermaid-pan-btn:hover {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.3));
+}
+
+/* 中间 reset 按钮：稍大，区别于方向按钮 */
+.mermaid-pan-reset {
+    opacity: 0.45;
+}
+
+.mermaid-pan-reset:hover {
+    opacity: 1;
+}
+
+/* 常驻全屏按钮（header 右侧）*/
+.code-block-fullscreen-btn {
+    opacity: 0.5;
+}
+
+.code-block-fullscreen-btn:hover {
+    opacity: 1;
+}
+
+/* ─── 代码全屏 lightbox 内容区 ─── */
+.code-lightbox-body {
+    padding: 0 !important;
+    overflow: auto;
+    cursor: default;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.code-lightbox-pre {
+    margin: 0;
+    padding: 24px;
+    background: transparent;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre;
+    min-width: 100%;
+    tab-size: 4;
 }

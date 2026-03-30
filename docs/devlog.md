@@ -6,6 +6,64 @@
 
 ***
 
+## \[037] 2026-03-31 — Mermaid 渲染修复：炸弹 icon 消除、预览高度增大
+
+**涉及文件：** `webview/components/codeBlock/index.ts`, `webview/style.css`
+
+### 完成内容
+- **炸弹 icon 彻底修复**：向 `mermaid.render(id, code, svgContainer)` 传入第三个参数 `svgContainer`。mermaid 文档说明：提供 `svgContainingElement` 时，mermaid 会使用 body 内的 **hidden div** 进行渲染，渲染完成后（含报错场景）自动移除该 div，不再向页面可见区域注入任何元素。整个 `finally` 清理块因此可以删除。
+- **SVG 自适应**：渲染后读取 viewBox 提取宽高并赋给 SVG 元素属性，结合 `fitToView()` 实现完整填充。
+- **mermaid 预览默认高度增大**：`min-height` 从 320px → 500px；`max-height` 从 500px → 900px，确保复杂流程图（含子图）有足够显示空间，无需手动拖拽调整。
+- **编译验证**：`pnpm build` 通过，webview.js 7.8MB，无报错。
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B073 | 底部持续显示炸弹 icon + "Syntax error in text mermaid version 11.13.0" | `mermaid.render()` 不传第三参数时向 body 追加可见 div；出错时该 div 残留 | 传入 `svgContainer` 作为第三参数，mermaid 改用 hidden div 并自动清理 | ✅ 已修复 |
+| B074 | 复杂流程图（含子图）预览区太矮，需手动拖高 | `.mermaid-preview` `min-height: 320px; max-height: 500px` 默认值过小 | CSS 改为 `min-height: 500px; max-height: 900px` | ✅ 已修复 |
+
+### 备注
+- mermaid v11 `render()` 类型签名：`render(id: string, text: string, svgContainingElement?: Element): Promise<RenderResult>`，第三参数文档记录在 `node_modules/mermaid/dist/mermaidAPI.d.ts`
+
+---
+
+## \[036] 2026-03-30 — Mermaid 图表渲染：预览/编辑切换、拖拽缩放、方向键平移、全屏查看
+
+**涉及文件：** `package.json`, `webview/components/codeBlock/index.ts`, `webview/ui/icons.ts`, `webview/style.css`, `src/i18n/webviewTranslations.ts`, `webview/editor.ts`
+
+### 完成内容
+- **Mermaid 依赖**：新增 `mermaid ^11.0.0`（实际安装 11.13.0），`package.json` dependencies 追加
+- **语言列表新增 Mermaid**：`LANGUAGES` 数组加入 `["mermaid", "Mermaid"]`
+- **代码/预览切换按钮**：语言为 mermaid 时 header 显示切换按钮（`code-view-toggle-btn`）；active 状态用背景色区分，避免蓝色 icon 与其他按钮色差过大
+- **Mermaid 渲染**：使用 `mermaid.render(id, code)` 生成 SVG；`ensureMermaid()` 懒初始化，根据 VSCode 背景色自动选 dark/default 主题；渲染中显示 loading，语法错误显示 `IconAlertCircle` + 错误信息
+- **SVG 固定尺寸**：渲染后从 `viewBox` 读取 w/h 并设置为 SVG `width`/`height` 属性，确保拖拽调整容器高度时流程图不随之缩放
+- **默认自适应缩放**：`fitToView()` 在 `requestAnimationFrame` 后计算最优 zoom 令图表完整填充预览区
+- **防抖重渲染**：代码内容变更后 600ms 防抖触发重渲染
+- **内联拖拽 pan**：鼠标拖拽平移图表，光标切换 grab/grabbing
+- **触控板支持（Mac）**：`ctrlKey=true`（捏合手势）→ 指数平滑缩放 `Math.pow(0.98, deltaY)`；`ctrlKey=false`（双指滑动）→ 平移 `panX -= deltaX; panY -= deltaY`
+- **方向键平移控件**：预览右下角 3×3 网格，上下左右四个方向按钮 + 中间 `IconResetZoom` 重置按钮（`mermaid-pan-controls`）
+- **右上角缩放叠加层**：预览右上角浮层 `[-][100%][+]`，百分比实时更新，点击百分比可复位+自适应（`mermaid-zoom-overlay`）
+- **全屏 lightbox（常驻所有代码块）**：`fullscreenBtn` 常驻 header；mermaid 预览模式打开图表 lightbox（独立 pan/zoom），其他模式打开代码 lightbox；ESC/点击背景/关闭按钮关闭
+- **拖拽调整高度**：resize handle 在预览模式操作 `mermaidPreview`，代码模式操作 `pre`；调整高度不触发 fitToView，图表尺寸不变
+- **Mermaid 语法高亮**：`editor.ts` 注册自定义 Prism mermaid grammar（keyword/arrow/bracket/string/comment）
+- **新增图标**：`IconEye`、`IconZoomOut`、`IconMaximize2`、`IconResetZoom`、`IconAlertCircle`、`IconChevronUp`、`IconChevronLeft`、`IconChevronRight`
+- **新增翻译**：Preview Diagram、Edit Code、Zoom In、Zoom Out、Reset Zoom、View Fullscreen、Rendering...（7 条）
+- **新增样式**：`.mermaid-preview`（min-height:320px，flex 居中）、`.mermaid-svg-container`（inline-block，无百分比尺寸）、`.mermaid-zoom-overlay`、`.mermaid-overlay-btn`、`.mermaid-pan-controls`、`.mermaid-pan-btn`、`.mermaid-pan-reset`、`.mermaid-lightbox` 系列
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B070 | Mac 触控板捏合缩放一下跳到极值 | 固定步长 ±0.15 配合 `deltaY` 数值过大 | 改用指数缩放 `zoomLevel * Math.pow(0.98, deltaY)` | ✅ 已修复 |
+| B071 | 切换"编辑代码" icon 颜色比其他 icon 暗 | active 状态用 `color: var(--vscode-focusBorder)` 蓝色 | 改为 `background` + `border-color` 高亮，颜色不变 | ✅ 已修复 |
+| B072 | 拖拽调整高度时流程图跟着缩放 | SVG 用 `max-width/height: 100%`，容器变化导致 SVG 重新布局 | 从 viewBox 读取固定像素尺寸赋给 SVG；svgContainer 改为 inline-block | ✅ 已修复 |
+
+### 备注
+- webview.js 包体积从约 4.6MB 增至 7.8MB（mermaid 库较大，符合预期）
+- Milkdown 官方 `@milkdown/plugin-diagram` 已停止维护，使用 mermaid 官方包 + 自定义 NodeView UI 是更好选择
+- 全屏按钮常驻所有代码块（非仅 mermaid），代码 lightbox 以等宽字体展示原始内容
+
+---
+
 ## \[035] 2026-03-30 — 图片渲染改进：失败占位符、工具栏重构、i18n 补全
 
 **涉及文件：** `webview/components/imageView/index.ts`, `webview/ui/icons.ts`, `webview/style.css`, `src/i18n/webviewTranslations.ts`, `webview/components/linkPopup/index.ts`

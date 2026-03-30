@@ -498,6 +498,26 @@ import yaml from "refractor/yaml";
     yaml,
 ].forEach((lang) => refractor.register(lang));
 
+// ── 自定义 Mermaid 语法高亮 ─────────────────────────────────
+if (!refractor.registered('mermaid')) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mermaidSyntax: any = function (Prism: any) {
+        Prism.languages['mermaid'] = {
+            comment: { pattern: /%%[^\r\n]*/, greedy: true },
+            string:  { pattern: /"[^"]*"/, greedy: true },
+            label:   { pattern: /\|[^|]*\|/, greedy: true },
+            bracket: { pattern: /\[(?:[^\[\]]|\[[^\[\]]*\])*\]|\{[^{}]*\}|\([^()]*\)|\(\([^()]*\)\)/, greedy: true },
+            keyword: /\b(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|gantt|pie|showData|mindmap|timeline|gitGraph|quadrantChart|xychart-beta|sankey-beta|block-beta|architecture-beta|LR|RL|TD|TB|BT|subgraph|end|participant|actor|Note|note|over|loop|opt|alt|else|critical|break|par|and|rect|activate|deactivate|title|section|class|state|direction|as|autonumber|link|style|classDef|fill|stroke|color)\b/i,
+            arrow:   /(?:-->|-->>|->>|--[ox*]|<-->|<-->>|<<-->|o--o|\*--\*|\.->|==>|==|--)/,
+            number:  /\b\d+(?:\.\d+)?\b/,
+            punctuation: /[[\]{}()]/,
+        };
+    };
+    mermaidSyntax.displayName = 'mermaid';
+    mermaidSyntax.aliases = [];
+    refractor.register(mermaidSyntax);
+}
+
 import { createCodeBlockView } from "./components/codeBlock";
 import { createImageView } from "./components/imageView";
 

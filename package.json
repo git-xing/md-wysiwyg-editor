@@ -125,7 +125,7 @@
         },
         "markdownWysiwyg.codeBlockMaxHeight": {
           "type": "number",
-          "default": 500,
+          "default": 600,
           "minimum": 100,
           "description": "%config.codeBlockMaxHeight.description%"
         },
@@ -230,6 +230,7 @@
     "@milkdown/prose": "^7.19.0",
     "@milkdown/transformer": "^7.5.0",
     "@milkdown/utils": "^7.19.0",
+    "mermaid": "^11.0.0",
     "prosemirror-tables": "^1.8.5",
     "refractor": "^5.0.0"
   }
