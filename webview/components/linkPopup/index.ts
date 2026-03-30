@@ -2,6 +2,7 @@ import type { EditorView } from "@milkdown/prose/view";
 import { notifyOpenUrl, notifyOpenFile } from "../../messaging";
 import { IconCheck, IconLink, IconX } from "../../ui/icons";
 import { t } from "../../i18n";
+import { showTooltipAt, hideTooltip } from "../../ui/tooltip";
 
 interface LinkInfo {
     href: string;
@@ -65,12 +66,7 @@ export function setupLinkPopup(
     getView: () => EditorView | null,
 ): void {
     const isMac = window.__i18n?.isMac ?? false;
-
-    // ── 快捷键提示徽章（独立于弹框，出现在链接上方） ──────────────
-    const hintBadge = document.createElement("div");
-    hintBadge.className = "link-hint-badge";
-    hintBadge.textContent = isMac ? "⌘ Click" : "Ctrl+Click";
-    document.body.appendChild(hintBadge);
+    const hintText = isMac ? t("⌘ Click to open") : t("Ctrl+Click to open");
 
     // ── 编辑弹框 ─────────────────────────────────────────────────
     const popup = document.createElement("div");
@@ -108,7 +104,7 @@ export function setupLinkPopup(
     const inputUrl = document.createElement("input");
     inputUrl.type = "text";
     inputUrl.className = "link-popup-url";
-    inputUrl.placeholder = "URL https://...";
+    inputUrl.placeholder = t("URL https://...");
 
     const fieldsDiv = document.createElement("div");
     fieldsDiv.className = "link-popup-fields";
@@ -150,29 +146,6 @@ export function setupLinkPopup(
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
     }
 
-    function positionHintBadge(anchorEl: Element): void {
-        const rect = anchorEl.getBoundingClientRect();
-        const badgeH = 20;
-        const topAbove = rect.top + window.scrollY - badgeH - 4;
-        // 上方空间不足时改为贴右下
-        if (topAbove < window.scrollY) {
-            hintBadge.style.left = `${rect.right + window.scrollX + 4}px`;
-            hintBadge.style.top = `${rect.top + window.scrollY}px`;
-        } else {
-            hintBadge.style.left = `${rect.left + window.scrollX}px`;
-            hintBadge.style.top = `${topAbove}px`;
-        }
-    }
-
-    function showHintBadge(anchorEl: Element): void {
-        positionHintBadge(anchorEl);
-        hintBadge.classList.add("link-hint-badge--visible");
-    }
-
-    function hideHintBadge(): void {
-        hintBadge.classList.remove("link-hint-badge--visible");
-    }
-
     function showPopup(link: LinkInfo, anchorEl: Element): void {
         clearHideTimer();
         currentLink = link;
@@ -192,7 +165,7 @@ export function setupLinkPopup(
         clearHoverTimer();
         popup.style.display = "none";
         currentLink = null;
-        hideHintBadge();
+        hideTooltip();
     }
 
     function scheduleHide(delay = 180): void {
@@ -207,7 +180,7 @@ export function setupLinkPopup(
 
         clearHoverTimer();
         clearHideTimer();
-        showHintBadge(anchor);
+        showTooltipAt(anchor, hintText, "above");
 
         hoverTimer = setTimeout(() => {
             hoverTimer = null;
@@ -221,11 +194,13 @@ export function setupLinkPopup(
     container.addEventListener("mouseout", (e) => {
         if (!(e.target as Element).closest("a")) return;
         clearHoverTimer();
+        // 弹框未显示时鼠标移出即隐藏 tooltip
+        if (popup.style.display === "none") hideTooltip();
     });
 
     container.addEventListener("mouseleave", () => {
         clearHoverTimer();
-        hideHintBadge();
+        hideTooltip();
         scheduleHide(180);
     });
 
@@ -305,9 +280,8 @@ export function setupLinkPopup(
         hidePopup();
     });
 
-    // ── 阻止输入框事件冒泡 ──────────────────────────────────────
+    // ── 输入框键盘处理 ─────────────────────────────────────────
     [inputText, inputUrl].forEach((inp) => {
-        inp.addEventListener("keydown", (e) => e.stopPropagation());
         inp.addEventListener("mousedown", (e) => e.stopPropagation());
     });
 

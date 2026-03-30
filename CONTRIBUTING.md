@@ -32,7 +32,6 @@ docs/          Development documentation
 - CSS must use `--vscode-*` variables for theme compatibility
 - Use `pnpm` — not `npm` or `yarn`
 - Git commit messages: type prefix in English, description in Chinese
-  - e.g. `feat: 新增图片上传功能`、`fix: 修复表格拖拽偏移`
 
 ## Submitting Changes
 

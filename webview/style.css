@@ -715,28 +715,6 @@ body {
     border-radius: 0;
 }
 
-/* ─── 链接快捷键徽章（链接上方，独立于弹框） ─── */
-.link-hint-badge {
-    position: absolute;
-    z-index: 10000;
-    pointer-events: none;
-    padding: 2px 7px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-family: var(--vscode-font-family, sans-serif);
-    white-space: nowrap;
-    background: var(--vscode-editor-foreground, #ccc);
-    color: var(--vscode-editor-background, #1e1e1e);
-    opacity: 0;
-    transform: translateY(2px);
-    transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.link-hint-badge--visible {
-    opacity: 0.65;
-    transform: translateY(0);
-}
-
 /* ─── 链接 Hover 弹框 ─── */
 .link-popup {
     position: absolute;
@@ -1780,6 +1758,54 @@ body {
     font-family: inherit;
     outline: none;
     width: 130px;
+}
+
+/* 信息区可编辑输入框（本地图片文件名）*/
+.img-tb-info--input {
+    max-width: 160px;
+    min-width: 40px;
+    height: 20px;
+    padding: 0 4px;
+    background: transparent;
+    color: var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.7));
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+    flex-shrink: 1;
+    cursor: text;
+}
+
+.img-tb-info--input:hover:not(:focus) {
+    border-color: var(--vscode-editorHoverWidget-border, #454545);
+}
+
+.img-tb-info--input:focus {
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.15));
+    border-color: var(--vscode-focusBorder, #007acc);
+    color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+}
+
+/* 图片加载失败占位符 */
+.img-error-placeholder {
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 120px;
+    min-height: 64px;
+    padding: 12px 16px;
+    background: var(--vscode-inputValidation-errorBackground, rgba(244, 67, 54, 0.08));
+    border: 1px dashed var(--vscode-inputValidation-errorBorder, rgba(244, 67, 54, 0.4));
+    border-radius: 4px;
+    color: var(--vscode-errorForeground, #f44336);
+    font-size: 12px;
+    user-select: none;
+}
+
+.img-error-placeholder svg {
+    flex-shrink: 0;
+    opacity: 0.7;
 }
 
 /* ─── 编辑器内图片 lightbox（点击放大） ─────────────── */

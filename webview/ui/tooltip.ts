@@ -68,6 +68,17 @@ export function hideTooltip(): void {
     }
 }
 
+/** 命令式：立即在指定元素旁显示 tooltip，无需事件绑定 */
+export function showTooltipAt(
+    el: Element,
+    text: string,
+    placement: "above" | "below" = "above",
+): void {
+    const tip = getTooltip();
+    tip.textContent = text;
+    position(tip, el as HTMLElement, placement);
+}
+
 /** 替换原生 title，改用 VSCode 风格的自定义 tooltip */
 export function applyTooltip(
     el: HTMLElement,

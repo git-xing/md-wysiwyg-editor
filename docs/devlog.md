@@ -6,6 +6,33 @@
 
 ***
 
+## \[035] 2026-03-30 — 图片渲染改进：失败占位符、工具栏重构、i18n 补全
+
+**涉及文件：** `webview/components/imageView/index.ts`, `webview/ui/icons.ts`, `webview/style.css`, `src/i18n/webviewTranslations.ts`, `webview/components/linkPopup/index.ts`
+
+### 完成内容
+- **图片加载失败占位符**：新增 `IconImageOff` 图标；`img.onerror` 时隐藏 img、显示带图标和"图片未找到"文案的红色虚线占位框；`img.onload` 或 src 更新时自动恢复
+- **工具栏信息区改为可编辑 input（本地图片）**：
+  - 原 `infoEl`（span）拆分为 `infoSpan`（远程只读）+ `infoInput`（本地可编辑）
+  - `updateInfoElement()` 按 `isLocalImage` 动态切换两者（`replaceChild`）
+  - 本地图片时 `infoInput` 直接显示文件名，Enter 触发 `onRenameImage` 重命名文件，Escape/blur 恢复原值；焦点激活时高亮边框
+  - `document.activeElement !== infoInput` 保护：`updateInfo` 不覆盖用户正在输入的内容
+- **铅笔图标常驻，改为编辑图片路径（src）**：
+  - 移除原条件性插入/移除逻辑（`updateRenameVisibility`、`startRenameEdit` 函数均删除）
+  - `renameBtn` 始终在工具栏，tooltip 改为"编辑图片路径"
+  - 点击调用 `startSrcEdit()`：弹出 240px 宽 input 显示当前 src，Enter 确认后 dispatch `tr.setNodeMarkup` 修改 src 属性（对 local/remote 图片均可用）
+- **i18n 补全**：
+  - `webviewTranslations.ts` 新增 13 个原来缺失的翻译 key（Close、View Full Size、Edit Alt Text、Delete、Alt text、New filename、Edit Image Path、Image path or URL、Image not found、⌘ Click to open、Ctrl+Click to open、URL https://...）
+  - `linkPopup/index.ts` 修复两处硬编码：`hintText` 改用 `t()`；`inputUrl.placeholder` 改用 `t()`
+
+### Bug / 问题
+（无新 bug）
+
+### 备注
+- 工具栏固定布局：`infoSpan/infoInput | sep | zoom | sep | ALT | sep | pencil | sep | delete`，不再动态增删按钮
+
+---
+
 ## \[034] 2026-03-30 — 项目开源到 GitHub，建立分支管理和 CI/CD 流程
 
 **涉及文件：** `.gitignore`, `package.json`, `CLAUDE.md`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `CONTRIBUTING.md`
