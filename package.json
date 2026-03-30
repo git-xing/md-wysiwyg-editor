@@ -1,9 +1,9 @@
 {
-  "name": "markdown-wysiwyg-editor",
-  "displayName": "Markdown WYSIWYG Editor",
+  "name": "md-wysiwyg-editor",
+  "displayName": "WYSIWYG Markdown Editor",
   "description": "WYSIWYG Markdown editor with live table editing",
-  "version": "0.0.1",
-  "publisher": "Chance Liu",
+  "version": "0.0.2",
+  "publisher": "chance-liu",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -23,6 +23,14 @@
     "table",
     "milkdown"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/git-xing/md-wysiwyg-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/git-xing/md-wysiwyg-editor/issues"
+  },
+  "homepage": "https://github.com/git-xing/md-wysiwyg-editor#readme",
   "activationEvents": [],
   "main": "./dist/extension.js",
   "l10n": "./l10n",
@@ -30,7 +38,7 @@
     "customEditors": [
       {
         "viewType": "markdownWysiwyg.editor",
-        "displayName": "Markdown WYSIWYG Editor",
+        "displayName": "WYSIWYG Markdown Editor",
         "selector": [
           {
             "filenamePattern": "*.md"
@@ -134,6 +142,12 @@
           "default": "preview",
           "description": "%config.defaultMode.description%"
         },
+        "markdownWysiwyg.editorMaxWidth": {
+          "type": "number",
+          "default": 900,
+          "minimum": 400,
+          "description": "%config.editorMaxWidth.description%"
+        },
         "markdownWysiwyg.fontFamily": {
           "type": "string",
           "default": "",
@@ -143,6 +157,53 @@
           "type": "boolean",
           "default": false,
           "description": "%config.debugMode.description%"
+        },
+        "markdownWysiwyg.imageStorage": {
+          "order": 10,
+          "type": "string",
+          "enum": ["local", "server"],
+          "enumDescriptions": [
+            "%config.imageStorage.local%",
+            "%config.imageStorage.server%"
+          ],
+          "default": "local",
+          "description": "%config.imageStorage.description%"
+        },
+        "markdownWysiwyg.imageLocalPath": {
+          "order": 11,
+          "type": "string",
+          "default": "",
+          "description": "%config.imageLocalPath.description%"
+        },
+        "markdownWysiwyg.imageServerUrl": {
+          "order": 12,
+          "type": "string",
+          "default": "",
+          "description": "%config.imageServerUrl.description%"
+        },
+        "markdownWysiwyg.imageServerFieldName": {
+          "order": 13,
+          "type": "string",
+          "default": "file",
+          "description": "%config.imageServerFieldName.description%"
+        },
+        "markdownWysiwyg.imageServerExtraParams": {
+          "order": 14,
+          "type": "string",
+          "default": "",
+          "description": "%config.imageServerExtraParams.description%"
+        },
+        "markdownWysiwyg.imageServerResponsePath": {
+          "order": 15,
+          "type": "string",
+          "default": "url",
+          "description": "%config.imageServerResponsePath.description%"
+        },
+        "markdownWysiwyg.imageSelectionColor": {
+          "order": 16,
+          "type": "string",
+          "default": "rgba(52, 211, 153, 0.6)",
+          "description": "%config.imageSelectionColor.description%"
         }
       }
     }
@@ -151,12 +212,12 @@
     "vscode:prepublish": "node esbuild.mjs --production",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "package": "vsce package --no-dependencies --out releases/ --allow-missing-repository"
+    "package": "vsce package --no-dependencies --out releases/ --baseContentUrl https://github.com/git-xing/md-wysiwyg-editor --baseImagesUrl https://github.com/git-xing/md-wysiwyg-editor/raw/main"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.80.0",
-    "@vscode/vsce": "^3.7.1",
+    "@vscode/vsce": "^2.32.0",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.0"
   },

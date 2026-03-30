@@ -6,6 +6,306 @@
 
 ***
 
+## \[033] 2026-03-30 — 链接点击行为重构：阻止直接导航，支持 Cmd/Ctrl+单击打开
+
+**涉及文件：** `webview/components/linkPopup/index.ts`, `webview/messaging.ts`, `src/MarkdownEditorProvider.ts`
+
+### 完成内容
+- **阻止原生导航**：用 MutationObserver 监听编辑器 DOM，将 `<a href>` 替换为 `<a data-href>`，彻底断开浏览器/WebView 原生导航入口（`e.preventDefault()` 在 VS Code WebView Electron 层面不可靠）
+- **Cmd/Ctrl+单击打开**：click handler 改为从 `data-href` 读取 URL，仅在 metaKey/ctrlKey 时打开
+- **相对路径支持**：新增 `isRelativePath()` 判断，相对路径调用 `notifyOpenFile()`，extension 端用 `path.resolve` 解析后调用 `vscode.commands.executeCommand("vscode.open", ...)`
+- **弹框提示**：弹框底部新增 `hintEl`，Mac 显示"⌘+单击打开"，Windows/Linux 显示"Ctrl+单击打开"（`.link-popup-hint` 样式已存在）
+- **新增消息类型**：`messaging.ts` 新增 `notifyOpenFile`；`MarkdownEditorProvider.ts` 新增 `case "openFile"` 处理
+
+### Bug / 问题
+（无新 bug）
+
+### 备注
+style.css 中 `.link-popup-hint` 样式已预先存在，无需新增。
+
+---
+
+## \[032] 2026-03-27 — 图片选中时工具栏展示文件名和 alt 信息条
+
+**涉及文件：** `webview/components/imageView/index.ts`, `webview/style.css`
+
+### 完成内容
+
+- **信息条**：在图片工具栏最左侧新增 `.img-tb-info` 元素，选中图片时展示 `文件名 · alt文本`（无 alt 时仅显示文件名）
+- 通过 `updateInfo(src, alt)` 在初始化、`update()` 时同步更新；alt 编辑确认后通过 ProseMirror dispatch 触发 `update()` 自动刷新
+- 信息条样式：`font-size: 11px`、`max-width: 200px`、`text-overflow: ellipsis`，使用 `--vscode-descriptionForeground` 颜色（浅灰/降调），不影响操作按钮区域
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| — | 无新 Bug | — | — | — |
+
+### 备注
+
+- 工具栏最终顺序：`infoEl | sep | zoom | sep | alt | sep | [rename | sep] | delete`
+
+---
+
+## \[031] 2026-03-27 — 图片增强：尺寸限制 + 选中效果 + 点击放大 + 重命名
+
+**涉及文件：** `webview/components/imageView/index.ts`（新建）, `webview/editor.ts`, `webview/messaging.ts`, `webview/index.ts`, `webview/style.css`, `webview/ui/icons.ts`, `src/MarkdownEditorProvider.ts`, `package.json`, `package.nls.json`, `package.nls.zh-cn.json`
+
+### 完成内容
+
+- **图片尺寸限制**：为 `.image-wrapper img.image-node` 添加 `max-width: 100%; height: auto;`，大图自动缩放至编辑器宽度
+- **自定义 ImageNodeView**：新建 `webview/components/imageView/index.ts`，为 Milkdown 图片节点注册 ProseMirror NodeView：
+  - 点击图片选中（绿色边框 + 浮动工具栏），不自动打开 lightbox
+  - 工具栏按钮：放大（lightbox）、编辑 Alt、重命名（仅本地图片）、删除
+  - Alt 编辑和重命名均为 inline 输入框 + 确认/取消按钮，Enter 确认 Esc 取消
+  - 输入框内 copy/cut/paste/mousedown/click/select 事件 stopPropagation，修复快捷键被 ProseMirror 拦截问题
+- **图片重命名**：WebView → Extension 发送 `renameImage` 消息，Extension 调用 `vscode.workspace.fs.rename()` 重命名磁盘文件，更新 `_imageUriMaps`，回传 `imageRenamed` 消息，WebView 通过 ProseMirror dispatch `setNodeMarkup` 更新节点 src
+- **配置项 `imageSelectionColor`**：图片选中边框颜色，默认 `rgba(52, 211, 153, 0.6)`（与表格选中色一致），注入 CSS 变量 `--image-selection-color`
+- **新增图标**：`IconPencil`（重命名）、`IconZoomIn`（放大）
+- **修复 Thenable.catch() TS 报错**：`imageService.ts` 中两处 `.catch()` 改为 `try/catch`
+- **统一缩进**：添加 `.editorconfig` + `.vscode/settings.json`，全项目统一 4 空格缩进
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B070 | 本地图片重命名图标不显示 | 旧检测正则 `/^vscode-webview-resource:/` 不匹配新格式 `https://...vscode-cdn.net/...` | 改为 `/vscode-resource\|vscode-cdn\.net/.test(src)`，并改用 `rawSrc`（ProseMirror 属性值）而非 `img.src`（浏览器规范化后的值） | ✅ 已修复 |
+| B071 | 输入框内复制/全选快捷键失效 | ProseMirror 在 `view.dom` 上拦截 copy/cut/paste 等事件 | `isolateInput()` 对 input 内这些事件调用 `stopPropagation()` | ✅ 已修复 |
+| B072 | `imageService.ts` Thenable.catch TS 报错 | `vscode.workspace.fs` 返回 `Thenable` 无 `.catch()` | 改用 `try/catch` | ✅ 已修复 |
+
+### 备注
+
+- 重命名冲突处理：目标文件名已存在时自动追加时间戳后缀
+- 修改 `imageSelectionColor` 设置后需重新打开编辑器生效
+- `rawSrc` 模式：NodeView 内始终用 ProseMirror 属性值（不经浏览器规范化）做 Extension 通信和本地图片检测
+
+---
+
+## \[030] 2026-03-27 — 去除图片悬浮弹框 + 项目文件结构重构
+
+**涉及文件：** `webview/linkPopup.ts`（现 `webview/components/linkPopup/index.ts`）, `webview/style.css`, `webview/index.ts`, `webview/editor.ts`, `src/MarkdownEditorProvider.ts`, 新建目录结构
+
+### 完成内容
+
+- **移除图片悬浮弹框**：删除 `linkPopup.ts` 中图片弹框全部逻辑（`ImageInfo` interface、`findImageAt`、`showImgPopup`/`hideImgPopup`、相关事件监听器），同时删除 `style.css` 中 `.img-popup`/`.img-popup-preview`/`.img-popup-src` 样式块；链接弹框功能完整保留
+- **项目文件结构重构**：将 `webview/` 根目录下平铺的文件按职责分组到子目录：
+  - `webview/i18n/index.ts` — 翻译函数（原 `i18n.ts`）
+  - `webview/ui/icons.ts` — SVG 图标（原 `icons.ts`）
+  - `webview/ui/tooltip.ts` — Tooltip 组件（原 `tooltip.ts`）
+  - `webview/components/toolbar/index.ts` — 顶部工具栏（原 `toolbar.ts`）
+  - `webview/components/selectionToolbar/index.ts` — 浮动选中工具栏（原 `selectionToolbar.ts`）
+  - `webview/components/table/addButtons.ts` — 表格插入线（原 `tableAddButtons.ts`）
+  - `webview/components/table/handles.ts` — 表格拖拽 handle（原 `tableHandles.ts`）
+  - `webview/components/table/toolbar.ts` — 表格工具栏（原 `tableToolbar.ts`）
+  - `webview/components/codeBlock/index.ts` — 代码块 UI（原 `codeBlockView.ts`）
+  - `webview/components/toc/index.ts` — 目录面板（原 `toc.ts`）
+  - `webview/components/linkPopup/index.ts` — 链接弹框（原 `linkPopup.ts`）
+  - `src/i18n/webviewTranslations.ts` — WebView 翻译数据（原 `src/webviewTranslations.ts`）
+- 同步更新所有 import 路径，`pnpm build` 编译无报错
+
+### Bug / 问题
+
+无新增 Bug
+
+### 备注
+
+- `webview/index.ts`、`webview/editor.ts`、`webview/messaging.ts`、`webview/style.css` 保留在根目录（入口/通信/样式层）
+- esbuild 入口不变，无需修改构建配置
+
+---
+
+## \[029] 2026-03-27 — B069 修复：重新打开文件后相对路径图片无法显示
+
+**涉及文件：** `src/MarkdownEditorProvider.ts`
+
+### 完成内容
+
+- **新增 `_prepareContentForDisplay` 方法**：在向 WebView 发送 `init`/`revert` 内容前，将 markdown 中的相对路径图片（如 `./images/foo.png`）转换为 `vscode-resource://` webviewUri，同时存入 `_imageUriMaps` 供保存时还原
+- **3 处调用**：`case "ready"` / `revertCustomDocument` / `watcher.onDidChange`
+- `lineMap` 仍用原始内容（相对路径）计算，保证行号映射不受影响
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B069 | 重新打开/revert 文件后图片显示 403 | `init`/`revert` 直接把含相对路径的磁盘内容发给 WebView，WebView 以 `vscode-webview://UUID/` 为 base 解析无法找到文件 | 新增 `_prepareContentForDisplay` 在发送前将相对路径替换为 webviewUri | ✅ 已修复 |
+
+### 备注
+- 只替换不以 `https?:` / `data:` / `vscode-resource:` / `vscode-webview-` 开头的路径，HTTP/data URL 不受影响
+- `_imageUriMaps` 在此方法中 get-then-set，不会覆盖上传图片已有的映射条目
+
+---
+
+## \[028] 2026-03-27 — 图片面板二次重设计：浏览项目网格 + 多选 + 放大预览
+
+**涉及文件：** `src/MarkdownEditorProvider.ts`, `webview/messaging.ts`, `webview/toolbar.ts`, `webview/index.ts`, `webview/style.css`, `src/webviewTranslations.ts`
+
+### 完成内容
+
+- **去掉遮罩层**：图片面板改为无遮罩悬浮弹窗（`position: fixed; z-index: 9999`），点击面板外关闭
+- **浏览项目 tab 重设计**：
+  - 不再调用系统文件选择框，改为扫描项目图片目录（`imageLocalPath` 配置或自动检测 `images/`/`imgs/` 等）
+  - Extension 新增 `getProjectImages` 消息处理：读取目录，返回 `[{relPath, webviewUri, name}]`
+  - WebView 渲染图片缩略图网格（`auto-fill minmax(90px,1fr)` grid），支持懒加载
+  - **多选**：点击缩略图选中/取消（蓝色边框 + 左上角对勾图标），显示"已选 N 张"计数
+  - **放大预览**：hover 缩略图时右下角出现 `⤢` 按钮，点击弹出 lightbox（全屏遮罩 + 居中大图 + 关闭按钮，ESC 也可关闭）
+  - 确认插入所有已选图片（多张依次调用 `onConfirm`，插入当前光标位置后）
+- **面板打开时自动加载**图片列表，无需手动点击按钮
+- **新样式类**：`.img-insert-grid`、`.img-insert-thumb-item`、`.img-insert-thumb-item--selected`、`.img-insert-thumb-check`、`.img-insert-thumb-enlarge`、`.img-insert-selected-count`、`.img-lightbox`、`.img-lightbox-img`、`.img-lightbox-close`
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B068 | 浏览项目 tab 之前使用系统文件选择框，无法批量选择、无预览 | 原设计直接调 `vscode.window.showOpenDialog` | 改为扫描目录返回图片列表，WebView 展示网格 | ✅ 已修复 |
+
+### 备注
+- lightbox 的遮罩（全屏）与主面板的无遮罩是刻意区分的：lightbox 功能性需要遮罩防止误操作
+- 图片网格超出 320px 高度时可滚动
+
+---
+
+## \[027] 2026-03-27 — 图片面板重设计 + 403 修复 + 图片去重 + 自动补全可行性计划
+
+**涉及文件：** `src/utils/imageService.ts`, `src/MarkdownEditorProvider.ts`, `webview/messaging.ts`, `webview/toolbar.ts`, `webview/index.ts`, `webview/style.css`, `src/webviewTranslations.ts`, `package.json`, `test/.vscode/settings.json`, `docs/image-path-autocomplete.md`（新建）
+
+### 完成内容
+
+- **403 Forbidden 修复**：
+  - `localResourceRoots` 扩展为包含所有 workspace 文件夹 + `.md` 文件所在目录
+  - Extension 新增 `_imageUriMaps`（per-document 的 webviewUri→relPath 映射）
+  - `_handleImageUpload` 改为返回 `panel.webview.asWebviewUri(absUri)` 给 WebView 显示，保存时通过 `_prepareContentForSave` 替换回 relPath
+  - WebView 中的图片现在可以正常显示（`vscode-resource://` 而非 403）
+- **图片面板重设计**：
+  - 由原来的按钮旁弹出 → 改为全屏遮罩居中弹出（420px，带标题栏 + 关闭按钮）
+  - 三 tab：**浏览项目**（默认）/ **URL** / **上传本地**
+  - 浏览项目 tab：触发 `vscode.window.showOpenDialog`，Extension 返回 webviewUri + relPath，支持预览缩略图
+  - 上传本地 tab：移除拖拽（VSCode 会拦截），仅保留 click 选择；预览改用 `FileReader.readAsDataURL`（data: URL，CSP 允许）
+  - 确认/取消按钮改为带文字的 28px 高按钮
+- **图片去重**：`saveImageLocally` 在写盘前用 MD5 对比目标目录同扩展名文件，发现重复直接复用，不重新写盘
+- **设置项排序**：`package.json` 所有 image 配置项加 `order` 属性（imageStorage: 10，后续 11-15），确保在设置 UI 中排序正确
+- **浏览项目消息协议**：新增 `notifyBrowseProjectImages`、`projectImageSelected`、`projectImageCancelled` 三种消息
+- **图片路径智能提示可行性计划**：新建 `docs/image-path-autocomplete.md`，包含完整的可行性分析和实现步骤
+- **测试设置**：新建 `test/.vscode/settings.json`，配置项目级图片存储路径
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B065 | 粘贴图片后 WebView 显示 403 Forbidden | `localResourceRoots` 只包含 `dist/`，WebView 无权访问 `images/` 目录 | 扩展 `localResourceRoots` + 返回 webviewUri + 保存时反转 relPath | ✅ 已修复 |
+| B066 | 图片面板上传预览不显示（`blob:` URL 被 CSP 拦截） | `URL.createObjectURL` 生成 `blob:` URL，CSP `img-src` 不允许 | 改用 `FileReader.readAsDataURL` 生成 `data:` URL | ✅ 已修复 |
+| B067 | 重复粘贴同一图片生成多个文件 | 每次上传直接写盘，无去重逻辑 | 写盘前 MD5 比对已有同扩展名文件 | ✅ 已修复 |
+
+### 备注
+- 浏览项目 tab 选择的图片也经过 webviewUri 映射，保存时同样会被替换为 relPath
+- 拖拽图片到面板会被 VSCode 拦截为打开文件操作，已从 UI 中移除，用户体验一致（点击选择即可）
+- 图片路径智能提示（autocomplete）可行性已分析，推荐方案 A（ProseMirror InputRule），待后续会话实现
+
+---
+
+## \[026] 2026-03-27 — 新增设置图标 + 图片上传/粘贴功能
+
+**涉及文件：** `webview/toolbar.ts`, `webview/messaging.ts`, `webview/index.ts`, `webview/style.css`, `src/MarkdownEditorProvider.ts`, `src/utils/imageService.ts`, `src/webviewTranslations.ts`, `package.json`, `package.nls.json`, `package.nls.zh-cn.json`
+
+### 完成内容
+
+- **设置图标**：工具栏最右侧新增齿轮图标（`IconSettings`），点击发送 `openSettings` 消息，Extension 执行 `workbench.action.openSettings markdownWysiwyg` 打开扩展设置页
+  - toolbar 追加 `flex: 1` spacer + 设置按钮，`.toolbar` 增加 `flex: 1` 撑满 topbar
+- **图片插入面板 UI 重设计**：将原来的简单横向输入框（`showImagePrompt`）替换为新的竖向卡片浮层（`showImageInsertPanel`）
+  - Tab 切换：URL 模式（保留原有 URL 输入）/ Upload 模式（拖拽/点击选择本地文件）
+  - 共用 alt text 输入框；Upload 模式含 drop zone、文件预览缩略图、上传状态文本
+  - 新增 `.img-insert-*` CSS 类体系，与现有 `.tb-prompt-*` 一致的 VSCode 变量风格
+- **图片上传消息协议**：新增 `uploadImage`（WebView→Extension）、`imageUploaded`/`imageUploadError`（Extension→WebView）三种消息类型
+- **本地存储**：新建 `src/utils/imageService.ts`，`saveImageLocally` 按优先级自动检测 `images/`、`imgs/`、`assets/images/`、`assets/` 目录，均不存在时创建 `images/`，返回相对 .md 文件的路径
+- **服务器上传**：`uploadImageToServer` 用 Node.js `https` 模块构建 multipart/form-data，支持自定义字段名、额外参数、JSON path 提取响应 URL
+- **粘贴/拖放**：`webview/index.ts` 添加全局 `paste` 事件和 `#editor` 的 `drop` 事件，自动捕获图片文件，通过 pending map 追踪异步上传结果后插入节点
+- **新增配置项（6个）**：`imageStorage`、`imageLocalPath`、`imageServerUrl`、`imageServerFieldName`、`imageServerExtraParams`、`imageServerResponsePath`，中英双语描述
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B064 | `_handleImageUpload` 方法被错误插入 `_getHtmlForWebview` 函数体内 | Edit 操作错误定位插入点 | 手动重构文件，将方法挪到正确位置 | ✅ 已修复 |
+
+### 备注
+- 本地保存的图片在 WebView 中不显示预览（相对路径无法被 WebView 沙箱解析），但 Markdown 内容正确；服务器上传（HTTP URL）可直接预览
+- 图片文件通过 `FileReader.readAsArrayBuffer` + postMessage 传输，大文件（>20MB）目前无限制提示，可后续扩展
+- Upload tab 仅在 `onUploadImage` 回调存在时显示，预留了无上传后端时隐藏的开关
+
+---
+
+## \[025] 2026-03-24 — 修复 CellSelection endLine + 代码块行号 verbatim 降级
+
+**涉及文件：** `webview/index.ts`, `webview/selectionToolbar.ts`
+
+### 完成内容
+
+- **B062 endLine 修复**：将 `getCellRowSourceLine` 调用从 `selection.from+1`/`selection.to-1` 改为 `selection.$anchorCell.pos`/`selection.$headCell.pos`，并用 `Math.min/max` 取行号范围，确保 anchor/head 任意顺序都正确
+  - 根因：`selection.to-1` 可能落在两个 cell 之间（table_row 层），`doc.resolve()` 解析后深度链不含 `table_cell`，`findCell` 失败 → 返回 null → endLine=startLine，结果只有一行
+  - 修复后 "红色,黄色,蓝色" → 期望 `#181-183` ✓
+- **代码块内容 verbatim 行号降级**：在 `findLineInOriginalSource` 失败后、lineMap 降级前，增加逐字搜索选中文本首行/末行的步骤
+  - 用 `source.split('\n').findIndex(l => l.includes(firstLine))` 逐字匹配（不经 normalizeForSearch）
+  - 适用场景：`# 开发模式（监听文件变化）` 等代码块内含 `#` 的注释，normalizeForSearch 会去掉 `#` 前缀导致匹配到错误行
+  - 修复后 "开发模式（监听文件变化）" → 期望 `#140` ✓
+- 两处修改（`index.ts` Option+K + `selectionToolbar.ts` sendBtn）保持逻辑一致
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B062 | CellSelection 行号只返回单行（如 "红色,黄色,蓝色" 得到 `#181` 而非 `#181-183`） | `selection.to-1` 落在 table_row 层间隙，`getCellRowSourceLine` 找不到 table_cell → null → endLine=startLine | 改用 `$anchorCell.pos`/`$headCell.pos` + min/max | ✅ 已修复 |
+| B063 | 代码块注释行（如 `# 开发模式...`）行号错误（`#91` 而非 `#140`） | normalizeForSearch 剥掉 `#`，文本搜索失败后 lineMap 索引错位 | 新增 verbatim 首行搜索降级路径 | ✅ 已修复 |
+
+### 备注
+
+- B062 endLine 是本 session 的最后一块拼图；B063 是新发现的边缘场景
+- lineMap 根本性错位问题（松散列表 +17 extra entries）仍然存在，但通过 textSearch 优先 + verbatim 降级，绝大部分场景已绕过
+
+---
+
+## \[024] 2026-03-24 — 调试工具：toolbar 新增"测试获取行号"采样诊断菜单
+
+**涉及文件：** `webview/selectionToolbar.ts`, `webview/toolbar.ts`, `webview/index.ts`
+
+### 完成内容
+
+- **[023] B062 修复已回退**：header row 文本搜索方案导致非表格选区行号也出错，已恢复为原有 `lineMap[tableTopIdx]` 逻辑；B062 状态改为 ⏳ 待处理
+- **新增 `sampleDocPosition` 导出函数**（`selectionToolbar.ts`）：对任意文档位置运行行号计算，返回 `{ pos, nodeType, nodeIdx, lineMapVal, srcAtMap, line, via, pmSnip, srcAtCalc, ok }` 诊断数据；可快速对比 lineMap 指向的源码行与 ProseMirror 节点实际内容是否一致
+- **toolbar 调试菜单**：`initToolbar` 新增 `debugOpts` 参数，debug 模式下在工具栏末尾渲染 List 图标下拉按钮；菜单项"测试获取行号"点击后均匀采样 10 个顶层节点，序列化为 JSON（含 `docNodes/lineMapLen/srcLines/samples`）写入剪切板（写入失败则 console.log）
+- **index.ts**：`initToolbar` 调用传入 `{ getLineMap, getMarkdownSource }` 作为 `debugOpts`
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B062 | CellSelection 行号错误（选中"黄色""蓝色"得到 `#117` 而非 `#191-192`） | `lineMap[$pos.index(0)]` 与 PM 节点索引不对齐（松散列表 +14 extra entries） | [023] 的文本搜索修复已回退；添加诊断工具辅助定量分析错位情况 | ⏳ 待处理 |
+
+### 备注
+
+- 诊断工具 JSON 格式：`lineMapVal` + `srcAtMap` 直接显示 lineMap 指向的源码行，`pmSnip` 显示 PM 节点文本，`ok` 字段粗略判断两者是否匹配；错位节点（松散列表之后）将出现 `ok: false`
+- `sampleDocPosition` 内部复用已有 `getBlockContainerText`、`findLineInOriginalSource`、`normalizeForSearch`
+
+---
+
+## \[023] 2026-03-24 — CellSelection 行号根因修复：改用 header row 文本搜索定位表格起始行
+
+**涉及文件：** `webview/selectionToolbar.ts`
+
+### 完成内容
+
+- **B062 根因修复**：`getCellRowSourceLine` 原先用 `lineMap[$pos.index(0)]` 查表格起始行——但 `computeLineMap` 按空行分块，松散列表（items 间有空行）每个 item 是独立 entry；ProseMirror 却把整个列表合并为 1 个 bullet_list/ordered_list 节点，导致索引严重错位（test/sample.md 积累 +14 extra entries，`lineMap[46]`=109 而非 188，计算出错误的 `#117`）
+- **新方案**：提取表格 header row 所有单元格文本，在 `markdownSource` 中搜索包含所有 header 文本且含 `|` 的行，以此作为 `tableStartLine`；彻底绕过 lineMap 索引问题
+- 函数签名：`getLineMapFn` 参数替换为 `getMarkdownSource`，两处调用同步更新
+
+### Bug / 问题
+
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B062 | CellSelection 行号错误（如选中"黄色""蓝色"得到 `#117` 而非 `#191-192`） | `lineMap[$pos.index(0)]` 索引与 ProseMirror 节点数不对齐（松散列表产生 +14 extra lineMap entries） | 改用 header row 文本搜索定位表格起始行，不依赖 lineMap 索引 → 已回退（导致非表格选区也出错）；改为添加诊断工具 | ⏳ 待处理 |
+
+### 备注
+
+- 搜索逻辑：遍历源码行，找到第一个同时包含 `|` 和所有 header cell 文本的行 → 该行为表格 header 行
+- GFM 公式保持不变：header(rowIdx=0)→tableStartLine，data row N→tableStartLine+N+1
+
+---
+
 ## \[022] 2026-03-24 — 调试日志真正动态化 + Handle 点击时间保护 + CellSelection 行号直接从表格结构计算
 
 **涉及文件：** `webview/editor.ts`, `webview/index.ts`, `webview/tableHandles.ts`, `webview/selectionToolbar.ts`
@@ -40,7 +340,7 @@
 - **Window 类型声明修复**：`webview/i18n.ts` 的 `declare const window` 改为 `declare global { interface Window { ... } }` 全局扩展，补充 `debugMode?: boolean` 字段，消除其他文件的 `(window as any)` 转换
 - **`[TableSel]` 日志调试化**：在 `editor.ts` 顶部新增 `LOG_TABLE_SEL = Boolean(window.__i18n?.debugMode)`，所有 5 处 `[TableSel]` 日志改为 debug 模式下才打印（`debugMode=true` 开启）
 - **Handle 点击阈值**：`tableHandles.ts` 第 278 行拖拽识别阈值从 `> 4` 改为 `> 8`，防止触控板点击微抖误触发拖拽（应为点击选中整行/列）
-- **CellSelection 行号范围**：`selectionToolbar.ts` 发送 Claude 时，CellSelection 的 `$from`/`$to` 解析改用 `from+1`/`to-1` 进入 cell 内部，`getBlockContainerText` 能正确返回单个 cell 文本，行号从 `#81` 修复为 `#79-81`
+µ- **CellSelection 行号范围**：`selectionToolbar.ts` 发送 Claude 时，CellSelection 的 `$from`/`$to` 解析改用 `from+1`/`to-1` 进入 cell 内部，`getBlockContainerText` 能正确返回单个 cell 文本，行号从 `#81` 修复为 `#79-81`
 
 ### Bug / 问题
 

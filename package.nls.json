@@ -7,8 +7,18 @@
   "config.defaultMode.description": "Default editing mode when opening a .md file.",
   "config.defaultMode.preview": "Open .md files with the WYSIWYG preview editor (default).",
   "config.defaultMode.markdown": "Open .md files with the VS Code text editor.",
+  "config.editorMaxWidth.description": "Maximum width of the editor content area in pixels. Default is 900.",
   "config.fontFamily.description": "Font family for the editor body text. Leave empty to inherit the VS Code editor font. Example: Georgia, serif or PingFang SC, sans-serif.",
   "command.debugModeEnable.title": "Debug Mode",
   "command.debugModeDisable.title": "✓ Debug Mode",
-  "config.debugMode.description": "Show debug overlays (e.g. table insert trigger zones). Intended for development use."
+  "config.debugMode.description": "Show debug overlays (e.g. table insert trigger zones). Intended for development use.",
+  "config.imageStorage.description": "Where to store uploaded/pasted images. 'local' saves to disk; 'server' uploads to a remote URL.",
+  "config.imageStorage.local": "Save images to local disk (default).",
+  "config.imageStorage.server": "Upload images to a remote server.",
+  "config.imageLocalPath.description": "Local folder for saving images (relative or absolute path). Leave empty to auto-detect (images/, imgs/, assets/images/, assets/).",
+  "config.imageServerUrl.description": "HTTP endpoint URL for image upload when imageStorage is 'server'.",
+  "config.imageServerFieldName.description": "Form field name for the image file in the multipart upload request. Default: file.",
+  "config.imageServerExtraParams.description": "Extra parameters to include in the upload request body, as a JSON object string. Example: {\"token\":\"xxx\"}",
+  "config.imageServerResponsePath.description": "Dot-notation path to extract the image URL from the upload response JSON. Example: data.url",
+  "config.imageSelectionColor.description": "Border color when an image is selected in the editor (CSS color value). Default matches the table cell selection color."
 }

@@ -7,8 +7,18 @@
   "config.defaultMode.description": "打开 .md 文件时的默认编辑模式。",
   "config.defaultMode.preview": "打开 .md 文件时使用 WYSIWYG 预览编辑器（默认）。",
   "config.defaultMode.markdown": "打开 .md 文件时使用 VS Code 文本编辑器。",
+  "config.editorMaxWidth.description": "编辑器内容区域最大宽度（像素），默认 900。",
   "config.fontFamily.description": "编辑器正文字体。留空则继承 VSCode 编辑器字体设置。示例：Georgia, serif 或 PingFang SC, sans-serif。",
   "command.debugModeEnable.title": "调试模式",
   "command.debugModeDisable.title": "✓ 调试模式",
-  "config.debugMode.description": "显示调试叠层（如表格插入线触发范围），供开发调试使用。"
+  "config.debugMode.description": "显示调试叠层（如表格插入线触发范围），供开发调试使用。",
+  "config.imageStorage.description": "图片存储方式：local 保存到本地磁盘，server 上传到远程服务器。",
+  "config.imageStorage.local": "保存图片到本地磁盘（默认）。",
+  "config.imageStorage.server": "上传图片到远程服务器。",
+  "config.imageLocalPath.description": "本地图片保存目录（相对路径或绝对路径）。留空时自动检测 images/、imgs/、assets/images/、assets/ 等目录。",
+  "config.imageServerUrl.description": "图片上传接口地址（imageStorage 为 server 时使用）。",
+  "config.imageServerFieldName.description": "上传请求中图片文件的字段名，默认为 file。",
+  "config.imageServerExtraParams.description": "上传请求中附加的参数，JSON 对象字符串格式。示例：{\"token\":\"xxx\"}",
+  "config.imageServerResponsePath.description": "从上传响应 JSON 中提取图片 URL 的点分路径。示例：data.url",
+  "config.imageSelectionColor.description": "编辑器中选中图片时的边框颜色（CSS 颜色值）。默认与表格单元格选中颜色保持一致。"
 }
