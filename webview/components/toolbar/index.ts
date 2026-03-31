@@ -38,7 +38,6 @@ import {
     IconCheck,
     IconX,
     IconToc,
-    IconHeading,
     IconChevronDown,
     IconEraser,
     IconSettings,
@@ -733,7 +732,7 @@ export function initToolbar(
 
     const fmtBtn = document.createElement("button");
     fmtBtn.className = "tb-btn tb-fmt-btn";
-    fmtBtn.innerHTML = IconHeading + IconChevronDown;
+    fmtBtn.innerHTML = `<span class="tb-fmt-label">P</span>${IconChevronDown}`;
     fmtBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1204,10 +1203,7 @@ export function initToolbar(
         toolbar.appendChild(dbgWrap);
     }
 
-    // ── 设置按钮（最右侧）──────────────────────────────
-    const spacer = document.createElement("div");
-    spacer.style.flex = "1";
-    toolbar.appendChild(spacer);
+    // ── 设置按钮 ────────────────────────────────────────
     toolbar.appendChild(
         btn(IconSettings, t("Settings"), () => notifyOpenSettings()),
     );
@@ -1234,6 +1230,12 @@ export function initToolbar(
                     activeLevel = -1;
                     break;
                 }
+            }
+            // 更新按钮显示的格式标签
+            const labelEl = fmtBtn.querySelector(".tb-fmt-label");
+            if (labelEl) {
+                const labels = ["P","H1","H2","H3","H4","H5","H6"];
+                labelEl.textContent = activeLevel === -1 ? "—" : (labels[activeLevel] ?? "P");
             }
             fmtItems.forEach((item, i) => {
                 // i=0 → P (activeLevel===0), i=1..6 → H1..H6 (activeLevel===i)

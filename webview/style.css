@@ -51,18 +51,27 @@ body {
     word-wrap: break-word;
 }
 
-/* 段落 */
-.milkdown .editor p {
-    margin: 0 0 0.4em;
+/* 内联 HTML 渲染容器（DOMPurify 净化后只读显示） */
+.milkdown .editor .html-inline {
+    display: contents;
+}
+.milkdown .editor .html-inline [align="center"] {
+    text-align: center;
 }
 
-/* 表格单元格内段落不留底部 margin */
+/* 段落：用 padding 替代 margin，确保点击区域包含视觉间距 */
+.milkdown .editor p {
+    margin: 0;
+    padding-bottom: 0.4em;
+}
+
+/* 表格单元格内段落不留底部间距 */
 .milkdown .editor td > p,
 .milkdown .editor th > p {
-    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
-/* 标题 */
+/* 标题：用 padding 替代 margin，确保点击区域包含视觉间距 */
 .milkdown .editor h1,
 .milkdown .editor h2,
 .milkdown .editor h3,
@@ -72,7 +81,8 @@ body {
     color: var(--vscode-editor-foreground);
     font-weight: 600;
     line-height: 1.3;
-    margin: 1.2em 0 0.5em;
+    margin: 0;
+    padding: 1.2em 0 0.5em;
 }
 
 .milkdown .editor h1 {
@@ -86,7 +96,7 @@ body {
     font-size: 1.5em;
     border-bottom: 1px solid
         var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
-    padding-bottom: 0.2em;
+    padding-bottom: 0.6em;
 }
 
 .milkdown .editor h3 {

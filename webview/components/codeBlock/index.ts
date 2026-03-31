@@ -78,6 +78,10 @@ function ensureMermaid(): void {
         startOnLoad: false,
         theme: isDark ? "dark" : "default",
         securityLevel: "loose",
+        // 禁用 Mermaid 为 SVG 设置 max-width:100%，避免与我们写回的固定 width/height 属性冲突
+        flowchart: { useMaxWidth: false },
+        sequence: { useMaxWidth: false },
+        gantt: { useMaxWidth: false },
     });
 }
 
@@ -299,6 +303,7 @@ export function createCodeBlockView(
     let lastRenderedCode = "";
     let isRendering = false;
     let panX = 0, panY = 0, zoomLevel = 1.0;
+    let naturalSvgW = 0, naturalSvgH = 0; // SVG viewBox 自然尺寸（固定不变）
     const ZOOM_MIN = 0.05, ZOOM_MAX = 10.0, ZOOM_BTN = 0.25;
     const PAN_STEP = 80;
     let lbActiveLightbox: HTMLElement | null = null;
@@ -536,23 +541,11 @@ export function createCodeBlockView(
             const containerH = mermaidPreview.clientHeight;
             if (!containerW || !containerH) return;
 
-            let svgW = parseFloat(svgEl.getAttribute("width") ?? "0");
-            let svgH = parseFloat(svgEl.getAttribute("height") ?? "0");
-            if (!svgW || !svgH) {
-                const vb = svgEl.getAttribute("viewBox");
-                if (vb) {
-                    const parts = vb.trim().split(/[\s,]+/);
-                    if (parts.length >= 4) {
-                        svgW = parseFloat(parts[2]);
-                        svgH = parseFloat(parts[3]);
-                    }
-                }
-            }
-            if (!svgW || !svgH) return;
+            if (!naturalSvgW || !naturalSvgH) return;
 
             const padding = 40;
-            const scaleX = (containerW - padding) / svgW;
-            const scaleY = (containerH - padding) / svgH;
+            const scaleX = (containerW - padding) / naturalSvgW;
+            const scaleY = (containerH - padding) / naturalSvgH;
             zoomLevel = Math.min(scaleX, scaleY, ZOOM_MAX);
             zoomLevel = Math.max(ZOOM_MIN, zoomLevel);
             panX = 0; panY = 0;
@@ -568,7 +561,13 @@ export function createCodeBlockView(
 
         ensureMermaid();
         isRendering = true;
+        naturalSvgW = 0; naturalSvgH = 0;
         svgContainer.innerHTML = `<div class="mermaid-loading">${t("Rendering...")}</div>`;
+
+        // svgContainer 是 inline-block，loading div 绝对定位不占空间 → clientWidth=0。
+        // 渲染前临时设置宽度，让 Mermaid（尤其是甘特图）以正确宽度布局。
+        const renderWidth = mermaidPreview.clientWidth || 800;
+        svgContainer.style.width = renderWidth + "px";
 
         // 传入 svgContainer 作为第三参数：mermaid 改用 hidden div（不可见），
         // 不再向 body 注入可见错误元素（bomb icon），且渲染完成后自动移除 hidden div
@@ -578,25 +577,61 @@ export function createCodeBlockView(
             svgContainer.innerHTML = svg;
             const svgEl = svgContainer.querySelector("svg");
             if (svgEl) {
-                // 从 viewBox 提取自然尺寸并写入 width/height 属性
-                // 这样 SVG 有固定 px 尺寸，拖拽容器高度时不会跟着缩放
+                svgEl.style.display = "block";
+                // 多级 fallback 读取自然尺寸（svgContainer.style.width 此时仍为 renderWidth，
+                // 确保甘特图等 width="100%" 的 SVG 在真实宽度下计算 clientWidth）
+                let nw = 0, nh = 0;
+                // 1. viewBox（最精确）
                 const vb = svgEl.getAttribute("viewBox");
                 if (vb) {
                     const parts = vb.trim().split(/[\s,]+/);
                     if (parts.length >= 4) {
-                        const w = parseFloat(parts[2]);
-                        const h = parseFloat(parts[3]);
-                        if (w && h) {
-                            svgEl.setAttribute("width", String(w));
-                            svgEl.setAttribute("height", String(h));
-                        }
+                        nw = parseFloat(parts[2]);
+                        nh = parseFloat(parts[3]);
                     }
                 }
-                svgEl.style.display = "block";
+                // 2. 显式 width/height 属性（排除 "100%" 等百分比值）
+                if (!nw) {
+                    const wa = svgEl.getAttribute("width");
+                    if (wa && !wa.includes("%")) nw = parseFloat(wa);
+                }
+                if (!nh) {
+                    const ha = svgEl.getAttribute("height");
+                    if (ha && !ha.includes("%")) nh = parseFloat(ha);
+                }
+                // 3. 浏览器实际渲染尺寸（svgContainer 宽度还在，clientWidth 有效）
+                if (!nw) nw = svgEl.clientWidth || renderWidth;
+                if (!nh) nh = svgEl.clientHeight || 400;
+                naturalSvgW = nw;
+                naturalSvgH = nh;
+                // 将自然尺寸写回 SVG 属性，确保 CSS scale 以固定像素尺寸为基准
+                // （若 Mermaid 输出 width="100%"，不写回则 CSS scale 会以容器宽度为基准，导致缩放错误）
+                svgEl.setAttribute("width", String(nw));
+                svgEl.setAttribute("height", String(nh));
+                // 清除 Mermaid 可能附加的 max-width:100%;height:auto 内联样式
+                // 否则会覆盖上方写入的 width/height 属性，导致 SVG 以容器宽度渲染
+                svgEl.style.maxWidth = "none";
+                svgEl.style.height = "";
+                // 清除临时渲染宽度（已读取完尺寸）
+                svgContainer.style.width = "";
+                // ── 自适应容器高度 ──────────────────────────────────
+                // 以"填满宽度"缩放比估算合适的容器高度，高图表自动扩展
+                // fitWidthScale 限制 ≤1.0，不对小图放大
+                const availableW = mermaidPreview.clientWidth || 800;
+                const fitWidthScale = Math.min((availableW - 40) / nw, 1.0);
+                const idealH = nh * fitWidthScale + 80; // 上下各 40px padding
+                const maxH = Math.min(window.innerHeight * 0.92, 2000);
+                const finalH = Math.max(300, Math.min(Math.ceil(idealH), maxH));
+                mermaidPreview.style.height = finalH + "px";
+                mermaidPreview.style.minHeight = finalH + "px";
+                // ─────────────────────────────────────────────────────
+            } else {
+                svgContainer.style.width = "";
             }
             lastRenderedCode = code;
             fitToView();
         } catch (err) {
+            svgContainer.style.width = ""; // 出错时同样还原
             const msg = err instanceof Error ? err.message : String(err);
             svgContainer.innerHTML = `
                 <div class="mermaid-error">
@@ -667,29 +702,23 @@ export function createCodeBlockView(
     });
 
     // ── 触控板/滚轮事件 ────────────────────────────────────
-    // ctrlKey=true  → Mac 双指捏合（缩放）
-    // ctrlKey=false → 双指滑动（拖拽 pan）
+    // 内联预览只响应 ctrlKey=true（Mac 双指捏合缩放），普通滚动透传给页面。
+    // 全屏预览（openDiagramLightbox）仍保留滚轮平移+缩放。
     const onPreviewWheel = (e: WheelEvent) => {
+        if (!e.ctrlKey) return; // 普通滚动不拦截，让页面正常滚动
         e.preventDefault();
         e.stopPropagation();
-
-        if (e.ctrlKey) {
-            // 双指捏合：指数平滑缩放，不跳变
-            const factor = Math.pow(0.98, e.deltaY);
-            const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomLevel * factor));
-            // 以鼠标/手指位置为缩放中心
-            const rect = mermaidPreview.getBoundingClientRect();
-            const mx = e.clientX - rect.left - rect.width / 2;
-            const my = e.clientY - rect.top - rect.height / 2;
-            const r = newZoom / zoomLevel;
-            panX = mx + (panX - mx) * r;
-            panY = my + (panY - my) * r;
-            zoomLevel = newZoom;
-        } else {
-            // 双指滑动：直接平移（deltaX 水平，deltaY 垂直）
-            panX -= e.deltaX;
-            panY -= e.deltaY;
-        }
+        // 双指捏合：指数平滑缩放，不跳变
+        const factor = Math.pow(0.98, e.deltaY);
+        const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomLevel * factor));
+        // 以鼠标/手指位置为缩放中心
+        const rect = mermaidPreview.getBoundingClientRect();
+        const mx = e.clientX - rect.left - rect.width / 2;
+        const my = e.clientY - rect.top - rect.height / 2;
+        const r = newZoom / zoomLevel;
+        panX = mx + (panX - mx) * r;
+        panY = my + (panY - my) * r;
+        zoomLevel = newZoom;
         applyTransform();
     };
     mermaidPreview.addEventListener("wheel", onPreviewWheel, { passive: false });

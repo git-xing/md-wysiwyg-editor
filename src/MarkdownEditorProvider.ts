@@ -142,7 +142,12 @@ export class MarkdownEditorProvider
                     }
                     case "update":
                         if (message.content !== undefined) {
-                            document.update(this._prepareContentForSave(message.content, uriKey));
+                            const newContent = this._prepareContentForSave(message.content, uriKey);
+                            // 若内容与当前内存版本完全相同，跳过 auto-save：
+                            // Milkdown 初始化时会触发 markdownUpdated 并将内容原样回传，
+                            // 如果不跳过，会导致"init/revert → echo-back → save → FileWatcher → revert"死循环
+                            if (newContent === document.getText()) { break; }
+                            document.update(newContent);
                             // 首次编辑时 pin tab（移除斜体预览状态）
                             if (!this._pinnedDocuments.has(uriKey)) {
                                 this._pinnedDocuments.add(uriKey);
@@ -264,8 +269,10 @@ export class MarkdownEditorProvider
                     this._autoSaveTimers.delete(uriKey);
                     const cts = new vscode.CancellationTokenSource();
                     try {
-                        this._lastSaveTimes.set(uriKey, Date.now());
                         await document.save(cts.token);
+                        // 写盘完成后再记录时间，确保 FileWatcher 触发时时间戳是准确的
+                        // （如果在 save 之前记录，FileWatcher 延迟 > 1500ms 时保护会失效）
+                        this._lastSaveTimes.set(uriKey, Date.now());
                         const panel = this._webviewPanels.get(uriKey);
                         if (panel) {
                             panel.webview.postMessage({ type: "lineMapUpdate", lineMap: computeLineMap(document.getText()) });

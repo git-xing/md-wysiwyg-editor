@@ -161,7 +161,10 @@
         "markdownWysiwyg.imageStorage": {
           "order": 10,
           "type": "string",
-          "enum": ["local", "server"],
+          "enum": [
+            "local",
+            "server"
+          ],
           "enumDescriptions": [
             "%config.imageStorage.local%",
             "%config.imageStorage.server%"
@@ -215,6 +218,7 @@
     "package": "vsce package --no-dependencies --out releases/ --baseContentUrl https://github.com/git-xing/md-wysiwyg-editor --baseImagesUrl https://github.com/git-xing/md-wysiwyg-editor/raw/main"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.2.0",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^2.32.0",
@@ -230,6 +234,7 @@
     "@milkdown/prose": "^7.19.0",
     "@milkdown/transformer": "^7.5.0",
     "@milkdown/utils": "^7.19.0",
+    "dompurify": "^3.3.3",
     "mermaid": "^11.0.0",
     "prosemirror-tables": "^1.8.5",
     "refractor": "^5.0.0"

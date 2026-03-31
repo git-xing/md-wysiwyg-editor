@@ -290,9 +290,8 @@
     justify-content: center;
     overflow: hidden;
     position: relative;
-    /* mermaid 默认比普通代码块高，复杂图表需要足够空间 */
-    min-height: 500px;
-    max-height: var(--code-block-max-height, 900px);
+    /* 高度由 JS 在渲染后根据 SVG 自然尺寸动态设置，CSS 只提供加载占位的最小值 */
+    min-height: 300px;
     background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
     border-radius: 0 0 6px 6px;
     cursor: grab;
@@ -303,19 +302,17 @@
     cursor: grabbing;
 }
 
-/* SVG 容器：只作 transform 目标，不撑满父容器 */
+/* SVG 容器：transform 作用目标（translate + scale） */
+/* 不设置 will-change: transform，避免浏览器以 CSS 像素尺寸光栅化合成层，
+   导致在高 DPR（Retina）屏幕上 scale 缩小后图表模糊 */
 .mermaid-svg-container {
     display: inline-block;
     flex-shrink: 0;
-    will-change: transform;
     transform-origin: center center;
 }
 
 .mermaid-svg-container svg {
     display: block;
-    /* 无 max-width/max-height：尺寸由 viewBox + width/height 属性决定，
-       拖拽调整容器高度时图表不跟着缩放 */
-    /* 抗锯齿：使文字和图形线条更清晰 */
     text-rendering: geometricPrecision;
     shape-rendering: geometricPrecision;
 }
@@ -480,7 +477,6 @@
 .mermaid-lightbox-svg {
     display: inline-block;
     flex-shrink: 0;
-    will-change: transform;
     transform-origin: center center;
 }
 

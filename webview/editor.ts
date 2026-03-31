@@ -456,8 +456,28 @@ const selectionPlugin = $prose(
 
 import { refractor } from "./highlighter";
 
+import DOMPurify from "dompurify";
 import { createCodeBlockView } from "./components/codeBlock";
 import { createImageView } from "./components/imageView";
+
+// ── HTML inline NodeView ───────────────────────────────────────────────────
+// Milkdown 的 html 节点（atom, inline）默认以 textContent 显示原始标签。
+// 此 NodeView 用 DOMPurify 净化后渲染真实 HTML，实现只读预览。
+function createHtmlView(node: { attrs: Record<string, string> }) {
+    const dom = document.createElement("span");
+    dom.className = "html-inline";
+    dom.dataset["type"] = "html";
+    const raw = node.attrs["value"] ?? "";
+    dom.innerHTML = DOMPurify.sanitize(raw, {
+        USE_PROFILES: { html: true },
+        ADD_ATTR: ["align", "style", "width", "height"],
+    });
+    return {
+        dom,
+        ignoreMutation: () => true,
+        stopEvent: () => false,
+    };
+}
 
 let _editor: Editor | null = null;
 
@@ -499,6 +519,7 @@ export async function createEditor(
             // 注册 code_block NodeView（顶部语言选择 + 复制按钮）
             ctx.set(nodeViewCtx, [
                 ["code_block", createCodeBlockView],
+                ["html", (node: { attrs: Record<string, string> }) => createHtmlView(node)],
                 [
                     "image",
                     (node, view, getPos) =>

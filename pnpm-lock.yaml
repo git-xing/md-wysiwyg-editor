@@ -32,6 +32,9 @@ importers:
       '@milkdown/utils':
         specifier: ^7.19.0
         version: 7.19.0
+      dompurify:
+        specifier: ^3.3.3
+        version: 3.3.3
       mermaid:
         specifier: ^11.0.0
         version: 11.13.0
@@ -42,6 +45,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0
     devDependencies:
+      '@types/dompurify':
+        specifier: ^3.2.0
+        version: 3.2.0
       '@types/node':
         specifier: ^18.0.0
         version: 18.19.130
@@ -409,6 +415,10 @@ packages:
 
   '@types/debug@4.1.12':
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
+
+  '@types/dompurify@3.2.0':
+    resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
+    deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
 
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
@@ -2117,6 +2127,10 @@ snapshots:
   '@types/debug@4.1.12':
     dependencies:
       '@types/ms': 2.1.0
+
+  '@types/dompurify@3.2.0':
+    dependencies:
+      dompurify: 3.3.3
 
   '@types/geojson@7946.0.16': {}
 
