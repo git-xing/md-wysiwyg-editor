@@ -4,6 +4,7 @@ import {
     Editor,
     editorViewCtx,
     nodeViewCtx,
+    remarkStringifyOptionsCtx,
     rootCtx,
     schemaCtx,
 } from "@milkdown/core";
@@ -388,6 +389,48 @@ const cellClickFixPlugin = $prose(() => {
     });
 });
 
+// 列表 spread 规范化：编辑后若列表项只含单个块级子节点，自动将 spread 重置为 false
+// 防止删除嵌套子列表后，原 loose list 的 spread:true 残留导致序列化时插入多余空行
+const listSpreadNormalizePlugin = $prose((ctx) => {
+    const schema = ctx.get(schemaCtx);
+    return new Plugin({
+        appendTransaction(transactions, _oldState, newState) {
+            if (!transactions.some((tr) => tr.docChanged)) return null;
+            const tr = newState.tr;
+            let changed = false;
+            newState.doc.descendants((node, pos) => {
+                if (
+                    node.type !== schema.nodes.bullet_list &&
+                    node.type !== schema.nodes.ordered_list
+                )
+                    return;
+                let listNeedsSpread = false;
+                let offset = 1; // 跳过列表节点自身的开标记
+                node.forEach((item) => {
+                    const itemNeedsSpread = item.childCount > 1;
+                    if (item.attrs.spread !== itemNeedsSpread) {
+                        tr.setNodeMarkup(pos + offset, undefined, {
+                            ...item.attrs,
+                            spread: itemNeedsSpread,
+                        });
+                        changed = true;
+                    }
+                    if (itemNeedsSpread) listNeedsSpread = true;
+                    offset += item.nodeSize;
+                });
+                if (node.attrs.spread !== listNeedsSpread) {
+                    tr.setNodeMarkup(pos, undefined, {
+                        ...node.attrs,
+                        spread: listNeedsSpread,
+                    });
+                    changed = true;
+                }
+            });
+            return changed ? tr : null;
+        },
+    });
+});
+
 const selectionPlugin = $prose(
     () =>
         new Plugin({
@@ -455,6 +498,26 @@ import yaml from "refractor/yaml";
     yaml,
 ].forEach((lang) => refractor.register(lang));
 
+// ── 自定义 Mermaid 语法高亮 ─────────────────────────────────
+if (!refractor.registered('mermaid')) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mermaidSyntax: any = function (Prism: any) {
+        Prism.languages['mermaid'] = {
+            comment: { pattern: /%%[^\r\n]*/, greedy: true },
+            string:  { pattern: /"[^"]*"/, greedy: true },
+            label:   { pattern: /\|[^|]*\|/, greedy: true },
+            bracket: { pattern: /\[(?:[^\[\]]|\[[^\[\]]*\])*\]|\{[^{}]*\}|\([^()]*\)|\(\([^()]*\)\)/, greedy: true },
+            keyword: /\b(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|gantt|pie|showData|mindmap|timeline|gitGraph|quadrantChart|xychart-beta|sankey-beta|block-beta|architecture-beta|LR|RL|TD|TB|BT|subgraph|end|participant|actor|Note|note|over|loop|opt|alt|else|critical|break|par|and|rect|activate|deactivate|title|section|class|state|direction|as|autonumber|link|style|classDef|fill|stroke|color)\b/i,
+            arrow:   /(?:-->|-->>|->>|--[ox*]|<-->|<-->>|<<-->|o--o|\*--\*|\.->|==>|==|--)/,
+            number:  /\b\d+(?:\.\d+)?\b/,
+            punctuation: /[[\]{}()]/,
+        };
+    };
+    mermaidSyntax.displayName = 'mermaid';
+    mermaidSyntax.aliases = [];
+    refractor.register(mermaidSyntax);
+}
+
 import { createCodeBlockView } from "./components/codeBlock";
 import { createImageView } from "./components/imageView";
 
@@ -483,6 +546,11 @@ export async function createEditor(
         .config((ctx) => {
             ctx.set(rootCtx, container);
             ctx.set(defaultValueCtx, initialMarkdown);
+            // 保持原始 bullet 标记（`-`），避免序列化后统一改为 `*`
+            ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                ...prev,
+                bullet: '-' as const,
+            }));
             ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
                 debouncedUpdate(markdown);
             });
@@ -518,6 +586,7 @@ export async function createEditor(
         .use(selectionPlugin)
         .use(formatKeymapPlugin)
         .use(cellClickFixPlugin)
+        .use(listSpreadNormalizePlugin)
         .create();
 
     return _editor;

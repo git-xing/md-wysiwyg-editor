@@ -60,4 +60,26 @@ export const ZH_CN_WEBVIEW: Record<string, string> = {
     'Failed to load images': '图片加载失败',
     'Selected': '已选',
     'Enlarge': '放大',
+    // imageView 工具栏
+    'Close': '关闭',
+    'View Full Size': '查看原图',
+    'Edit Alt Text': '编辑替代文本',
+    'Delete': '删除',
+    'Alt text': '替代文本',
+    'New filename': '新文件名',
+    'Edit Image Path': '编辑图片路径',
+    'Image path or URL': '图片路径或 URL',
+    'Image not found': '图片未找到',
+    // linkPopup
+    '⌘ Click to open': '⌘ 点击打开',
+    'Ctrl+Click to open': 'Ctrl+点击打开',
+    'URL https://...': 'URL https://...',
+    // mermaid
+    'Preview Diagram': '预览图表',
+    'Edit Code': '编辑代码',
+    'Zoom In': '放大',
+    'Zoom Out': '缩小',
+    'Reset Zoom': '重置缩放',
+    'View Fullscreen': '全屏查看',
+    'Rendering...': '渲染中...',
 };

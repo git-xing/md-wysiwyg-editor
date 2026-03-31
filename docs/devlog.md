@@ -6,6 +6,117 @@
 
 ***
 
+## \[037] 2026-03-31 — Mermaid 渲染修复：炸弹 icon 消除、预览高度增大
+
+**涉及文件：** `webview/components/codeBlock/index.ts`, `webview/style.css`
+
+### 完成内容
+- **炸弹 icon 彻底修复**：向 `mermaid.render(id, code, svgContainer)` 传入第三个参数 `svgContainer`。mermaid 文档说明：提供 `svgContainingElement` 时，mermaid 会使用 body 内的 **hidden div** 进行渲染，渲染完成后（含报错场景）自动移除该 div，不再向页面可见区域注入任何元素。整个 `finally` 清理块因此可以删除。
+- **SVG 自适应**：渲染后读取 viewBox 提取宽高并赋给 SVG 元素属性，结合 `fitToView()` 实现完整填充。
+- **mermaid 预览默认高度增大**：`min-height` 从 320px → 500px；`max-height` 从 500px → 900px，确保复杂流程图（含子图）有足够显示空间，无需手动拖拽调整。
+- **编译验证**：`pnpm build` 通过，webview.js 7.8MB，无报错。
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B073 | 底部持续显示炸弹 icon + "Syntax error in text mermaid version 11.13.0" | `mermaid.render()` 不传第三参数时向 body 追加可见 div；出错时该 div 残留 | 传入 `svgContainer` 作为第三参数，mermaid 改用 hidden div 并自动清理 | ✅ 已修复 |
+| B074 | 复杂流程图（含子图）预览区太矮，需手动拖高 | `.mermaid-preview` `min-height: 320px; max-height: 500px` 默认值过小 | CSS 改为 `min-height: 500px; max-height: 900px` | ✅ 已修复 |
+
+### 备注
+- mermaid v11 `render()` 类型签名：`render(id: string, text: string, svgContainingElement?: Element): Promise<RenderResult>`，第三参数文档记录在 `node_modules/mermaid/dist/mermaidAPI.d.ts`
+
+---
+
+## \[036] 2026-03-30 — Mermaid 图表渲染：预览/编辑切换、拖拽缩放、方向键平移、全屏查看
+
+**涉及文件：** `package.json`, `webview/components/codeBlock/index.ts`, `webview/ui/icons.ts`, `webview/style.css`, `src/i18n/webviewTranslations.ts`, `webview/editor.ts`
+
+### 完成内容
+- **Mermaid 依赖**：新增 `mermaid ^11.0.0`（实际安装 11.13.0），`package.json` dependencies 追加
+- **语言列表新增 Mermaid**：`LANGUAGES` 数组加入 `["mermaid", "Mermaid"]`
+- **代码/预览切换按钮**：语言为 mermaid 时 header 显示切换按钮（`code-view-toggle-btn`）；active 状态用背景色区分，避免蓝色 icon 与其他按钮色差过大
+- **Mermaid 渲染**：使用 `mermaid.render(id, code)` 生成 SVG；`ensureMermaid()` 懒初始化，根据 VSCode 背景色自动选 dark/default 主题；渲染中显示 loading，语法错误显示 `IconAlertCircle` + 错误信息
+- **SVG 固定尺寸**：渲染后从 `viewBox` 读取 w/h 并设置为 SVG `width`/`height` 属性，确保拖拽调整容器高度时流程图不随之缩放
+- **默认自适应缩放**：`fitToView()` 在 `requestAnimationFrame` 后计算最优 zoom 令图表完整填充预览区
+- **防抖重渲染**：代码内容变更后 600ms 防抖触发重渲染
+- **内联拖拽 pan**：鼠标拖拽平移图表，光标切换 grab/grabbing
+- **触控板支持（Mac）**：`ctrlKey=true`（捏合手势）→ 指数平滑缩放 `Math.pow(0.98, deltaY)`；`ctrlKey=false`（双指滑动）→ 平移 `panX -= deltaX; panY -= deltaY`
+- **方向键平移控件**：预览右下角 3×3 网格，上下左右四个方向按钮 + 中间 `IconResetZoom` 重置按钮（`mermaid-pan-controls`）
+- **右上角缩放叠加层**：预览右上角浮层 `[-][100%][+]`，百分比实时更新，点击百分比可复位+自适应（`mermaid-zoom-overlay`）
+- **全屏 lightbox（常驻所有代码块）**：`fullscreenBtn` 常驻 header；mermaid 预览模式打开图表 lightbox（独立 pan/zoom），其他模式打开代码 lightbox；ESC/点击背景/关闭按钮关闭
+- **拖拽调整高度**：resize handle 在预览模式操作 `mermaidPreview`，代码模式操作 `pre`；调整高度不触发 fitToView，图表尺寸不变
+- **Mermaid 语法高亮**：`editor.ts` 注册自定义 Prism mermaid grammar（keyword/arrow/bracket/string/comment）
+- **新增图标**：`IconEye`、`IconZoomOut`、`IconMaximize2`、`IconResetZoom`、`IconAlertCircle`、`IconChevronUp`、`IconChevronLeft`、`IconChevronRight`
+- **新增翻译**：Preview Diagram、Edit Code、Zoom In、Zoom Out、Reset Zoom、View Fullscreen、Rendering...（7 条）
+- **新增样式**：`.mermaid-preview`（min-height:320px，flex 居中）、`.mermaid-svg-container`（inline-block，无百分比尺寸）、`.mermaid-zoom-overlay`、`.mermaid-overlay-btn`、`.mermaid-pan-controls`、`.mermaid-pan-btn`、`.mermaid-pan-reset`、`.mermaid-lightbox` 系列
+
+### Bug / 问题
+| 编号 | 描述 | 根因 | 解决方案 | 状态 |
+|------|------|------|----------|------|
+| B070 | Mac 触控板捏合缩放一下跳到极值 | 固定步长 ±0.15 配合 `deltaY` 数值过大 | 改用指数缩放 `zoomLevel * Math.pow(0.98, deltaY)` | ✅ 已修复 |
+| B071 | 切换"编辑代码" icon 颜色比其他 icon 暗 | active 状态用 `color: var(--vscode-focusBorder)` 蓝色 | 改为 `background` + `border-color` 高亮，颜色不变 | ✅ 已修复 |
+| B072 | 拖拽调整高度时流程图跟着缩放 | SVG 用 `max-width/height: 100%`，容器变化导致 SVG 重新布局 | 从 viewBox 读取固定像素尺寸赋给 SVG；svgContainer 改为 inline-block | ✅ 已修复 |
+
+### 备注
+- webview.js 包体积从约 4.6MB 增至 7.8MB（mermaid 库较大，符合预期）
+- Milkdown 官方 `@milkdown/plugin-diagram` 已停止维护，使用 mermaid 官方包 + 自定义 NodeView UI 是更好选择
+- 全屏按钮常驻所有代码块（非仅 mermaid），代码 lightbox 以等宽字体展示原始内容
+
+---
+
+## \[035] 2026-03-30 — 图片渲染改进：失败占位符、工具栏重构、i18n 补全
+
+**涉及文件：** `webview/components/imageView/index.ts`, `webview/ui/icons.ts`, `webview/style.css`, `src/i18n/webviewTranslations.ts`, `webview/components/linkPopup/index.ts`
+
+### 完成内容
+- **图片加载失败占位符**：新增 `IconImageOff` 图标；`img.onerror` 时隐藏 img、显示带图标和"图片未找到"文案的红色虚线占位框；`img.onload` 或 src 更新时自动恢复
+- **工具栏信息区改为可编辑 input（本地图片）**：
+  - 原 `infoEl`（span）拆分为 `infoSpan`（远程只读）+ `infoInput`（本地可编辑）
+  - `updateInfoElement()` 按 `isLocalImage` 动态切换两者（`replaceChild`）
+  - 本地图片时 `infoInput` 直接显示文件名，Enter 触发 `onRenameImage` 重命名文件，Escape/blur 恢复原值；焦点激活时高亮边框
+  - `document.activeElement !== infoInput` 保护：`updateInfo` 不覆盖用户正在输入的内容
+- **铅笔图标常驻，改为编辑图片路径（src）**：
+  - 移除原条件性插入/移除逻辑（`updateRenameVisibility`、`startRenameEdit` 函数均删除）
+  - `renameBtn` 始终在工具栏，tooltip 改为"编辑图片路径"
+  - 点击调用 `startSrcEdit()`：弹出 240px 宽 input 显示当前 src，Enter 确认后 dispatch `tr.setNodeMarkup` 修改 src 属性（对 local/remote 图片均可用）
+- **i18n 补全**：
+  - `webviewTranslations.ts` 新增 13 个原来缺失的翻译 key（Close、View Full Size、Edit Alt Text、Delete、Alt text、New filename、Edit Image Path、Image path or URL、Image not found、⌘ Click to open、Ctrl+Click to open、URL https://...）
+  - `linkPopup/index.ts` 修复两处硬编码：`hintText` 改用 `t()`；`inputUrl.placeholder` 改用 `t()`
+
+### Bug / 问题
+（无新 bug）
+
+### 备注
+- 工具栏固定布局：`infoSpan/infoInput | sep | zoom | sep | ALT | sep | pencil | sep | delete`，不再动态增删按钮
+
+---
+
+## \[034] 2026-03-30 — 项目开源到 GitHub，建立分支管理和 CI/CD 流程
+
+**涉及文件：** `.gitignore`, `package.json`, `CLAUDE.md`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `CONTRIBUTING.md`
+
+### 完成内容
+- **更新 .gitignore**：新增 `.claude/`（私有记忆目录）、`releases/`、`.env*` 忽略规则
+- **更新 package.json**：添加 `repository`/`bugs`/`homepage` 字段，修正 `package` 脚本 URL（`git-xing/md-wysiwyg-editor`），去掉 `--allow-missing-repository`
+- **更新 CLAUDE.md**：添加 Git commit 中文描述规范（类型前缀保留英文）；更新关键文件速查表至最新目录结构
+- **创建 GitHub 仓库**：`https://github.com/git-xing/md-wysiwyg-editor`，设置 topics、描述
+- **分支策略**：`main`（稳定发布）+ `dev`（日常开发，已设为默认分支），两层结构
+- **main 分支保护**：开启 Require PR before merging（0 approvals）、禁止 force push、禁止删除
+- **CI/CD**：
+  - `ci.yml`：push/PR 到 main/dev 时自动构建验证
+  - `release.yml`：打 `v*.*.*` tag 时自动打包并发布到 VS Code Marketplace + 创建 GitHub Release
+- **社区文件**：Bug Report 模板、Feature Request 模板、PR 模板、CONTRIBUTING.md
+
+### Bug / 问题
+（无新 bug）
+
+### 备注
+- 发布 CI 需在 GitHub Secrets 中配置 `VSCE_PAT`（Azure DevOps → Marketplace → Manage 权限的 PAT）
+- 首次 CI 运行后可在分支保护规则中补充 "Require status checks: build" 选项
+- 今后日常工作在 `dev` 分支，发版时从 `dev` 开 PR 到 `main`，merge 后打 tag 触发自动发布
+
+---
+
 ## \[033] 2026-03-30 — 链接点击行为重构：阻止直接导航，支持 Cmd/Ctrl+单击打开
 
 **涉及文件：** `webview/components/linkPopup/index.ts`, `webview/messaging.ts`, `src/MarkdownEditorProvider.ts`

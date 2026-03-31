@@ -10,6 +10,6 @@
         "sourceMap": true,
         "noEmit": true
     },
-    "include": ["./**/*.ts"],
+    "include": ["./**/*.ts", "../shared/**/*.ts"],
     "exclude": ["node_modules"]
 }

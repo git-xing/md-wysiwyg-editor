@@ -1,5 +1,12 @@
+import type { ToExtensionMessage, ToWebviewMessage, ProjectImage } from "../shared/messages";
+
+export type { ProjectImage };
+
+// Re-export 以保持现有消费者（webview/index.ts 等）对 IncomingMessage 的引用不变
+export type IncomingMessage = ToWebviewMessage;
+
 declare function acquireVsCodeApi(): {
-    postMessage(message: unknown): void;
+    postMessage(message: ToExtensionMessage): void;
     getState(): unknown;
     setState(state: unknown): void;
 };
@@ -59,26 +66,6 @@ export function notifyRenameImage(
 ): void {
     vscode.postMessage({ type: "renameImage", id, webviewUri, newBasename });
 }
-
-export type IncomingMessage =
-    | { type: "init"; content: string; lineMap?: number[] }
-    | { type: "revert"; content: string; lineMap?: number[] }
-    | { type: "lineMapUpdate"; lineMap: number[] }
-    | { type: "setDebugMode"; enabled: boolean }
-    | { type: "imageUploaded"; id: string; url: string }
-    | { type: "imageUploadError"; id: string; error: string }
-    | {
-          type: "projectImagesList";
-          id: string;
-          images: Array<{ relPath: string; webviewUri: string; name: string }>;
-      }
-    | {
-          type: "imageRenamed";
-          id: string;
-          oldWebviewUri: string;
-          newWebviewUri: string;
-      }
-    | { type: "imageRenameError"; id: string; error: string };
 
 export function onMessage(handler: (msg: IncomingMessage) => void): void {
     window.addEventListener("message", (event: MessageEvent) => {

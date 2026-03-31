@@ -10,6 +10,7 @@ import {
     IconTrash2,
     IconCheck,
     IconX,
+    IconImageOff,
 } from "../../ui/icons";
 import { applyTooltip } from "../../ui/tooltip";
 import { t } from "../../i18n";
@@ -137,6 +138,27 @@ export function createImageView(
     img.alt = (node.attrs["alt"] as string) ?? "";
     img.draggable = false;
 
+    // ── 图片加载失败占位符 ────────────────────────────────────
+    let imgErrored = false;
+    const errorPlaceholder = document.createElement("div");
+    errorPlaceholder.className = "img-error-placeholder";
+    errorPlaceholder.style.display = "none";
+
+    img.addEventListener("error", () => {
+        imgErrored = true;
+        img.style.display = "none";
+        errorPlaceholder.innerHTML = `${IconImageOff}<span>${t("Image not found")}</span>`;
+        errorPlaceholder.style.display = "flex";
+    });
+
+    img.addEventListener("load", () => {
+        if (imgErrored) {
+            imgErrored = false;
+            img.style.display = "";
+            errorPlaceholder.style.display = "none";
+        }
+    });
+
     // ── 工具栏 ────────────────────────────────────────────────
     const toolbar = document.createElement("div");
     toolbar.className = "image-toolbar";
@@ -164,12 +186,12 @@ export function createImageView(
         startAltEdit();
     });
 
-    // 重命名按钮（仅本地图片）
-    const renameBtn = makeBtn(IconPencil, t("Rename"));
+    // 铅笔图标：常驻，点击编辑图片路径（src 属性）
+    const renameBtn = makeBtn(IconPencil, t("Edit Image Path"));
     renameBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        startRenameEdit();
+        startSrcEdit();
     });
 
     // 删除按钮
@@ -186,57 +208,97 @@ export function createImageView(
         view.focus();
     });
 
-    // ── 信息条（文件名 + alt） ────────────────────────────────
-    const infoEl = document.createElement("span");
-    infoEl.className = "img-tb-info";
+    // ── 信息区：span（只读，远程图片）+ input（可编辑文件名，本地图片）──
+    const infoSpan = document.createElement("span");
+    infoSpan.className = "img-tb-info";
+
+    const infoInput = document.createElement("input");
+    infoInput.type = "text";
+    infoInput.className = "img-tb-info img-tb-info--input";
+    isolateInput(infoInput);
+
+    let currentInfoEl: HTMLElement = infoSpan;
 
     function updateInfo(src: string, alt: string): void {
         const name = src.split("/").pop() ?? src;
-        infoEl.textContent = alt ? `${name} · ${alt}` : name;
-        infoEl.title = infoEl.textContent;
+        const display = alt ? `${name} · ${alt}` : name;
+        infoSpan.textContent = display;
+        infoSpan.title = display;
+        // 仅在 input 未获得焦点时同步（避免覆盖用户正在编辑的内容）
+        if (document.activeElement !== infoInput) {
+            infoInput.value = basenameNoExt(src);
+            infoInput.title = name;
+        }
     }
 
-    // 组装工具栏：info | sep | zoom | sep | alt | sep | delete
-    // （重命名按钮在 sep+delete 之前按条件插入）
-    toolbar.appendChild(infoEl);
+    // 本地图片识别：vscode-webview-resource:（旧）或 vscode-cdn.net / vscode-resource（新）
+    function isLocalImage(src: string): boolean {
+        return /vscode-resource|vscode-cdn\.net/.test(src);
+    }
+
+    function updateInfoElement(src: string): void {
+        const shouldUseInput = isLocalImage(src) && !!onRenameImage;
+        const newEl = shouldUseInput ? infoInput : infoSpan;
+        if (currentInfoEl !== newEl && currentInfoEl.parentElement) {
+            currentInfoEl.parentElement.replaceChild(newEl, currentInfoEl);
+            currentInfoEl = newEl;
+        }
+    }
+
+    // infoInput 键盘事件（本地图片文件名重命名）
+    infoInput.addEventListener("keydown", (e) => {
+        if (e.isComposing) {
+            return;
+        }
+        if (e.key === "Enter") {
+            e.stopPropagation();
+            e.preventDefault();
+            const newBasename = infoInput.value.trim();
+            const orig = basenameNoExt(rawSrc);
+            if (newBasename && newBasename !== orig && onRenameImage) {
+                onRenameImage(rawSrc, newBasename).catch(() => {});
+            } else {
+                infoInput.value = orig;
+            }
+            infoInput.blur();
+            view.focus();
+        } else if (e.key === "Escape") {
+            e.stopPropagation();
+            e.preventDefault();
+            infoInput.value = basenameNoExt(rawSrc);
+            infoInput.blur();
+            view.focus();
+        }
+    });
+
+    infoInput.addEventListener("blur", () => {
+        // blur 时未提交则恢复原值
+        infoInput.value = basenameNoExt(rawSrc);
+    });
+
+    infoInput.addEventListener("focus", () => {
+        infoInput.select();
+    });
+
+    // ── 组装工具栏（固定布局，renameBtn 常驻）────────────────
+    toolbar.appendChild(currentInfoEl); // 初始为 infoSpan
     toolbar.appendChild(makeSep());
     toolbar.appendChild(zoomBtn);
     toolbar.appendChild(makeSep());
     toolbar.appendChild(altBtn);
     toolbar.appendChild(makeSep());
+    toolbar.appendChild(renameBtn);     // 常驻
+    toolbar.appendChild(makeSep());
     toolbar.appendChild(deleteBtn);
 
     wrapper.appendChild(img);
+    wrapper.appendChild(errorPlaceholder);
     wrapper.appendChild(toolbar);
 
-    // ── 更新工具栏中重命名按钮可见性 ─────────────────────────
-    // （用 rawSrc 而非 img.src，避免浏览器规范化改变 URL 格式）
+    // ── 初始化信息区 ──────────────────────────────────────────
     let rawSrc = (node.attrs["src"] as string) ?? "";
     updateInfo(rawSrc, img.alt);
-    // 本地图片：vscode-webview-resource:（旧）或 vscode-cdn.net / vscode-resource（新）
-    function isLocalImage(src: string): boolean {
-        return /vscode-resource|vscode-cdn\.net/.test(src);
-    }
-
-    function updateRenameVisibility(src: string): void {
-        const isLocal = isLocalImage(src);
-        if (isLocal && onRenameImage) {
-            if (!renameBtn.parentElement) {
-                // 插在 sep 和 deleteBtn 之间
-                toolbar.insertBefore(makeSep(), deleteBtn);
-                toolbar.insertBefore(renameBtn, deleteBtn);
-            }
-        } else {
-            renameBtn.parentElement?.removeChild(renameBtn);
-            // 同时移除它前面的 sep（若有多余的）
-            const seps = toolbar.querySelectorAll(".img-tb-sep");
-            const lastSep = seps[seps.length - 1];
-            if (lastSep && lastSep.nextElementSibling === deleteBtn) {
-                lastSep.parentElement?.removeChild(lastSep);
-            }
-        }
-    }
-    updateRenameVisibility(rawSrc);
+    updateInfoElement(rawSrc); // 可能将 infoSpan 替换为 infoInput
 
     // ── Alt 文本内联编辑 ──────────────────────────────────────
     let isEditingAlt = false;
@@ -316,14 +378,15 @@ export function createImageView(
         }
 
         input.addEventListener("keydown", (e) => {
-            e.stopPropagation();
             if (e.isComposing) {
                 return;
             }
             if (e.key === "Enter") {
+                e.stopPropagation();
                 e.preventDefault();
                 confirm();
             } else if (e.key === "Escape") {
+                e.stopPropagation();
                 e.preventDefault();
                 cancel();
             }
@@ -340,21 +403,21 @@ export function createImageView(
         });
     }
 
-    // ── 重命名内联编辑 ────────────────────────────────────────
-    let isEditingRename = false;
+    // ── 编辑图片路径（src 属性）────────────────────────────────
+    let isEditingSrc = false;
 
-    function startRenameEdit(): void {
-        if (isEditingRename || !onRenameImage) {
+    function startSrcEdit(): void {
+        if (isEditingSrc) {
             return;
         }
-        isEditingRename = true;
+        isEditingSrc = true;
 
-        const currentName = basenameNoExt(rawSrc);
         const input = document.createElement("input");
         input.className = "img-rename-input";
-        input.value = currentName;
+        input.value = rawSrc;
+        input.placeholder = t("Image path or URL");
+        input.style.width = "240px";
         isolateInput(input);
-        input.placeholder = t("New filename");
 
         const confirmBtn = document.createElement("button");
         confirmBtn.className = "img-tb-btn";
@@ -378,55 +441,54 @@ export function createImageView(
         input.select();
 
         function confirm(): void {
-            if (!isEditingRename) {
+            if (!isEditingSrc) {
                 return;
             }
-            const newBasename = input.value.trim();
-            if (!newBasename || newBasename === currentName) {
-                cancel();
-                return;
+            const newSrc = input.value.trim();
+            isEditingSrc = false;
+            cleanup();
+            if (newSrc && newSrc !== rawSrc) {
+                const pos = getPos();
+                if (pos !== undefined) {
+                    view.dispatch(
+                        view.state.tr.setNodeMarkup(pos, null, {
+                            ...currentNode.attrs,
+                            src: newSrc,
+                        }),
+                    );
+                }
             }
-            isEditingRename = false;
-            cleanupRename();
-            onRenameImage!(rawSrc, newBasename).catch(() => {
-                // rename 失败时静默（Extension 侧会弹 error 提示）
-            });
             view.focus();
         }
 
         function cancel(): void {
-            if (!isEditingRename) {
+            if (!isEditingSrc) {
                 return;
             }
-            isEditingRename = false;
-            cleanupRename();
+            isEditingSrc = false;
+            cleanup();
             view.focus();
         }
 
-        function cleanupRename(): void {
-            if (toolbar.contains(input)) {
-                toolbar.removeChild(input);
-            }
-            if (toolbar.contains(confirmBtn)) {
-                toolbar.removeChild(confirmBtn);
-            }
-            if (toolbar.contains(cancelBtn)) {
-                toolbar.removeChild(cancelBtn);
-            }
+        function cleanup(): void {
+            if (toolbar.contains(input)) toolbar.removeChild(input);
+            if (toolbar.contains(confirmBtn)) toolbar.removeChild(confirmBtn);
+            if (toolbar.contains(cancelBtn)) toolbar.removeChild(cancelBtn);
             Array.from(toolbar.children).forEach((el) => {
                 (el as HTMLElement).style.display = "";
             });
         }
 
         input.addEventListener("keydown", (e) => {
-            e.stopPropagation();
             if (e.isComposing) {
                 return;
             }
             if (e.key === "Enter") {
+                e.stopPropagation();
                 e.preventDefault();
                 confirm();
             } else if (e.key === "Escape") {
+                e.stopPropagation();
                 e.preventDefault();
                 cancel();
             }
@@ -456,7 +518,13 @@ export function createImageView(
             if (rawSrc !== newSrc) {
                 rawSrc = newSrc;
                 img.src = newSrc;
-                updateRenameVisibility(newSrc);
+                // 重置错误状态，让浏览器重新尝试加载新 src
+                if (imgErrored) {
+                    imgErrored = false;
+                    img.style.display = "";
+                    errorPlaceholder.style.display = "none";
+                }
+                updateInfoElement(newSrc);
             }
             if (img.alt !== newAlt) {
                 img.alt = newAlt;

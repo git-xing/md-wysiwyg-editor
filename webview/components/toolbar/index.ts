@@ -189,12 +189,12 @@ function showInlineLinkPrompt(
     });
     [textInput, urlInput].forEach((inp) => {
         inp.addEventListener("keydown", (e) => {
-            e.stopPropagation();
             if (e.key === "Enter") {
+                e.stopPropagation();
                 e.preventDefault();
                 confirm();
-            }
-            if (e.key === "Escape") {
+            } else if (e.key === "Escape") {
+                e.stopPropagation();
                 e.preventDefault();
                 cleanup();
             }
@@ -646,12 +646,12 @@ function showImageInsertPanel(
 
     [altInput, srcInput].forEach((inp) => {
         inp.addEventListener("keydown", (e) => {
-            e.stopPropagation();
             if (e.key === "Enter") {
+                e.stopPropagation();
                 e.preventDefault();
                 confirm();
-            }
-            if (e.key === "Escape") {
+            } else if (e.key === "Escape") {
+                e.stopPropagation();
                 e.preventDefault();
                 cleanup();
             }
