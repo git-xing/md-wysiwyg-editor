@@ -138,6 +138,8 @@ export function setupLinkPopup(
     let hoverTimer: ReturnType<typeof setTimeout> | null = null;
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     let currentLink: LinkInfo | null = null;
+    // 追踪链接 tooltip 是否由 showTooltipAt 显示——避免 scheduleHide 误杀其他组件的 tooltip
+    let linkTooltipVisible = false;
 
     function clearHoverTimer(): void {
         if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
@@ -165,7 +167,10 @@ export function setupLinkPopup(
         clearHoverTimer();
         popup.style.display = "none";
         currentLink = null;
-        hideTooltip();
+        if (linkTooltipVisible) {
+            hideTooltip();
+            linkTooltipVisible = false;
+        }
     }
 
     function scheduleHide(delay = 180): void {
@@ -181,6 +186,7 @@ export function setupLinkPopup(
         clearHoverTimer();
         clearHideTimer();
         showTooltipAt(anchor, hintText, "above");
+        linkTooltipVisible = true;
 
         hoverTimer = setTimeout(() => {
             hoverTimer = null;
@@ -194,18 +200,31 @@ export function setupLinkPopup(
     container.addEventListener("mouseout", (e) => {
         if (!(e.target as Element).closest("a")) return;
         clearHoverTimer();
-        // 弹框未显示时鼠标移出即隐藏 tooltip
-        if (popup.style.display === "none") hideTooltip();
+        // 弹框未显示时鼠标移出即隐藏链接 tooltip
+        if (popup.style.display === "none" && linkTooltipVisible) {
+            hideTooltip();
+            linkTooltipVisible = false;
+        }
     });
 
     container.addEventListener("mouseleave", () => {
         clearHoverTimer();
-        hideTooltip();
-        scheduleHide(180);
+        if (linkTooltipVisible) {
+            hideTooltip();
+            linkTooltipVisible = false;
+        }
+        // 输入框聚焦时不触发隐藏（用户正在编辑链接）
+        if (!popup.contains(document.activeElement)) {
+            scheduleHide(180);
+        }
     });
 
     popup.addEventListener("mouseenter", () => clearHideTimer());
-    popup.addEventListener("mouseleave", () => hidePopup());
+    popup.addEventListener("mouseleave", () => {
+        // 输入框聚焦时鼠标离开弹框不关闭（用户正在编辑链接）
+        if (popup.contains(document.activeElement)) return;
+        hidePopup();
+    });
 
     // ── 捕获阶段拦截链接点击 ──────────────────────────────────────
     container.addEventListener(
@@ -283,6 +302,14 @@ export function setupLinkPopup(
     // ── 输入框键盘处理 ─────────────────────────────────────────
     [inputText, inputUrl].forEach((inp) => {
         inp.addEventListener("mousedown", (e) => e.stopPropagation());
+        // 失焦时若鼠标不在弹框内则关闭（如按 Tab / Escape 移走焦点后鼠标已离开弹框）
+        inp.addEventListener("blur", () => {
+            requestAnimationFrame(() => {
+                if (popup.style.display !== "none" && !popup.matches(":hover")) {
+                    hidePopup();
+                }
+            });
+        });
     });
 
     // ── 点击弹框外部关闭 ─────────────────────────────────────────
