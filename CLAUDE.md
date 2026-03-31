@@ -2,19 +2,13 @@
 
 ## 项目基本规则
 
-* **包管理器**：必须用 `pnpm`，禁止 npm/yarn
-
-* **构建**：修改代码后执行 `pnpm build` 验证编译无误
-
-* **调试**：F5 启动扩展调试实例（`.vscode/launch.json`）
-
-* **语言**：全部 TypeScript；Extension 端用 `tsconfig.json`，WebView 端用 `tsconfig.webview.json`
-
-* **双目标构建**：`dist/extension.js`（Node.js）+ `dist/webview.js`（Browser），由 `esbuild.mjs` 完成
-
-* **打包发布**：VSIX 包必须输出到 `releases/` 文件夹，命令：`pnpm run package`
-
-* **Git commit 规范**：commit 描述部分必须用**中文**，类型前缀（`feat:`、`fix:`、`refactor:`、`chore:`、`docs:` 等）保留英文。例：`feat: 新增图片上传功能`、`fix: 修复表格拖拽偏移问题`
+- **包管理器**：必须用 `pnpm`，禁止 npm/yarn
+- **构建**：修改代码后执行 `pnpm build` 验证编译无误
+- **调试**：F5 启动扩展调试实例（`.vscode/launch.json`）
+- **语言**：全部 TypeScript；Extension 端用 `tsconfig.json`，WebView 端用 `tsconfig.webview.json`
+- **双目标构建**：`dist/extension.js`（Node.js）+ `dist/webview.js`（Browser），由 `esbuild.mjs` 完成
+- **打包发布**：VSIX 包必须输出到 `releases/` 文件夹，命令：`pnpm run package`
+- **Git commit 规范**：commit 描述部分必须用**中文**，类型前缀（`feat:`、`fix:`、`refactor:`、`chore:`、`docs:` 等）保留英文。例：`feat: 新增图片上传功能`、`fix: 修复表格拖拽偏移问题`
 
 ***
 
@@ -50,13 +44,10 @@ docs/roadmap.md                          — 项目路线图
 
 ## 架构约束
 
-* WebView ↔ Extension 通信**只通过** `webview/messaging.ts` 中封装的函数
-
-* WebView 侧不直接 `import` VSCode API，通过 `acquireVsCodeApi()` 获取句柄
-
-* CSS 必须使用 `--vscode-*` 变量以适配亮/暗主题
-
-* 不在模块外部维护全局状态（单例除外，如 editor view）
+- WebView ↔ Extension 通信**只通过** `webview/messaging.ts` 中封装的函数
+- WebView 侧不直接 `import` VSCode API，通过 `acquireVsCodeApi()` 获取句柄
+- CSS 必须使用 `--vscode-*` 变量以适配亮/暗主题
+- 不在模块外部维护全局状态（单例除外，如 editor view）
 
 ***
 
@@ -91,11 +82,9 @@ docs/roadmap.md                          — 项目路线图
 
 **状态标识：**
 
-* `✅ 已修复` — 本次会话已解决
-
-* `🔄 反复` — 多次修改仍未彻底解决
-
-* `⏳ 待处理` — 已知但暂未修复
+- `✅ 已修复` — 本次会话已解决
+- `🔄 反复` — 多次修改仍未彻底解决
+- `⏳ 待处理` — 已知但暂未修复
 
 ### 2. 若阶段进度有变化，同步更新 `docs/roadmap.md`
 

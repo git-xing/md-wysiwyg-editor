@@ -310,6 +310,8 @@ export class MarkdownEditorProvider
                 [...this.claudeTerminals].at(-1)                          // ① Shell Integration 检测
                 ?? vscode.window.terminals.find(isClaudeLikeTerminal)     // ② state.shell 缺失
                 ?? undefined;  // 不兜底到 activeTerminal，避免误发到普通 shell
+            console.log(claudeTerminal,"终端:", vscode.window.terminals);
+
             if (claudeTerminal) {
                 claudeTerminal.sendText(mentionStr, false);
                 await vscode.commands.executeCommand('workbench.action.terminal.focus');
@@ -478,7 +480,7 @@ export class MarkdownEditorProvider
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'none';
              style-src ${webview.cspSource} 'unsafe-inline';
-             script-src 'nonce-${nonce}';
+             script-src 'nonce-${nonce}' ${webview.cspSource};
              img-src ${webview.cspSource} https: data:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Markdown Editor</title>
@@ -489,7 +491,7 @@ export class MarkdownEditorProvider
   <div class="editor-topbar"></div>
   <div id="editor"></div>
   <script nonce="${nonce}">${i18nScript}</script>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
     }

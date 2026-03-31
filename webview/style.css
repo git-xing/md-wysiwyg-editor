@@ -841,73 +841,74 @@ body {
 
 /* ─── Prism 语法高亮 Token 颜色 ─── */
 /* 使用 VSCode 内置 token 颜色变量，深色/浅色主题自动适配 */
+/* :is() 同时覆盖编辑器内代码块和全屏 lightbox */
 
-.milkdown .editor .token.comment,
-.milkdown .editor .token.prolog,
-.milkdown .editor .token.doctype,
-.milkdown .editor .token.cdata {
+:is(.milkdown .editor, .code-lightbox-pre) .token.comment,
+:is(.milkdown .editor, .code-lightbox-pre) .token.prolog,
+:is(.milkdown .editor, .code-lightbox-pre) .token.doctype,
+:is(.milkdown .editor, .code-lightbox-pre) .token.cdata {
     color: var(--vscode-terminal-ansiGreen, #6a9955);
     font-style: italic;
 }
 
-.milkdown .editor .token.punctuation {
+:is(.milkdown .editor, .code-lightbox-pre) .token.punctuation {
     color: var(--vscode-editor-foreground);
     opacity: 0.7;
 }
 
-.milkdown .editor .token.property,
-.milkdown .editor .token.tag,
-.milkdown .editor .token.constant,
-.milkdown .editor .token.symbol,
-.milkdown .editor .token.deleted {
+:is(.milkdown .editor, .code-lightbox-pre) .token.property,
+:is(.milkdown .editor, .code-lightbox-pre) .token.tag,
+:is(.milkdown .editor, .code-lightbox-pre) .token.constant,
+:is(.milkdown .editor, .code-lightbox-pre) .token.symbol,
+:is(.milkdown .editor, .code-lightbox-pre) .token.deleted {
     color: var(--vscode-terminal-ansiRed, #f44747);
 }
 
-.milkdown .editor .token.boolean,
-.milkdown .editor .token.number {
+:is(.milkdown .editor, .code-lightbox-pre) .token.boolean,
+:is(.milkdown .editor, .code-lightbox-pre) .token.number {
     color: var(--vscode-terminal-ansiBlue, #b5cea8);
 }
 
-.milkdown .editor .token.selector,
-.milkdown .editor .token.attr-name,
-.milkdown .editor .token.string,
-.milkdown .editor .token.char,
-.milkdown .editor .token.builtin,
-.milkdown .editor .token.inserted {
+:is(.milkdown .editor, .code-lightbox-pre) .token.selector,
+:is(.milkdown .editor, .code-lightbox-pre) .token.attr-name,
+:is(.milkdown .editor, .code-lightbox-pre) .token.string,
+:is(.milkdown .editor, .code-lightbox-pre) .token.char,
+:is(.milkdown .editor, .code-lightbox-pre) .token.builtin,
+:is(.milkdown .editor, .code-lightbox-pre) .token.inserted {
     color: var(--vscode-terminal-ansiYellow, #ce9178);
 }
 
-.milkdown .editor .token.operator,
-.milkdown .editor .token.entity,
-.milkdown .editor .token.url,
-.milkdown .editor .language-css .token.string,
-.milkdown .editor .style .token.string {
+:is(.milkdown .editor, .code-lightbox-pre) .token.operator,
+:is(.milkdown .editor, .code-lightbox-pre) .token.entity,
+:is(.milkdown .editor, .code-lightbox-pre) .token.url,
+:is(.milkdown .editor, .code-lightbox-pre) .language-css .token.string,
+:is(.milkdown .editor, .code-lightbox-pre) .style .token.string {
     color: var(--vscode-editor-foreground);
 }
 
-.milkdown .editor .token.atrule,
-.milkdown .editor .token.attr-value,
-.milkdown .editor .token.keyword {
+:is(.milkdown .editor, .code-lightbox-pre) .token.atrule,
+:is(.milkdown .editor, .code-lightbox-pre) .token.attr-value,
+:is(.milkdown .editor, .code-lightbox-pre) .token.keyword {
     color: var(--vscode-terminal-ansiCyan, #569cd6);
 }
 
-.milkdown .editor .token.function,
-.milkdown .editor .token.class-name {
+:is(.milkdown .editor, .code-lightbox-pre) .token.function,
+:is(.milkdown .editor, .code-lightbox-pre) .token.class-name {
     color: var(--vscode-terminal-ansiMagenta, #dcdcaa);
 }
 
-.milkdown .editor .token.regex,
-.milkdown .editor .token.important,
-.milkdown .editor .token.variable {
+:is(.milkdown .editor, .code-lightbox-pre) .token.regex,
+:is(.milkdown .editor, .code-lightbox-pre) .token.important,
+:is(.milkdown .editor, .code-lightbox-pre) .token.variable {
     color: var(--vscode-terminal-ansiYellow, #d7ba7d);
 }
 
-.milkdown .editor .token.important,
-.milkdown .editor .token.bold {
+:is(.milkdown .editor, .code-lightbox-pre) .token.important,
+:is(.milkdown .editor, .code-lightbox-pre) .token.bold {
     font-weight: bold;
 }
 
-.milkdown .editor .token.italic {
+:is(.milkdown .editor, .code-lightbox-pre) .token.italic {
     font-style: italic;
 }
 
@@ -1999,6 +2000,15 @@ body {
 }
 
 /* ─── Lightbox 全屏 ─── */
+@keyframes lb-open {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lb-close {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.97); }
+}
+
 .mermaid-lightbox {
     position: fixed;
     inset: 0;
@@ -2006,6 +2016,12 @@ body {
     background: rgba(0, 0, 0, 0.88);
     display: flex;
     flex-direction: column;
+    animation: lb-open 0.18s ease;
+}
+
+.mermaid-lightbox.lb-closing {
+    animation: lb-close 0.15s ease forwards;
+    pointer-events: none;
 }
 
 .mermaid-lightbox-header {
@@ -2034,6 +2050,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 0;
 }
 
 /* lightbox SVG 容器：同样不用 % 尺寸，防止缩放跳变 */
@@ -2120,24 +2137,144 @@ body {
     opacity: 1;
 }
 
-/* ─── 代码全屏 lightbox 内容区 ─── */
-.code-lightbox-body {
-    padding: 0 !important;
-    overflow: auto;
-    cursor: default;
-    align-items: flex-start;
-    justify-content: flex-start;
+/* ─── Mermaid lightbox 双面板 ─── */
+
+/* 预览面板：承接原有 lbBody 的拖拽/缩放 */
+.lb-mermaid-preview-pane {
+    flex: 1;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    min-height: 0;
 }
 
-.code-lightbox-pre {
-    margin: 0;
-    padding: 24px;
-    background: transparent;
-    color: var(--vscode-editor-foreground, #d4d4d4);
+/* 代码面板：复用 code-lightbox-body 的 flex-row 布局 */
+.lb-mermaid-code-pane {
+    flex: 1;
+    align-self: stretch;
+    display: none;   /* switchToCodeMode() 时改为 flex */
+    flex-direction: row;
+    overflow: hidden;
+    min-height: 0;
+    cursor: default;
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+}
+
+/* ─── 代码全屏 lightbox — 可编辑编辑器 ─── */
+
+/* body 改为 flex-row：行号区 + 代码区并排 */
+.mermaid-lightbox-body.code-lightbox-body {
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    cursor: default;
+    overflow: hidden;
+}
+
+/* 行号栏（与普通代码块 .line-numbers-gutter 对齐） */
+.code-lightbox-gutter {
+    padding: 1em 0.75em;
+    min-width: 2.5em;
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+    border-right: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-editorLineNumber-foreground, rgba(128, 128, 128, 0.6));
     font-family: var(--vscode-editor-font-family, monospace);
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.5;
+    text-align: right;
+    user-select: none;
+    pointer-events: none;
+    overflow: hidden;      /* 内容跟随 textarea 滚动，不自滚 */
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.code-lightbox-gutter span {
+    display: block;
+    line-height: 1.5;
+}
+
+/* 代码区外层容器（flex: 1，相对定位，承载 pre 和 textarea） */
+.code-lightbox-editor-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+}
+
+/* pre（高亮层）和 textarea（输入层）共享相同尺寸/字体 */
+.code-lightbox-pre,
+.code-lightbox-textarea {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    padding: 1em;
+    margin: 0;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 14px;
+    line-height: 1.5;
     white-space: pre;
-    min-width: 100%;
+    word-wrap: normal;
     tab-size: 4;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+/* 高亮层：不响应事件，仅显示颜色 */
+.code-lightbox-pre {
+    pointer-events: none;
+    z-index: 0;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    background: transparent;
+    border: 0;
+}
+
+/* 覆盖 VSCode webview 注入的 code 背景色 */
+.code-lightbox-pre code {
+    background: none !important;
+    padding: 0;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* 输入层：文字透明（只显示光标 + 选区），高亮由 pre 负责 */
+.code-lightbox-textarea {
+    z-index: 1;
+    color: transparent;
+    caret-color: var(--vscode-editor-foreground, #d4d4d4);
+    background: transparent;
+    border: 0;
+    outline: none;
+    resize: none;
+    -webkit-text-fill-color: transparent;
+}
+
+.code-lightbox-textarea::selection {
+    background: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.7));
+    -webkit-text-fill-color: transparent;
+}
+
+/* ─── 代码编辑器全屏（VSCode 主题色）─── */
+.mermaid-lightbox.code-editor-lightbox {
+    background: var(--vscode-editor-background, #1e1e1e);
+}
+
+
+.mermaid-lightbox.code-editor-lightbox .mermaid-lightbox-header {
+    background: var(--vscode-editor-background, var(--vscode-textCodeBlock-background));
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-editor-foreground, #cccccc);
+}
+
+.mermaid-lightbox.code-editor-lightbox .mermaid-zoom-btn {
+    color: var(--vscode-editor-foreground, #cccccc);
+}
+
+.mermaid-lightbox.code-editor-lightbox .mermaid-zoom-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+    border-color: transparent;
 }

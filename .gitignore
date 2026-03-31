@@ -2,6 +2,7 @@ node_modules/
 dist/
 out/
 test/
+docs/
 *.vsix
 releases/
 .DS_Store
