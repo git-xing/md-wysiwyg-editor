@@ -1,0 +1,107 @@
+/* ─── 表格边框高亮线段 overlay（不操作 ProseMirror 节点）── */
+.table-add-line {
+    position: fixed;
+    z-index: 999;
+    pointer-events: none;
+    background: rgba(52, 211, 153, 0.8);
+}
+.table-add-line--h {
+    height: 2px;
+    pointer-events: none;
+}
+.table-add-line--v {
+    width: 2px;
+    pointer-events: none;
+}
+
+/* ─── 表格 + 插入按钮 ───────────────────────────────── */
+.table-add-btn {
+    position: fixed;
+    z-index: 1000;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--vscode-focusBorder, rgba(52, 211, 153, 0.6));
+    background: var(--vscode-editor-background);
+    color: var(--vscode-focusBorder, rgba(52, 211, 153, 0.9));
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: all;
+    padding: 0;
+}
+.table-add-btn:hover {
+    background: var(--vscode-focusBorder, rgba(52, 211, 153, 0.9));
+    color: var(--vscode-editor-background, #1e1e1e);
+}
+
+/* ─── 表格行/列拖拽 handle ─── */
+.table-handle {
+    position: fixed;
+    z-index: 998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(
+        --vscode-toolbar-hoverBackground,
+        rgba(128, 128, 128, 0.15)
+    );
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+    border-radius: 3px;
+    cursor: grab;
+    color: var(--vscode-editor-foreground);
+    font-size: 11px;
+    opacity: 0.6;
+    pointer-events: all;
+    user-select: none;
+}
+
+.table-handle:hover {
+    opacity: 1;
+    background: var(
+        --vscode-toolbar-activeBackground,
+        rgba(128, 128, 128, 0.25)
+    );
+}
+
+.table-handle--row {
+    width: 18px;
+    height: 20px;
+}
+
+.table-handle--col {
+    width: 20px;
+    height: 18px;
+}
+
+/* 拖拽时的目标占位线 */
+.table-drag-line {
+    position: fixed;
+    z-index: 1001;
+    background: var(--vscode-focusBorder, #007acc);
+    pointer-events: none;
+    display: none;
+}
+
+.table-drag-line--h {
+    height: 2px;
+}
+.table-drag-line--v {
+    width: 2px;
+}
+
+/* 拖拽时跟随鼠标的行/列 ghost 覆盖层 */
+.table-drag-ghost {
+    position: fixed;
+    z-index: 1002;
+    pointer-events: none;
+    background: var(
+        --vscode-editor-selectionBackground,
+        rgba(52, 211, 153, 0.18)
+    );
+    border: 1px solid var(--vscode-focusBorder, rgba(52, 211, 153, 0.5));
+    display: none;
+}

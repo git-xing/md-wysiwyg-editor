@@ -1,0 +1,538 @@
+/* ─── 工具栏扩展 ─── */
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: nowrap;
+    margin-left: 12px;
+    flex: 1;
+}
+
+.tb-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.tb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 24px;
+    padding: 0 4px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1;
+    transition:
+        background 0.1s,
+        border-color 0.1s;
+    white-space: nowrap;
+}
+
+.tb-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    border-color: var(--vscode-toolbar-hoverOutline, transparent);
+}
+
+.tb-btn:active {
+    background: var(
+        --vscode-toolbar-activeBackground,
+        rgba(128, 128, 128, 0.3)
+    );
+}
+
+.tb-btn code {
+    background: none;
+    padding: 0;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.tb-select-wrapper {
+    position: relative;
+}
+
+.tb-select {
+    height: 24px;
+    padding: 0 4px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+}
+
+.tb-select:hover {
+    background: var(
+        --vscode-toolbar-hoverBackground,
+        rgba(128, 128, 128, 0.15)
+    );
+}
+
+.tb-select option {
+    background: var(
+        --vscode-dropdown-background,
+        var(--vscode-editor-background)
+    );
+    color: var(--vscode-editor-foreground);
+}
+
+/* ─── 顶部工具栏格式选择器（hover 展开，与浮动工具栏风格一致）─── */
+.tb-fmt-wrap {
+    position: relative;
+}
+
+.tb-fmt-btn {
+    gap: 1px;
+}
+
+.tb-fmt-menu {
+    position: absolute;
+    left: 0;
+    display: none;
+    flex-direction: column;
+    background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    min-width: 52px;
+    z-index: 200;
+}
+
+.tb-fmt-item {
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--vscode-editorHoverWidget-foreground, #ccc);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.tb-fmt-item:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
+}
+
+.tb-fmt-item--active {
+    color: var(--vscode-focusBorder, #007acc);
+    font-weight: 600;
+}
+
+.tb-fmt-item--active::after {
+    content: " ✓";
+    font-size: 10px;
+}
+
+/* ─── 工具栏内联 URL 输入框（替代沙箱禁止的 window.prompt） ─── */
+.tb-prompt-overlay {
+    position: fixed;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: var(
+        --vscode-editorWidget-background,
+        var(--vscode-editor-background)
+    );
+    border: 1px solid var(--vscode-focusBorder, #007acc);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tb-prompt-input {
+    height: 22px;
+    padding: 0 6px;
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+    color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    width: 170px;
+}
+
+.tb-prompt-input--short {
+    width: 100px;
+}
+
+.tb-prompt-input:focus {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.tb-prompt-ok,
+.tb-prompt-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    flex-shrink: 0;
+    transition: background 0.1s;
+}
+
+.tb-prompt-ok:hover {
+    background: var(--vscode-button-background, #007acc);
+    color: var(--vscode-button-foreground, #fff);
+}
+
+.tb-prompt-cancel:hover {
+    background: var(
+        --vscode-inputValidation-errorBackground,
+        rgba(200, 50, 50, 0.2)
+    );
+    color: var(--vscode-errorForeground, #f44);
+}
+
+/* ─── 图片插入面板（居中悬浮，无遮罩） ─── */
+.img-insert-panel {
+    position: fixed;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: calc(100vw - 32px);
+    max-height: 80vh;
+    padding: 14px 16px;
+    background: var(
+        --vscode-editorWidget-background,
+        var(--vscode-editor-background)
+    );
+    border: 1px solid var(--vscode-focusBorder, #007acc);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.img-insert-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vscode-editor-foreground);
+    margin-bottom: 2px;
+}
+
+.img-insert-close-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--vscode-editor-foreground);
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0.7;
+}
+.img-insert-close-btn:hover {
+    opacity: 1;
+    background: var(--vscode-list-hoverBackground);
+}
+
+.img-insert-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid
+        var(--vscode-input-border, rgba(128, 128, 128, 0.3));
+    padding-bottom: 6px;
+}
+
+.img-insert-tab {
+    height: 24px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-family: inherit;
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    cursor: pointer;
+    transition:
+        background 0.1s,
+        color 0.1s;
+}
+
+.img-insert-tab:hover {
+    background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+}
+
+.img-insert-tab--active {
+    background: var(--vscode-button-background, #007acc);
+    color: var(--vscode-button-foreground, #fff);
+    border-color: transparent;
+}
+
+.img-insert-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.img-insert-input {
+    height: 28px;
+    padding: 0 8px;
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+    color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.img-insert-input:focus {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.img-insert-browse-btn {
+    width: 100%;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-family: inherit;
+    background: var(
+        --vscode-button-secondaryBackground,
+        rgba(128, 128, 128, 0.2)
+    );
+    color: var(
+        --vscode-button-secondaryForeground,
+        var(--vscode-editor-foreground)
+    );
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.img-insert-browse-btn:hover:not(:disabled) {
+    background: var(
+        --vscode-button-secondaryHoverBackground,
+        rgba(128, 128, 128, 0.3)
+    );
+}
+.img-insert-browse-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.img-insert-file-info {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.8));
+    word-break: break-all;
+}
+
+.img-insert-preview {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+}
+
+.img-insert-status {
+    font-size: 11px;
+    padding: 2px 0;
+}
+
+.img-insert-status--loading {
+    color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.8));
+}
+
+.img-insert-status--error {
+    color: var(--vscode-errorForeground, #f44);
+}
+
+.img-insert-btn-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.2));
+}
+
+.img-insert-ok-btn,
+.img-insert-cancel-btn {
+    height: 28px;
+    padding: 0 14px;
+    font-size: 12px;
+    font-family: inherit;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition:
+        background 0.1s,
+        opacity 0.1s;
+}
+.img-insert-ok-btn {
+    background: var(--vscode-button-background, #007acc);
+    color: var(--vscode-button-foreground, #fff);
+    border: none;
+}
+.img-insert-ok-btn:hover:not(:disabled) {
+    background: var(--vscode-button-hoverBackground, #0062a3);
+}
+.img-insert-ok-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.img-insert-cancel-btn {
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+}
+.img-insert-cancel-btn:hover {
+    background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+}
+
+/* ─── 图片网格（浏览项目 tab） ─── */
+.img-insert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+    overflow-y: auto;
+    max-height: 320px;
+    padding: 2px;
+}
+
+.img-insert-thumb-item {
+    position: relative;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+    transition: border-color 0.12s;
+}
+.img-insert-thumb-item:hover {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+.img-insert-thumb-item--selected {
+    border-color: var(--vscode-button-background, #007acc);
+}
+
+.img-insert-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.img-insert-thumb-check {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 18px;
+    height: 18px;
+    background: var(--vscode-button-background, #007acc);
+    color: var(--vscode-button-foreground, #fff);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.img-insert-thumb-item--selected .img-insert-thumb-check {
+    display: flex;
+}
+.img-insert-thumb-check svg {
+    width: 11px;
+    height: 11px;
+}
+
+.img-insert-thumb-enlarge {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.img-insert-thumb-item:hover .img-insert-thumb-enlarge {
+    opacity: 1;
+}
+
+.img-insert-selected-count {
+    font-size: 11px;
+    color: var(--vscode-button-background, #007acc);
+    padding-top: 2px;
+}
+
+/* ─── Lightbox（放大预览） ─── */
+.img-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.img-lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.6);
+    cursor: default;
+}
+.img-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: background 0.12s;
+}
+.img-lightbox-close:hover {
+    background: rgba(0, 0, 0, 0.8);
+}

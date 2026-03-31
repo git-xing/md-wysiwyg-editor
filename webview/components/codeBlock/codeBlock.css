@@ -1,0 +1,702 @@
+/* ─── 代码块 NodeView ─── */
+.code-block-wrapper {
+    margin: 0 0 1em;
+    border-radius: 6px;
+    /* overflow: visible 保留，避免裁剪语言下拉菜单 */
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    /* 移除 justify-content:space-between，改用 spacer flex:1 推右侧按钮 */
+    padding: 4px 8px;
+    background: var(
+        --vscode-editor-lineHighlightBackground,
+        rgba(128, 128, 128, 0.12)
+    );
+    border-bottom: 1px solid
+        var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    gap: 4px;
+    border-radius: 6px 6px 0 0;
+}
+
+/* ─── lang-picker 自定义搜索下拉 ─── */
+.lang-picker {
+    position: relative;
+}
+
+.lang-picker-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    height: 22px;
+    white-space: nowrap;
+}
+
+.lang-picker-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+.lang-picker-btn--open {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.lang-picker-dropdown {
+    position: fixed;
+    /* top / left / bottom set by JS */
+    z-index: 1000;
+    background: var(
+        --vscode-dropdown-background,
+        var(--vscode-editor-background)
+    );
+    border: 1px solid var(--vscode-focusBorder, #007acc);
+    border-radius: 4px;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.lang-picker-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: none;
+    border-bottom: 1px solid
+        var(--vscode-widget-border, rgba(128, 128, 128, 0.3));
+    background: transparent;
+    color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+}
+
+.lang-picker-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* 覆盖 .milkdown .editor ul { padding-left: 1.8em } 的高优先级规则 */
+.milkdown .editor .lang-picker-list {
+    padding-left: 0;
+    list-style: none;
+    margin: 0;
+}
+
+.lang-picker-item {
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--vscode-dropdown-foreground, var(--vscode-editor-foreground));
+}
+
+.lang-picker-item:hover,
+.lang-picker-item--focused {
+    background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
+.lang-picker-item--active {
+    color: var(--vscode-focusBorder, #007acc);
+    font-weight: 600;
+}
+
+/* ─── 代码块拖拽调整高度 handle（wrapper 底部整行） ─── */
+.code-block-resize-handle {
+    height: 6px;
+    background: transparent;
+    cursor: ns-resize;
+    border-radius: 0 0 6px 6px;
+    transition: background 0.15s;
+}
+
+.code-block-resize-handle:hover {
+    background: var(--vscode-focusBorder, #007acc);
+    opacity: 0.3;
+}
+
+/* 复制按钮（SVG 图标） */
+.copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 22px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition:
+        opacity 0.1s,
+        background 0.1s,
+        color 0.15s;
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+}
+
+.copy-btn--done {
+    opacity: 1;
+    color: var(--vscode-charts-green, #4caf50);
+}
+
+/* 更高特异性（覆盖 .milkdown .editor pre），确保 padding:0 和 flex 布局生效 */
+.milkdown .editor .code-block-wrapper pre {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start; /* 允许子元素按内容高度增长，而非被拉伸到容器高度（使 overflow-y 生效） */
+    margin: 0;
+    padding: 0;
+    background: var(
+        --vscode-textCodeBlock-background,
+        rgba(128, 128, 128, 0.1)
+    );
+    border-radius: 0 0 6px 6px;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: var(--code-block-max-height, 500px);
+}
+
+/* 行号侧栏 */
+.line-numbers-gutter {
+    padding: 1em 0.75em;
+    min-width: 2.5em;
+    text-align: right;
+    user-select: none;
+    pointer-events: none;
+    flex-shrink: 0;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 0.9em;
+    line-height: 1.5;
+    color: var(--vscode-editorLineNumber-foreground, rgba(128, 128, 128, 0.6));
+    border-right: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    pointer-events: none; /* 防止行号栏拦截鼠标事件，避免干扰代码区的拖拽选择 */
+}
+
+.line-numbers-gutter span {
+    display: block;
+    line-height: 1.5;
+}
+
+/* 更高特异性（覆盖 .milkdown .editor pre code），确保 padding:1em 和 flex:1 生效 */
+.milkdown .editor .code-block-wrapper pre code {
+    flex: 1;
+    min-width: 0;
+    padding: 1em;
+    background: none;
+    font-size: 0.9em;
+    line-height: 1.5; /* 与 .line-numbers-gutter 保持一致，避免行号错位 */
+    border-radius: 0;
+}
+
+/* ─── Prism 语法高亮 Token 颜色 ─── */
+/* 使用 VSCode 内置 token 颜色变量，深色/浅色主题自动适配 */
+/* :is() 同时覆盖编辑器内代码块和全屏 lightbox */
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.comment,
+:is(.milkdown .editor, .code-lightbox-pre) .token.prolog,
+:is(.milkdown .editor, .code-lightbox-pre) .token.doctype,
+:is(.milkdown .editor, .code-lightbox-pre) .token.cdata {
+    color: var(--vscode-terminal-ansiGreen, #6a9955);
+    font-style: italic;
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.punctuation {
+    color: var(--vscode-editor-foreground);
+    opacity: 0.7;
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.property,
+:is(.milkdown .editor, .code-lightbox-pre) .token.tag,
+:is(.milkdown .editor, .code-lightbox-pre) .token.constant,
+:is(.milkdown .editor, .code-lightbox-pre) .token.symbol,
+:is(.milkdown .editor, .code-lightbox-pre) .token.deleted {
+    color: var(--vscode-terminal-ansiRed, #f44747);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.boolean,
+:is(.milkdown .editor, .code-lightbox-pre) .token.number {
+    color: var(--vscode-terminal-ansiBlue, #b5cea8);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.selector,
+:is(.milkdown .editor, .code-lightbox-pre) .token.attr-name,
+:is(.milkdown .editor, .code-lightbox-pre) .token.string,
+:is(.milkdown .editor, .code-lightbox-pre) .token.char,
+:is(.milkdown .editor, .code-lightbox-pre) .token.builtin,
+:is(.milkdown .editor, .code-lightbox-pre) .token.inserted {
+    color: var(--vscode-terminal-ansiYellow, #ce9178);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.operator,
+:is(.milkdown .editor, .code-lightbox-pre) .token.entity,
+:is(.milkdown .editor, .code-lightbox-pre) .token.url,
+:is(.milkdown .editor, .code-lightbox-pre) .language-css .token.string,
+:is(.milkdown .editor, .code-lightbox-pre) .style .token.string {
+    color: var(--vscode-editor-foreground);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.atrule,
+:is(.milkdown .editor, .code-lightbox-pre) .token.attr-value,
+:is(.milkdown .editor, .code-lightbox-pre) .token.keyword {
+    color: var(--vscode-terminal-ansiCyan, #569cd6);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.function,
+:is(.milkdown .editor, .code-lightbox-pre) .token.class-name {
+    color: var(--vscode-terminal-ansiMagenta, #dcdcaa);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.regex,
+:is(.milkdown .editor, .code-lightbox-pre) .token.important,
+:is(.milkdown .editor, .code-lightbox-pre) .token.variable {
+    color: var(--vscode-terminal-ansiYellow, #d7ba7d);
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.important,
+:is(.milkdown .editor, .code-lightbox-pre) .token.bold {
+    font-weight: bold;
+}
+
+:is(.milkdown .editor, .code-lightbox-pre) .token.italic {
+    font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Mermaid 图表渲染
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 内联预览区域 ─── */
+.mermaid-preview {
+    /* display 由 JS 控制（none / flex） */
+    display: none;
+    /* flex 居中：SVG 自然尺寸，不依赖 % 撑满 */
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    /* mermaid 默认比普通代码块高，复杂图表需要足够空间 */
+    min-height: 500px;
+    max-height: var(--code-block-max-height, 900px);
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+    border-radius: 0 0 6px 6px;
+    cursor: grab;
+    user-select: none;
+}
+
+.mermaid-preview--panning {
+    cursor: grabbing;
+}
+
+/* SVG 容器：只作 transform 目标，不撑满父容器 */
+.mermaid-svg-container {
+    display: inline-block;
+    flex-shrink: 0;
+    will-change: transform;
+    transform-origin: center center;
+}
+
+.mermaid-svg-container svg {
+    display: block;
+    /* 无 max-width/max-height：尺寸由 viewBox + width/height 属性决定，
+       拖拽调整容器高度时图表不跟着缩放 */
+    /* 抗锯齿：使文字和图形线条更清晰 */
+    text-rendering: geometricPrecision;
+    shape-rendering: geometricPrecision;
+}
+
+.mermaid-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.8));
+    font-size: 13px;
+}
+
+.mermaid-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 24px;
+    color: var(--vscode-errorForeground, #f48771);
+    max-width: 100%;
+    overflow: auto;
+}
+
+.mermaid-error-msg {
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+    max-height: 120px;
+    overflow-y: auto;
+    color: var(--vscode-editor-foreground);
+    opacity: 0.85;
+}
+
+/* ─── Header 通用按钮（zoom overlay / lightbox / toggle / fullscreen）─── */
+.mermaid-zoom-btn,
+.code-view-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 22px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.1s, background 0.1s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.mermaid-zoom-btn:hover,
+.code-view-toggle-btn:hover {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+}
+
+/* 激活态：用背景色指示，保持前景色一致（避免 focusBorder 蓝色让图标显暗）*/
+.code-view-toggle-btn--active {
+    opacity: 1;
+    background: var(--vscode-toolbar-activeBackground, rgba(128, 128, 128, 0.25));
+    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.4));
+}
+
+/* ─── 右上角缩放 overlay（预览区浮层）─── */
+.mermaid-zoom-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+    background: var(--vscode-editorHoverWidget-background, rgba(30, 30, 30, 0.75));
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    padding: 1px 2px;
+}
+
+.mermaid-overlay-btn {
+    pointer-events: all;
+    opacity: 0.7;
+    width: 22px !important;
+    height: 20px !important;
+}
+
+.mermaid-overlay-btn:hover {
+    opacity: 1;
+}
+
+/* 中间百分比按钮宽一些 */
+.mermaid-overlay-val {
+    min-width: 40px !important;
+    width: auto !important;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family, monospace);
+    letter-spacing: -0.3px;
+}
+
+/* ─── Lightbox 全屏 ─── */
+@keyframes lb-open {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lb-close {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.97); }
+}
+
+.mermaid-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.88);
+    display: flex;
+    flex-direction: column;
+    animation: lb-open 0.18s ease;
+}
+
+.mermaid-lightbox.lb-closing {
+    animation: lb-close 0.15s ease forwards;
+    pointer-events: none;
+}
+
+.mermaid-lightbox-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+    flex-shrink: 0;
+}
+
+.mermaid-lightbox-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.mermaid-lightbox-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+
+/* lightbox SVG 容器：同样不用 % 尺寸，防止缩放跳变 */
+.mermaid-lightbox-svg {
+    display: inline-block;
+    flex-shrink: 0;
+    will-change: transform;
+    transform-origin: center center;
+}
+
+.mermaid-lightbox-svg svg {
+    display: block;
+    filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
+    text-rendering: geometricPrecision;
+    shape-rendering: geometricPrecision;
+}
+
+.mermaid-lightbox-header .mermaid-zoom-btn {
+    color: #e0e0e0;
+    min-width: 38px;
+    opacity: 0.8;
+}
+
+.mermaid-lightbox-header .mermaid-zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+}
+
+/* ─── 方向控制按钮（预览区右下角十字布局）─── */
+.mermaid-pan-controls {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.mermaid-pan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 22px);
+    grid-template-rows: repeat(3, 22px);
+    gap: 1px;
+    pointer-events: none;
+}
+
+.mermaid-pan-btn {
+    pointer-events: all;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--vscode-editorHoverWidget-background, rgba(30, 30, 30, 0.85));
+    color: var(--vscode-editor-foreground);
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.1s, background 0.1s;
+    padding: 0;
+}
+
+.mermaid-pan-btn:hover {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.3));
+}
+
+/* 中间 reset 按钮：稍大，区别于方向按钮 */
+.mermaid-pan-reset {
+    opacity: 0.45;
+}
+
+.mermaid-pan-reset:hover {
+    opacity: 1;
+}
+
+/* 常驻全屏按钮（header 右侧）*/
+.code-block-fullscreen-btn {
+    opacity: 0.5;
+}
+
+.code-block-fullscreen-btn:hover {
+    opacity: 1;
+}
+
+/* ─── Mermaid lightbox 双面板 ─── */
+
+/* 预览面板：承接原有 lbBody 的拖拽/缩放 */
+.lb-mermaid-preview-pane {
+    flex: 1;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    min-height: 0;
+}
+
+/* 代码面板：复用 code-lightbox-body 的 flex-row 布局 */
+.lb-mermaid-code-pane {
+    flex: 1;
+    align-self: stretch;
+    display: none;   /* switchToCodeMode() 时改为 flex */
+    flex-direction: row;
+    overflow: hidden;
+    min-height: 0;
+    cursor: default;
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+}
+
+/* ─── 代码全屏 lightbox — 可编辑编辑器 ─── */
+
+/* body 改为 flex-row：行号区 + 代码区并排 */
+.mermaid-lightbox-body.code-lightbox-body {
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    cursor: default;
+    overflow: hidden;
+}
+
+/* 行号栏（与普通代码块 .line-numbers-gutter 对齐） */
+.code-lightbox-gutter {
+    padding: 1em 0.75em;
+    min-width: 2.5em;
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+    border-right: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-editorLineNumber-foreground, rgba(128, 128, 128, 0.6));
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: right;
+    user-select: none;
+    pointer-events: none;
+    overflow: hidden;      /* 内容跟随 textarea 滚动，不自滚 */
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.code-lightbox-gutter span {
+    display: block;
+    line-height: 1.5;
+}
+
+/* 代码区外层容器（flex: 1，相对定位，承载 pre 和 textarea） */
+.code-lightbox-editor-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+}
+
+/* pre（高亮层）和 textarea（输入层）共享相同尺寸/字体 */
+.code-lightbox-pre,
+.code-lightbox-textarea {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    padding: 1em;
+    margin: 0;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre;
+    word-wrap: normal;
+    tab-size: 4;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+/* 高亮层：不响应事件，仅显示颜色 */
+.code-lightbox-pre {
+    pointer-events: none;
+    z-index: 0;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    background: transparent;
+    border: 0;
+}
+
+/* 覆盖 VSCode webview 注入的 code 背景色 */
+.code-lightbox-pre code {
+    background: none !important;
+    padding: 0;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* 输入层：文字透明（只显示光标 + 选区），高亮由 pre 负责 */
+.code-lightbox-textarea {
+    z-index: 1;
+    color: transparent;
+    caret-color: var(--vscode-editor-foreground, #d4d4d4);
+    background: transparent;
+    border: 0;
+    outline: none;
+    resize: none;
+    -webkit-text-fill-color: transparent;
+}
+
+.code-lightbox-textarea::selection {
+    background: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.7));
+    -webkit-text-fill-color: transparent;
+}
+
+/* ─── 代码编辑器全屏（VSCode 主题色）─── */
+.mermaid-lightbox.code-editor-lightbox {
+    background: var(--vscode-editor-background, #1e1e1e);
+}
+
+.mermaid-lightbox.code-editor-lightbox .mermaid-lightbox-header {
+    background: var(--vscode-editor-background, var(--vscode-textCodeBlock-background));
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-editor-foreground, #cccccc);
+}
+
+.mermaid-lightbox.code-editor-lightbox .mermaid-zoom-btn {
+    color: var(--vscode-editor-foreground, #cccccc);
+}
+
+.mermaid-lightbox.code-editor-lightbox .mermaid-zoom-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+    border-color: transparent;
+}

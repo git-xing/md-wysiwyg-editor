@@ -12,12 +12,14 @@ import {
     IconCode, IconEye,
     IconZoomIn, IconZoomOut, IconMaximize2, IconResetZoom,
     IconAlertCircle, IconX,
-} from "../../ui/icons";
-import { applyTooltip, hideTooltip } from "../../ui/tooltip";
-import { t } from "../../i18n";
+} from "@/ui/icons";
+import { applyTooltip, hideTooltip } from "@/ui/tooltip";
+import { t } from "@/i18n";
 import mermaid from "mermaid";
-import { highlight } from "../../highlighter";
-import { lockBodyScroll, unlockBodyScroll, animateCloseLightbox, bindLightboxDismiss } from "../../utils";
+import { highlight } from "@/highlighter";
+import { lockBodyScroll, unlockBodyScroll, animateCloseLightbox, bindLightboxDismiss } from "@/utils";
+import { createButton } from "@/ui/dom";
+import './codeBlock.css';
 
 // ─── 语言列表 ───────────────────────────────────────────
 const LANGUAGES: [string, string][] = [
@@ -304,12 +306,13 @@ export function createCodeBlockView(
     let zoomValueDisplay: HTMLButtonElement | null = null;
 
     function makeMermaidBtn(icon: string, tipText: string, extraClass = ""): HTMLButtonElement {
-        const btn = document.createElement("button");
-        btn.className = "mermaid-zoom-btn" + (extraClass ? ` ${extraClass}` : "");
-        btn.tabIndex = -1;
-        btn.innerHTML = icon;
-        applyTooltip(btn, tipText, { placement: "above" });
-        return btn;
+        return createButton({
+            className: "mermaid-zoom-btn" + (extraClass ? ` ${extraClass}` : ""),
+            icon,
+            tabIndex: -1,
+            title: tipText,
+            tooltipPlacement: "above",
+        });
     }
 
     // ── Header 按钮（spacer 之后，右对齐）────────────────

@@ -29,10 +29,12 @@ import {
     IconAlignCenter,
     IconAlignRight,
     IconTrash2,
-} from "../../ui/icons";
-import { applyTooltip } from "../../ui/tooltip";
-import { notifySendToClaudeChat } from "../../messaging";
-import { t, kbd } from "../../i18n";
+} from "@/ui/icons";
+import { applyTooltip } from "@/ui/tooltip";
+import { notifySendToClaudeChat } from "@/messaging";
+import { t, kbd } from "@/i18n";
+import { createButton, createSeparator } from "@/ui/dom";
+import './selectionToolbar.css';
 
 type GetEditor = () => Editor | null;
 
@@ -126,22 +128,11 @@ function sBtn(
     title: string,
     onClick: () => void,
 ): HTMLButtonElement {
-    const b = document.createElement("button");
-    b.className = "sel-tb-btn";
-    b.innerHTML = icon;
-    applyTooltip(b, title, { placement: "above" });
-    b.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClick();
-    });
-    return b;
+    return createButton({ className: "sel-tb-btn", icon, title, tooltipPlacement: "above", onClick });
 }
 
 function sSep(): HTMLElement {
-    const el = document.createElement("div");
-    el.className = "sel-tb-sep";
-    return el;
+    return createSeparator("sel-tb-sep");
 }
 
 // 判断 CellSelection 是否选中了表格第一行（表头）

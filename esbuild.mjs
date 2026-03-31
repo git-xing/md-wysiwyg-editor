@@ -1,4 +1,5 @@
 import * as esbuild from 'esbuild';
+import path from 'path';
 
 const isProduction = process.argv.includes('--production');
 const isWatch = process.argv.includes('--watch');
@@ -33,6 +34,9 @@ const webviewBuild = {
     chunkNames: 'chunks/[name]-[hash]',
     loader: {
         '.ttf': 'dataurl',
+    },
+    alias: {
+        '@': path.resolve('./webview'),
     },
 };
 

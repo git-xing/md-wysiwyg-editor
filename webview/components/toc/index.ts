@@ -1,6 +1,7 @@
+import './toc.css';
 import type { EditorView } from "@milkdown/prose/view";
-import { applyTooltip } from "../../ui/tooltip";
-import { t } from "../../i18n";
+import { applyTooltip } from "@/ui/tooltip";
+import { t } from "@/i18n";
 
 interface HeadingEntry {
     level: number;

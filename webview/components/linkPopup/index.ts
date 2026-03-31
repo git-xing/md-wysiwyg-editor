@@ -1,8 +1,9 @@
+import './linkPopup.css';
 import type { EditorView } from "@milkdown/prose/view";
-import { notifyOpenUrl, notifyOpenFile } from "../../messaging";
-import { IconCheck, IconLink, IconX } from "../../ui/icons";
-import { t } from "../../i18n";
-import { showTooltipAt, hideTooltip } from "../../ui/tooltip";
+import { notifyOpenUrl, notifyOpenFile } from "@/messaging";
+import { IconCheck, IconLink, IconX } from "@/ui/icons";
+import { t } from "@/i18n";
+import { showTooltipAt, hideTooltip } from "@/ui/tooltip";
 
 interface LinkInfo {
     href: string;

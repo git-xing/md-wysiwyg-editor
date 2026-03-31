@@ -42,18 +42,18 @@ import {
     IconChevronDown,
     IconEraser,
     IconSettings,
-} from "../../ui/icons";
-import { applyTooltip } from "../../ui/tooltip";
-import { t, kbd } from "../../i18n";
+} from "@/ui/icons";
+import { applyTooltip } from "@/ui/tooltip";
+import { t, kbd } from "@/i18n";
 import { sampleDocPosition } from "../selectionToolbar";
-import { notifyOpenSettings, notifyGetProjectImages } from "../../messaging";
+import { notifyOpenSettings, notifyGetProjectImages } from "@/messaging";
+import { createButton, createSeparator } from "@/ui/dom";
+import './toolbar.css';
 
 type GetEditor = () => Editor | null;
 
 function sep(): HTMLElement {
-    const el = document.createElement("div");
-    el.className = "tb-sep";
-    return el;
+    return createSeparator("tb-sep");
 }
 
 function btn(
@@ -62,16 +62,12 @@ function btn(
     onClick: () => void,
     extraClass = "",
 ): HTMLButtonElement {
-    const b = document.createElement("button");
-    b.className = `tb-btn${extraClass ? " " + extraClass : ""}`;
-    b.innerHTML = icon;
-    applyTooltip(b, title);
-    b.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation(); // 防止 ProseMirror 检测到编辑器外 mousedown 导致选区丢失
-        onClick();
+    return createButton({
+        className: `tb-btn${extraClass ? " " + extraClass : ""}`,
+        icon,
+        title,
+        onClick,
     });
-    return b;
 }
 
 // 调用 Milkdown 命令：传 command.key（CmdKey），而非 command 本身

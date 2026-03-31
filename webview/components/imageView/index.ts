@@ -11,9 +11,10 @@ import {
     IconCheck,
     IconX,
     IconImageOff,
-} from "../../ui/icons";
-import { applyTooltip } from "../../ui/tooltip";
-import { t } from "../../i18n";
+} from "@/ui/icons";
+import { t } from "@/i18n";
+import { createButton, createSeparator, setupInputKeyboard } from "@/ui/dom";
+import './imageView.css';
 
 type ViewMutationRecord = MutationRecord | { type: "selection"; target: Node };
 
@@ -94,18 +95,11 @@ function basenameNoExt(src: string): string {
 
 // ─── 工具栏按钮工厂 ────────────────────────────────────────
 function makeBtn(icon: string, label: string): HTMLButtonElement {
-    const btn = document.createElement("button");
-    btn.className = "img-tb-btn";
-    btn.tabIndex = -1;
-    btn.innerHTML = icon;
-    applyTooltip(btn, label, { placement: "above" });
-    return btn;
+    return createButton({ className: "img-tb-btn", icon, tabIndex: -1, title: label, tooltipPlacement: "above" });
 }
 
 function makeSep(): HTMLElement {
-    const sep = document.createElement("span");
-    sep.className = "img-tb-sep";
-    return sep;
+    return createSeparator("img-tb-sep", "span");
 }
 
 // ─── NodeView 工厂 ─────────────────────────────────────────
@@ -173,18 +167,15 @@ export function createImageView(
     });
 
     // Alt 文本编辑
-    const altBtn = document.createElement("button");
-    altBtn.className = "img-tb-btn";
-    altBtn.tabIndex = -1;
-    altBtn.textContent = "ALT";
-    altBtn.style.fontWeight = "600";
-    applyTooltip(altBtn, t("Edit Alt Text"), { placement: "above" });
-
-    altBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        startAltEdit();
+    const altBtn = createButton({
+        className: "img-tb-btn",
+        tabIndex: -1,
+        label: "ALT",
+        title: t("Edit Alt Text"),
+        tooltipPlacement: "above",
+        onClick: () => startAltEdit(),
     });
+    altBtn.style.fontWeight = "600";
 
     // 铅笔图标：常驻，点击编辑图片路径（src 属性）
     const renameBtn = makeBtn(IconPencil, t("Edit Image Path"));
@@ -316,16 +307,9 @@ export function createImageView(
         input.style.width = "160px";
         isolateInput(input);
 
-        const confirmBtn = document.createElement("button");
-        confirmBtn.className = "img-tb-btn";
-        confirmBtn.tabIndex = -1;
-        confirmBtn.innerHTML = IconCheck;
+        const confirmBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconCheck, onClick: confirm });
         confirmBtn.style.color = "var(--vscode-charts-green, #4caf50)";
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.className = "img-tb-btn";
-        cancelBtn.tabIndex = -1;
-        cancelBtn.innerHTML = IconX;
+        const cancelBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconX, onClick: cancel });
 
         // 暂时隐藏其他按钮
         Array.from(toolbar.children).forEach((el) => {
@@ -337,6 +321,7 @@ export function createImageView(
         toolbar.appendChild(cancelBtn);
         input.focus();
         input.select();
+        setupInputKeyboard(input, confirm, cancel);
 
         function confirm(): void {
             if (!isEditingAlt) {
@@ -376,31 +361,6 @@ export function createImageView(
                 (el as HTMLElement).style.display = "";
             });
         }
-
-        input.addEventListener("keydown", (e) => {
-            if (e.isComposing) {
-                return;
-            }
-            if (e.key === "Enter") {
-                e.stopPropagation();
-                e.preventDefault();
-                confirm();
-            } else if (e.key === "Escape") {
-                e.stopPropagation();
-                e.preventDefault();
-                cancel();
-            }
-        });
-        confirmBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            confirm();
-        });
-        cancelBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            cancel();
-        });
     }
 
     // ── 编辑图片路径（src 属性）────────────────────────────────
@@ -419,16 +379,9 @@ export function createImageView(
         input.style.width = "240px";
         isolateInput(input);
 
-        const confirmBtn = document.createElement("button");
-        confirmBtn.className = "img-tb-btn";
-        confirmBtn.tabIndex = -1;
-        confirmBtn.innerHTML = IconCheck;
+        const confirmBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconCheck, onClick: confirm });
         confirmBtn.style.color = "var(--vscode-charts-green, #4caf50)";
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.className = "img-tb-btn";
-        cancelBtn.tabIndex = -1;
-        cancelBtn.innerHTML = IconX;
+        const cancelBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconX, onClick: cancel });
 
         Array.from(toolbar.children).forEach((el) => {
             (el as HTMLElement).style.display = "none";
@@ -439,6 +392,7 @@ export function createImageView(
         toolbar.appendChild(cancelBtn);
         input.focus();
         input.select();
+        setupInputKeyboard(input, confirm, cancel);
 
         function confirm(): void {
             if (!isEditingSrc) {
@@ -478,31 +432,6 @@ export function createImageView(
                 (el as HTMLElement).style.display = "";
             });
         }
-
-        input.addEventListener("keydown", (e) => {
-            if (e.isComposing) {
-                return;
-            }
-            if (e.key === "Enter") {
-                e.stopPropagation();
-                e.preventDefault();
-                confirm();
-            } else if (e.key === "Escape") {
-                e.stopPropagation();
-                e.preventDefault();
-                cancel();
-            }
-        });
-        confirmBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            confirm();
-        });
-        cancelBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            cancel();
-        });
     }
 
     // ── NodeView 接口 ─────────────────────────────────────────

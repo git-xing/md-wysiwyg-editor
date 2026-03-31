@@ -1,7 +1,7 @@
 import { TableMap, CellSelection } from "@milkdown/prose/tables";
 import type { Node as PMNode } from "@milkdown/prose/model";
 import type { EditorView } from "@milkdown/prose/view";
-import { applyTooltip, hideTooltip } from "../../ui/tooltip";
+import { applyTooltip, hideTooltip } from "@/ui/tooltip";
 import { setPendingToolbarPos } from "../selectionToolbar";
 
 type GetView = () => EditorView | null;
