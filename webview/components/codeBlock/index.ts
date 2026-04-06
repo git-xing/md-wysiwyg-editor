@@ -277,7 +277,7 @@ export function createCodeBlockView(
     destroy: () => void;
 } {
     const _id = Math.random().toString(36).slice(2, 6);
-    console.log(`[NodeView ${_id}] 工厂创建`, new Error().stack?.split("\n")[2]?.trim());
+    void _id; // 保留供调试使用
 
     const wrapper = document.createElement("div");
     wrapper.className = "code-block-wrapper";
@@ -1179,14 +1179,18 @@ export function createCodeBlockView(
                 lastRenderedCode = "";
             }
             if (isMermaid && isPreviewMode) {
-                if (renderTimer) clearTimeout(renderTimer);
-                renderTimer = setTimeout(() => renderMermaid(updatedNode.textContent), 600);
+                const newCode = updatedNode.textContent;
+                if (newCode !== lastRenderedCode) {
+                    if (renderTimer) clearTimeout(renderTimer);
+                    renderTimer = setTimeout(() => renderMermaid(newCode), 600);
+                }
             }
             return true;
         },
 
         ignoreMutation(mutation: ViewMutationRecord): boolean {
             if (mutation.type === "selection") return false;
+            if (mutation.type === "attributes") return true; // update() 会修改 className，忽略 attribute mutation 防止 reconcile 死循环（B085）
             return (
                 !codeEl.contains(mutation.target as Node) &&
                 mutation.target !== codeEl

@@ -1,26 +1,34 @@
-/* ─── 链接 Hover 弹框 ─── */
-.link-popup {
+/* ─── 链接 Hover 弹框（重设计版） ─── */
+
+@keyframes lp-fadein {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.lp-root {
     position: absolute;
     z-index: 9999;
     display: flex;
     flex-direction: column;
-    width: 252px;
+    width: 280px;
     background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
     border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
-    border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
     overflow: hidden;
+    animation: lp-fadein 120ms ease;
 }
 
-/* 顶部：链接图标 + URL 预览 */
-.link-popup-header {
+/* ─── Header ─── */
+.lp-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 10px 7px;
+    padding: 8px 8px 8px 10px;
+    min-height: 36px;
 }
 
-.link-popup-header-icon {
+.lp-icon {
     display: flex;
     align-items: center;
     flex-shrink: 0;
@@ -28,92 +36,123 @@
     color: var(--vscode-editor-foreground);
 }
 
-.link-popup-url-display {
+.lp-url {
     flex: 1;
     min-width: 0;
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--vscode-textLink-foreground, #4ea6ea);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: default;
+    user-select: text;
 }
 
-/* 分隔线 */
-.link-popup-divider {
-    height: 1px;
-    background: var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.2));
-    margin: 0;
-}
-
-/* 编辑区 */
-.link-popup-body {
-    padding: 8px 10px 8px;
+.lp-header-actions {
     display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* ─── Anchor hint（→ 标题文字） ─── */
+.lp-anchor-hint {
+    padding: 0 10px 7px 32px;
+    font-size: 11px;
+    color: var(--vscode-editor-foreground);
+    opacity: 0.55;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+}
+
+/* ─── 通用按钮 ─── */
+.lp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.lp-btn:hover {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
+/* 编辑按钮激活态（编辑模式中） */
+.lp-btn-edit.lp-btn-active {
+    opacity: 1;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+/* Confirm 按钮悬停 */
+.lp-btn-confirm:hover {
+    opacity: 1;
+    background: var(--vscode-button-background, #007acc);
+    color: var(--vscode-button-foreground, #fff);
+}
+
+/* Remove 按钮悬停 */
+.lp-btn-remove:hover {
+    opacity: 1;
+    background: var(--vscode-inputValidation-errorBackground, rgba(200, 50, 50, 0.18));
+    color: var(--vscode-errorForeground, #f55);
+}
+
+/* ─── Body（编辑区，默认折叠） ─── */
+.lp-body {
+    display: none;
     flex-direction: column;
     gap: 5px;
+    padding: 0 10px 8px;
+    overflow: hidden;
 }
 
-.link-popup-fields {
+.lp-body.expanded {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    animation: lp-fadein 100ms ease;
 }
 
-.link-popup-text,
-.link-popup-url {
+.lp-divider {
+    height: 1px;
+    background: var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.2));
+    margin: 0 -10px 4px;
+}
+
+/* 输入框 */
+.lp-input {
     width: 100%;
     box-sizing: border-box;
-    height: 22px;
+    height: 24px;
     padding: 0 7px;
     background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
     color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
     border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.3));
-    border-radius: 3px;
+    border-radius: 4px;
     font-size: 12px;
     font-family: inherit;
     outline: none;
     transition: border-color 0.1s;
 }
 
-.link-popup-text:focus,
-.link-popup-url:focus {
+.lp-input:focus {
     border-color: var(--vscode-focusBorder, #007acc);
 }
 
-/* 操作按钮行 */
-.link-popup-actions {
+/* 按钮行 */
+.lp-body-actions {
     display: flex;
     justify-content: flex-end;
     gap: 4px;
-    padding-top: 1px;
-}
-
-.link-popup-confirm,
-.link-popup-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    background: transparent;
-    color: var(--vscode-editor-foreground);
-    flex-shrink: 0;
-    transition: background 0.12s, color 0.12s;
-    opacity: 0.75;
-}
-
-.link-popup-confirm:hover {
-    opacity: 1;
-    background: var(--vscode-button-background, #007acc);
-    color: var(--vscode-button-foreground, #fff);
-}
-
-.link-popup-remove:hover {
-    opacity: 1;
-    background: var(--vscode-inputValidation-errorBackground, rgba(200, 50, 50, 0.18));
-    color: var(--vscode-errorForeground, #f55);
+    padding-top: 2px;
 }

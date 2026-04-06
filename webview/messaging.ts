@@ -38,8 +38,8 @@ export function notifySendToClaudeChat(
     vscode.postMessage({ type: "sendToClaudeChat", text, startLine, endLine });
 }
 
-export function notifySwitchToTextEditor(): void {
-    vscode.postMessage({ type: "switchToTextEditor" });
+export function notifySwitchToTextEditor(line?: number): void {
+    vscode.postMessage({ type: "switchToTextEditor", ...(line !== undefined ? { line } : {}) });
 }
 
 export function notifyOpenSettings(): void {

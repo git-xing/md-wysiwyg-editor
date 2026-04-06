@@ -1,6 +1,6 @@
 # Markdown WYSIWYG Editor
 
-English | [简体中文](README.zh-CN.md)
+English | [简体中文](README.zh-CN.md) | [GitHub](https://github.com/git-xing/md-wysiwyg-editor)
 
 A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdown.dev/) (ProseMirror). Edit `.md` / `.markdown` files as rich text and save as standard Markdown — fully compatible with any text editor.
 
@@ -12,7 +12,7 @@ A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdow
 
 - **Headings** (H1–H6), **bold**, *italic*, ~~strikethrough~~, `inline code`, blockquote, horizontal rule
 - **Ordered / Unordered / Task lists** (click checkbox to toggle completion)
-- **Links**: hover to show a popup for editing link text and URL inline
+- **Links**: hover to show a popup for editing link text and URL inline; supports `@/` workspace paths and `#anchor` in-page jumps
 
 ### Tables
 
@@ -45,6 +45,12 @@ A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdow
 - **`Option+K`** (macOS) / **`Alt+K`** (Windows): sends the paragraph under the cursor to Claude with precise file line numbers
 - Select text and click "Send to Claude" in the toolbar — also attaches line range
 - Automatically detects Claude terminal / Claude VSCode extension / VS Code built-in Chat with three-level fallback
+
+### In-Editor Search
+
+- **`Cmd+F`** (macOS) / **`Ctrl+F`** (Windows): opens the FindBar to search within the document
+- Matches highlighted in real time using the CSS Custom Highlight API
+- Navigate matches with `Enter` / `Shift+Enter`, dismiss with `Esc`
 
 ### Auto Save
 

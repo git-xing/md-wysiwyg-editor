@@ -1,0 +1,147 @@
+/* ── Find Bar — 与 VSCode 编辑器内置搜索框风格保持一致 ──── */
+
+/* 容器 */
+.find-bar {
+    position: fixed;
+    top: calc(var(--editor-topbar-height, 40px) + 6px);
+    right: 16px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 3px 2px 3px 6px;
+    background: var(--vscode-editorWidget-background, #252526);
+    border: 1px solid var(--vscode-editorWidget-border, #454545);
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
+    font-size: 13px;
+    font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, sans-serif);
+    color: var(--vscode-editorWidget-foreground, #cccccc);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.1s ease, transform 0.1s ease;
+    pointer-events: none;
+    min-width: 340px;
+    max-width: 420px;
+}
+
+.find-bar.find-bar--visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* 输入框 */
+.find-bar__input {
+    flex: 1;
+    min-width: 0;
+    height: 22px;
+    padding: 0 4px;
+    background: var(--vscode-input-background, #3c3c3c);
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
+    color: var(--vscode-input-foreground, #cccccc);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.find-bar__input:focus {
+    border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+.find-bar--no-results .find-bar__input {
+    border-color: var(--vscode-inputValidation-errorBorder, #f44747);
+    background: var(--vscode-inputValidation-errorBackground, rgba(244,71,71,0.1));
+}
+
+/* 匹配数量 */
+.find-bar__count {
+    padding: 0 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--vscode-descriptionForeground, #858585);
+    min-width: 46px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.find-bar--no-results .find-bar__count {
+    color: var(--vscode-inputValidation-errorForeground, var(--vscode-editorError-foreground, #f48771));
+}
+
+/* 分隔线 */
+.find-bar__sep {
+    width: 1px;
+    height: 16px;
+    background: var(--vscode-editorWidget-border, var(--vscode-widget-border, #454545));
+    margin: 0 3px;
+    flex-shrink: 0;
+}
+
+/* 按钮通用 */
+.find-bar__btn {
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--vscode-icon-foreground, #cccccc);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1;
+    outline: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.find-bar__btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+    border-color: var(--vscode-toolbar-hoverOutline, transparent);
+    color: var(--vscode-icon-foreground, #cccccc);
+}
+
+.find-bar__btn:active {
+    background: var(--vscode-toolbar-activeBackground, rgba(99, 102, 103, 0.31));
+}
+
+.find-bar__btn--active {
+    background: var(--vscode-toolbar-activeBackground, rgba(99, 102, 103, 0.31));
+    border-color: var(--vscode-contrastActiveBorder, transparent);
+    color: var(--vscode-icon-foreground, #cccccc);
+}
+
+.find-bar__btn--active:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.find-bar__btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+/* CSS Custom Highlight API */
+::highlight(find-highlight) {
+    background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33));
+    color: inherit;
+}
+
+::highlight(find-highlight-current) {
+    background-color: var(--vscode-editor-findMatchBackground, rgba(246, 185, 77, 0.7));
+    color: inherit;
+}

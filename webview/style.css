@@ -8,7 +8,6 @@ body {
     height: 100%;
     margin: 0;
     padding: 0;
-    padding-top: 10px;
     background-color: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
     font-family: var(
@@ -26,6 +25,47 @@ body {
 }
 
 /* 编辑器容器 */
+/* ─── Frontmatter 面板 ─── */
+.frontmatter-panel {
+    max-width: var(--editor-max-width, min(1400px, 92vw));
+    margin: 0 auto;
+    padding: 56px 48px 0;
+}
+
+.frontmatter-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85em;
+    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.frontmatter-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.15));
+    vertical-align: top;
+    line-height: 1.5;
+}
+
+.frontmatter-table tr:last-child td {
+    border-bottom: none;
+}
+
+.frontmatter-table .fm-key {
+    white-space: nowrap;
+    color: var(--vscode-symbolIcon-keywordForeground, var(--vscode-descriptionForeground));
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-weight: bold;
+    width: 1%;
+    padding-right: 16px;
+}
+
+.frontmatter-table .fm-val {
+    color: var(--vscode-editor-foreground);
+    word-break: break-word;
+}
+
 #editor {
     /* 用户未设置 editorMaxWidth 时：自适应视口宽度
        - 小屏：92vw 先收窄，永不超出
@@ -33,7 +73,7 @@ body {
        用户在设置中显式设定宽度时，--editor-max-width 生效，覆盖默认 */
     max-width: var(--editor-max-width, min(1400px, 92vw));
     margin: 0 auto;
-    padding: 8px 48px 80px;
+    padding: 56px 48px 80px;
     min-height: 100vh;
     outline: none;
 }

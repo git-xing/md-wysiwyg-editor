@@ -1,6 +1,6 @@
 # Markdown WYSIWYG Editor
 
-[English](README.md) | 简体中文
+[English](README.md) | 简体中文 | [GitHub](https://github.com/git-xing/md-wysiwyg-editor)
 
 一款基于 [Milkdown](https://milkdown.dev/)（ProseMirror）的 VSCode 所见即所得 Markdown 编辑器扩展，以富文本方式直接编辑 `.md` / `.markdown` 文件，保存结果为标准 Markdown，与任何文本编辑器完全兼容。
 
@@ -12,7 +12,7 @@
 
 - **标题**（H1–H6）、**粗体**、*斜体*、~~删除线~~、`行内代码`、引用块、分割线
 - **有序列表 / 无序列表 / 任务列表**（点击复选框切换完成状态）
-- **链接**：悬停显示预览弹框，可直接在编辑器内修改链接文本和 URL
+- **链接**：悬停显示预览弹框，可直接修改链接文本和 URL；支持 `@/` workspace 路径和 `#` 页内锚点跳转
 
 ### 表格
 
@@ -45,6 +45,12 @@
 - **`Option+K`**（macOS）/ **`Alt+K`**（Windows）：将光标所在段落发送到 Claude 对话，自动附带精确文件行号
 - 选中文字后点击工具栏「发送到 Claude」按钮，同样附带行号范围
 - 自动识别 Claude 终端 / Claude VSCode 扩展 / VSCode 内置 Chat，三级降级兜底
+
+### 编辑器内搜索
+
+- **`Cmd+F`**（macOS）/ **`Ctrl+F`**（Windows）：唤出 FindBar，在文档内搜索关键词
+- 使用 CSS Custom Highlight API 实时高亮所有匹配项
+- `Enter` / `Shift+Enter` 上下导航，`Esc` 关闭
 
 ### 自动保存
 
