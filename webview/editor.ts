@@ -127,7 +127,20 @@ const formatKeymapPlugin = $prose((ctx) =>
             return true;
         },
         "Mod-e": () => {
-            ctx.get(commandsCtx).call(toggleInlineCodeCommand.key);
+            const view = ctx.get(editorViewCtx);
+            const { state } = view;
+            if (!state.selection.empty) {
+                ctx.get(commandsCtx).call(toggleInlineCodeCommand.key);
+                return true;
+            }
+            // 无选区：插入零宽空格 + inlineCode mark，光标置入其中
+            const codeMark = state.schema.marks["inlineCode"];
+            if (!codeMark) { return true; }
+            const { from } = state.selection;
+            const textNode = state.schema.text("\u200b", [codeMark.create()]);
+            const tr = state.tr.insert(from, textNode);
+            tr.setSelection(TextSelection.create(tr.doc, from + 1));
+            view.dispatch(tr);
             return true;
         },
     }),
@@ -438,7 +451,8 @@ const selectionPlugin = $prose(
                 update(view, prevState) {
                     if (
                         _onSelectionChange &&
-                        !view.state.selection.eq(prevState.selection)
+                        (!view.state.selection.eq(prevState.selection) ||
+                         !view.state.doc.eq(prevState.doc))
                     ) {
                         _onSelectionChange(view);
                     }

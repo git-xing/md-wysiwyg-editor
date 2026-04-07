@@ -12,7 +12,8 @@ A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdow
 
 - **Headings** (H1–H6), **bold**, *italic*, ~~strikethrough~~, `inline code`, blockquote, horizontal rule
 - **Ordered / Unordered / Task lists** (click checkbox to toggle completion)
-- **Links**: hover to show a popup for editing link text and URL inline; supports `@/` workspace paths and `#anchor` in-page jumps
+- **Links**: hover to show a popup for editing link text and URL inline; supports `@/` workspace paths, `#anchor` in-page jumps, and `file.md#27` line-number links
+- **Path autocomplete**: type `@/`, `./`, or `../` inside inline code to get smart path suggestions — browse directories level by level with color-coded file-type icons
 
 ### Tables
 
@@ -27,6 +28,20 @@ A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdow
 - Language picker with search filter
 - One-click copy button
 - Drag the bottom handle to resize the code block height
+- Full-screen editor with syntax highlighting; writes back to document on close
+
+### Mermaid Diagrams
+
+- Flowcharts, sequence diagrams, Gantt charts, class diagrams, and more rendered inline
+- Toggle between source code and rendered preview
+- Zoom, pan (drag / trackpad pinch), and full-screen lightbox
+
+### Images
+
+- **Paste** an image from the clipboard, **drag-and-drop** a file, or use the **file picker** to insert images
+- Local storage with MD5 deduplication, or configure a custom server upload endpoint
+- Click an image to select it; click again to open a lightbox preview
+- Toolbar for editing alt text, renaming the file, or deleting the image
 
 ### Table of Contents (TOC)
 
@@ -71,7 +86,9 @@ After installing the extension, open any `.md` / `.markdown` file in VS Code —
 | Insert row/column        | Hover a table row/column border, click **+**                   |
 | Reorder rows/columns     | Hover the **⠿** handle, then drag                              |
 | Select entire row/column | Click the **⠿** handle                                         |
+| Path autocomplete        | Type `@/`, `./`, or `../` inside inline code                   |
 | Send paragraph to Claude | `Option+K` (macOS) / `Alt+K` (Windows)                         |
+| Search in document       | `Cmd+F` (macOS) / `Ctrl+F` (Windows)                           |
 | Manual save              | `Cmd+S` (macOS) / `Ctrl+S` (Windows)                           |
 
 ***
@@ -83,8 +100,11 @@ After installing the extension, open any `.md` / `.markdown` file in VS Code —
 | `markdownWysiwyg.autoSave`           | boolean | `true`      | Automatically save to disk after editing                                                  |
 | `markdownWysiwyg.autoSaveDelay`      | number  | `1000`      | Debounce delay in milliseconds for auto-save                                              |
 | `markdownWysiwyg.defaultMode`        | string  | `"preview"` | Default mode when opening `.md`: `preview` (WYSIWYG) or `markdown` (text editor)          |
-| `markdownWysiwyg.codeBlockMaxHeight` | number  | `500`       | Maximum code block height in pixels                                                       |
+| `markdownWysiwyg.codeBlockMaxHeight` | number  | `600`       | Maximum code block height in pixels                                                       |
+| `markdownWysiwyg.editorMaxWidth`     | number  | `900`       | Maximum editor content width in pixels                                                    |
 | `markdownWysiwyg.fontFamily`         | string  | `""`        | Editor font family; leave empty to inherit VS Code editor font. Example: `Georgia, serif` |
+| `markdownWysiwyg.imageStorage`       | string  | `"local"`   | Image storage mode: `local` (save to disk) or `server` (upload to custom URL)            |
+| `markdownWysiwyg.imageLocalPath`     | string  | `""`        | Relative path (from workspace root) for local image storage                               |
 
 ***
 
@@ -96,5 +116,4 @@ After installing the extension, open any `.md` / `.markdown` file in VS Code —
 
 ## Known Limitations
 
-- Image upload is not supported (paste Markdown image syntax manually)
 - Some advanced Markdown extensions (footnotes, math formulas) are not yet supported

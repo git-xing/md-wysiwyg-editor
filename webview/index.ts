@@ -17,7 +17,10 @@ import {
     notifyGetProjectImages,
     notifyRenameImage,
 } from "./messaging";
+
 import { setupLinkPopup } from "./components/linkPopup";
+import { setupPathLink } from "./components/pathLink";
+import { initPathComplete, dispatchPathSuggestions } from "./components/pathLink/pathComplete";
 import { initFindBar } from "./components/findBar";
 import { initHeadingIds } from "./headingIds";
 import {
@@ -322,7 +325,9 @@ const topbarTb = topbar
 const editorContainer = document.getElementById("editor");
 if (editorContainer) {
     setupLinkPopup(editorContainer, () => getEditorView());
+    setupPathLink(editorContainer);
     initHeadingIds(editorContainer);
+    initPathComplete(() => getEditorView());
     setupTableAddButtons(editorContainer, () => getEditorView());
     setupTableHandles(editorContainer, () => getEditorView());
 
@@ -628,6 +633,14 @@ onMessage(async (msg) => {
         currentLineMap = msg.lineMap ?? [];
         renderFrontmatterPanel(msg.frontmatter);
         await initEditor(container, msg.content);
+        // 新 WebView 打开时主动获取 DOM 焦点。
+        // 若不调用：旧 WebView（path-link-test.md）在 Cmd+Click 后 blur() 释放了焦点，
+        // 但新 WebView（README.md）的 iframe 未必自动获得焦点；
+        // VS Code 可能仍将 Cmd+W 路由到旧 iframe，导致两个 .md 标签都被关闭。
+        // init 仅在首次打开时触发（revert 是内容变更），此处只对首次打开生效。
+        if (msg.type === "init") {
+            window.focus();
+        }
         // 全局搜索导航或切换回预览时，滚动到指定源码行
         // Milkdown 渲染 + 浏览器布局需要时间，多次重试确保 DOM 就绪后才滚动
         if (msg.type === "init" && msg.scrollToLine) {
@@ -730,5 +743,7 @@ onMessage(async (msg) => {
             _pendingRenames.delete(msg.id);
             cb.reject(new Error(msg.error));
         }
+    } else if (msg.type === "pathSuggestions") {
+        dispatchPathSuggestions(msg.id, msg.items);
     }
 });

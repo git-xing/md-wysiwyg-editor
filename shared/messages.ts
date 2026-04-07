@@ -11,6 +11,12 @@ export type ProjectImage = {
     name: string;
 };
 
+/** 路径补全建议条目 */
+export type PathSuggestionItem = {
+    path: string;
+    isDir: boolean;
+};
+
 /**
  * WebView → Extension 方向的消息。
  * 所有字段反映发送方的实际约束：发送方必须提供的字段不得写成可选。
@@ -20,12 +26,14 @@ export type ToExtensionMessage =
     | { type: "update"; content: string }
     | { type: "openUrl"; url: string }
     | { type: "openFile"; path: string }
+    | { type: "debug"; message: string }
     | { type: "sendToClaudeChat"; text: string; startLine: number; endLine: number }
     | { type: "switchToTextEditor"; line?: number }
     | { type: "openSettings" }
     | { type: "uploadImage"; id: string; data: Uint8Array; mimeType: string; altText: string }
     | { type: "getProjectImages"; id: string }
-    | { type: "renameImage"; id: string; webviewUri: string; newBasename: string };
+    | { type: "renameImage"; id: string; webviewUri: string; newBasename: string }
+    | { type: "getPathSuggestions"; id: string; query: string };
 
 /**
  * Extension → WebView 方向的消息。
@@ -42,4 +50,5 @@ export type ToWebviewMessage =
     | { type: "projectImagesList"; id: string; images: ProjectImage[] }
     | { type: "imageRenamed"; id: string; oldWebviewUri: string; newWebviewUri: string }
     | { type: "imageRenameError"; id: string; error: string }
-    | { type: "requestSwitchToTextEditor" };
+    | { type: "requestSwitchToTextEditor" }
+    | { type: "pathSuggestions"; id: string; items: PathSuggestionItem[] };

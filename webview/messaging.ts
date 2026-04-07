@@ -59,6 +59,10 @@ export function notifyGetProjectImages(id: string): void {
     vscode.postMessage({ type: "getProjectImages", id });
 }
 
+export function notifyGetPathSuggestions(id: string, query: string): void {
+    vscode.postMessage({ type: "getPathSuggestions", id, query });
+}
+
 export function notifyRenameImage(
     id: string,
     webviewUri: string,

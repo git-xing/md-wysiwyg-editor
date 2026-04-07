@@ -12,7 +12,8 @@
 
 - **标题**（H1–H6）、**粗体**、*斜体*、~~删除线~~、`行内代码`、引用块、分割线
 - **有序列表 / 无序列表 / 任务列表**（点击复选框切换完成状态）
-- **链接**：悬停显示预览弹框，可直接修改链接文本和 URL；支持 `@/` workspace 路径和 `#` 页内锚点跳转
+- **链接**：悬停显示预览弹框，可直接修改链接文本和 URL；支持 `@/` workspace 路径、`#` 页内锚点跳转，以及 `file.md#27` 行号跳转
+- **路径自动补全**：在 inline code 中输入 `@/`、`./`、`../` 等前缀，自动显示路径补全建议；分级目录浏览，带彩色文件类型图标
 
 ### 表格
 
@@ -27,6 +28,20 @@
 - 顶部语言选择器（含搜索筛选）
 - 一键复制代码按钮
 - 拖拽底部 handle 调整代码块显示高度
+- 全屏编辑器，含语法高亮；关闭时写回文档
+
+### Mermaid 图表
+
+- 流程图、时序图、甘特图、类图等内联渲染
+- 源码与预览之间一键切换
+- 支持缩放、平移（拖拽 / 触控板捏合），以及全屏 lightbox
+
+### 图片
+
+- 支持从剪贴板**粘贴**、**拖放**文件，或通过**文件选择器**插入图片
+- 本地存储（MD5 去重），或配置自定义服务器上传地址
+- 点击图片选中，再次点击放大到 lightbox 预览
+- 工具栏支持编辑 alt 文本、重命名文件、删除图片
 
 ### 目录（TOC）
 
@@ -64,15 +79,17 @@
 
 安装扩展后，在 VSCode 中打开任意 `.md` / `.markdown` 文件，将自动以 WYSIWYG 模式打开。
 
-| 操作           | 方式                                  |
-| ------------ | ----------------------------------- |
-| 切换到文本编辑器     | 点击标题栏 👁 图标，或右键文件 → 打开方式            |
-| 切换回 WYSIWYG  | 点击标题栏 👁 图标                         |
-| 插入行/列        | 鼠标悬浮表格行/列边框，点击 **+**                |
-| 拖拽重排行/列      | 悬浮 **⠿** handle 后拖拽                 |
-| 选中整行/整列      | 点击 **⠿** handle                     |
-| 发送段落到 Claude | `Option+K`（macOS）/ `Alt+K`（Windows） |
-| 手动保存         | `Cmd+S`（macOS）/ `Ctrl+S`（Windows）   |
+| 操作               | 方式                                    |
+| ---------------- | ------------------------------------- |
+| 切换到文本编辑器         | 点击标题栏 👁 图标，或右键文件 → 打开方式              |
+| 切换回 WYSIWYG      | 点击标题栏 👁 图标                           |
+| 插入行/列            | 鼠标悬浮表格行/列边框，点击 **+**                  |
+| 拖拽重排行/列          | 悬浮 **⠿** handle 后拖拽                   |
+| 选中整行/整列          | 点击 **⠿** handle                       |
+| 路径自动补全           | 在 inline code 中输入 `@/`、`./` 或 `../`  |
+| 发送段落到 Claude     | `Option+K`（macOS）/ `Alt+K`（Windows）   |
+| 文档内搜索            | `Cmd+F`（macOS）/ `Ctrl+F`（Windows）     |
+| 手动保存             | `Cmd+S`（macOS）/ `Ctrl+S`（Windows）     |
 
 ***
 
@@ -83,8 +100,11 @@
 | `markdownWysiwyg.autoSave`           | boolean | `true`      | 编辑后自动写盘                                              |
 | `markdownWysiwyg.autoSaveDelay`      | number  | `1000`      | 自动保存防抖延迟（毫秒）                                         |
 | `markdownWysiwyg.defaultMode`        | string  | `"preview"` | 打开 `.md` 的默认模式：`preview`（WYSIWYG）或 `markdown`（文本编辑器） |
-| `markdownWysiwyg.codeBlockMaxHeight` | number  | `500`       | 代码块最大显示高度（像素）                                        |
+| `markdownWysiwyg.codeBlockMaxHeight` | number  | `600`       | 代码块最大显示高度（像素）                                        |
+| `markdownWysiwyg.editorMaxWidth`     | number  | `900`       | 编辑器内容最大宽度（像素）                                        |
 | `markdownWysiwyg.fontFamily`         | string  | `""`        | 编辑器字体，留空继承 VSCode 编辑器字体，示例：`Georgia, serif`          |
+| `markdownWysiwyg.imageStorage`       | string  | `"local"`   | 图片存储模式：`local`（本地保存）或 `server`（上传至自定义 URL）           |
+| `markdownWysiwyg.imageLocalPath`     | string  | `""`        | 本地图片存储路径（相对于 workspace 根目录）                           |
 
 ***
 
@@ -96,5 +116,4 @@
 
 ## 已知限制
 
-- 暂不支持图片上传（可手动粘贴 Markdown 图片语法）
 - 部分复杂 Markdown 扩展语法（如脚注、数学公式）尚未支持

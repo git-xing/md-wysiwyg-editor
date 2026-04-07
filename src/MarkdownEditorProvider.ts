@@ -191,6 +191,7 @@ export class MarkdownEditorProvider
         // 保存 panel 引用（revert 时推送内容用）
         const uriKey = document.uri.toString();
         this._webviewPanels.set(uriKey, webviewPanel);
+
         webviewPanel.onDidDispose(() => {
             this._webviewPanels.delete(uriKey);
             this._pinnedDocuments.delete(uriKey);
@@ -202,6 +203,7 @@ export class MarkdownEditorProvider
                 clearTimeout(timer);
                 this._autoSaveTimers.delete(uriKey);
             }
+
         });
 
         webviewPanel.webview.options = {
@@ -221,7 +223,6 @@ export class MarkdownEditorProvider
         // 面板激活时（如全局搜索点击已打开的文件），检查并发送待跳转行号
         // 只处理已初始化（已 ready）的面板，避免新建面板时提前消耗 pending navigation
         webviewPanel.onDidChangeViewState(({ webviewPanel: p }) => {
-            console.log('[viewState] active:', p.active, '| initialized:', this._initializedPanels.has(uriKey));
             if (!p.active) { return; }
             if (!this._initializedPanels.has(uriKey)) { return; }
             const line = this._consumePendingNavigation(document.uri.fsPath)
@@ -234,7 +235,11 @@ export class MarkdownEditorProvider
             // revealLine 可能在 viewState 变化之后才触发（全局搜索时序不确定）
             // 延迟 600ms 再检查一次全局兜底行号
             setTimeout(() => {
-                if (!p.active) { return; }
+                try {
+                    if (!p.active) { return; }
+                } catch {
+                    return; // 面板已销毁（如 preview tab 被替换），忽略
+                }
                 const delayedLine = this._consumeGlobalRevealLine();
                 if (delayedLine !== undefined) {
                     console.log('[viewState] delayed scrollToLine:', delayedLine);
@@ -288,8 +293,14 @@ export class MarkdownEditorProvider
                         break;
                     case "openFile": {
                         if (!message.path) break;
-                        // 剥离 fragment（如 ./file.md#section → ./file.md）
-                        const filePath = message.path.split("#")[0];
+
+                        // 分离路径和行号 fragment（如 ./file.md#27-30）
+                        const hashIdx = message.path.indexOf("#");
+                        const filePath = hashIdx >= 0 ? message.path.slice(0, hashIdx) : message.path;
+                        const fragment = hashIdx >= 0 ? message.path.slice(hashIdx + 1) : undefined;
+                        const lineMatch = fragment?.match(/^(\d+)(-\d+)?$/);
+                        const lineNumber = lineMatch ? parseInt(lineMatch[1], 10) : undefined;
+
                         let absPath: string;
                         if (filePath.startsWith("@/")) {
                             // @/ 表示 workspace 根目录：找包含当前文档的 workspace folder
@@ -308,7 +319,29 @@ export class MarkdownEditorProvider
                             const docDir = path.dirname(document.uri.fsPath);
                             absPath = path.resolve(docDir, filePath);
                         }
-                        vscode.commands.executeCommand("vscode.open", vscode.Uri.file(absPath));
+
+                        const targetUri = vscode.Uri.file(absPath);
+                        if (/\.(md|markdown)$/i.test(absPath)) {
+                            // .md 文件：用 WYSIWYG 预览打开，行号通过 setPendingNavigation 传递
+                            if (lineNumber !== undefined) {
+                                this.setPendingNavigation(absPath, lineNumber);
+                            }
+                            await vscode.commands.executeCommand(
+                                "vscode.openWith",
+                                targetUri,
+                                MarkdownEditorProvider.viewType,
+                                { preview: true },
+                            );
+                        } else if (lineNumber !== undefined) {
+                            // 非 .md 有行号：用 showTextDocument 定位到指定行
+                            const doc = await vscode.workspace.openTextDocument(targetUri);
+                            await vscode.window.showTextDocument(doc, {
+                                selection: new vscode.Range(lineNumber - 1, 0, lineNumber - 1, 0),
+                                preview: true,
+                            });
+                        } else {
+                            vscode.commands.executeCommand("vscode.open", targetUri);
+                        }
                         break;
                     }
                     case "switchToTextEditor": {
@@ -386,6 +419,11 @@ export class MarkdownEditorProvider
                                 message.webviewUri,
                                 message.newBasename,
                             ).catch(() => {});
+                        }
+                        break;
+                    case "getPathSuggestions":
+                        if (message.id && message.query !== undefined) {
+                            this._handleGetPathSuggestions(document, panel, message.id, message.query).catch(() => {});
                         }
                         break;
                 }
@@ -885,5 +923,74 @@ export class MarkdownEditorProvider
             panel.webview.postMessage({ type: 'imageRenameError', id, error: errMsg });
             vscode.window.showErrorMessage(vscode.l10n.t('Image rename failed: {0}', errMsg));
         }
+    }
+
+    private async _handleGetPathSuggestions(
+        document: MarkdownDocument,
+        panel: vscode.WebviewPanel,
+        id: string,
+        query: string,
+    ): Promise<void> {
+        const q = query.trim();
+        if (!q) {
+            panel.webview.postMessage({ type: 'pathSuggestions', id, items: [] });
+            return;
+        }
+
+        const docFsPath = document.uri.fsPath;
+        const docDir = path.dirname(docFsPath);
+        const sep = path.sep;
+        const workspaceFolder = vscode.workspace.workspaceFolders?.find(
+            f => docFsPath.startsWith(f.uri.fsPath + sep),
+        ) ?? vscode.workspace.workspaceFolders?.[0];
+        const workspaceRoot = workspaceFolder?.uri.fsPath;
+
+        // 按最后一个 "/" 分割为目录部分和名称前缀
+        const lastSlash = q.lastIndexOf('/');
+        const dirPart = lastSlash >= 0 ? q.slice(0, lastSlash + 1) : '';
+        const namePart = lastSlash >= 0 ? q.slice(lastSlash + 1) : q;
+
+        // 解析 dirPart 为绝对路径
+        let absDir: string;
+        if (dirPart.startsWith('@/')) {
+            absDir = workspaceRoot
+                ? path.join(workspaceRoot, dirPart.slice(2))
+                : docDir;
+        } else if (dirPart === '' || dirPart.startsWith('./') || dirPart.startsWith('../')) {
+            absDir = path.resolve(docDir, dirPart || '.');
+        } else {
+            absDir = path.resolve(docDir, dirPart);
+        }
+
+        // readDirectory 列出直接子项（含文件类型）
+        let entries: [string, vscode.FileType][];
+        try {
+            entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(absDir));
+        } catch {
+            panel.webview.postMessage({ type: 'pathSuggestions', id, items: [] });
+            return;
+        }
+
+        const IGNORE = new Set(['node_modules', '.git', 'dist', '.DS_Store', 'out', '.vscode-test']);
+        const items = entries
+            .filter(([name, type]) =>
+                !IGNORE.has(name) &&
+                name.toLowerCase().startsWith(namePart.toLowerCase()) &&
+                (type === vscode.FileType.File || type === vscode.FileType.Directory) &&
+                // 排除与 namePart 完全匹配的文件（路径已完整，无需提示）
+                !(type === vscode.FileType.File && name.toLowerCase() === namePart.toLowerCase()),
+            )
+            // 目录排在文件前面，同类型按字母排序
+            .sort(([an, at], [bn, bt]) => {
+                if (at !== bt) { return bt === vscode.FileType.Directory ? 1 : -1; }
+                return an.localeCompare(bn);
+            })
+            .slice(0, 15)
+            .map(([name, type]) => ({
+                path: dirPart + name + (type === vscode.FileType.Directory ? '/' : ''),
+                isDir: type === vscode.FileType.Directory,
+            }));
+
+        panel.webview.postMessage({ type: 'pathSuggestions', id, items });
     }
 }

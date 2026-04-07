@@ -17,6 +17,7 @@ import {
 } from "@milkdown/preset-gfm";
 import { undo, redo } from "@milkdown/prose/history";
 import { lift } from "@milkdown/prose/commands";
+import { TextSelection } from "@milkdown/prose/state";
 import type { Editor } from "@milkdown/core";
 import type { EditorView } from "@milkdown/prose/view";
 import {
@@ -827,9 +828,27 @@ export function initToolbar(
         ),
     );
     toolbar.appendChild(
-        btn(IconCode, t("Inline Code") + " " + kbd("Mod-e"), () =>
-            callCmd(getEditor, toggleInlineCodeCommand),
-        ),
+        btn(IconCode, t("Inline Code") + " " + kbd("Mod-e"), () => {
+            const editor = getEditor();
+            if (!editor) { return; }
+            editor.action((ctx) => {
+                const view = ctx.get(editorViewCtx);
+                const { state } = view;
+                if (!state.selection.empty) {
+                    ctx.get(commandsCtx).call(toggleInlineCodeCommand.key as any);
+                    return;
+                }
+                // 无选区：插入零宽空格占位文本 + inlineCode mark，光标置入其中
+                const codeMark = state.schema.marks["inlineCode"];
+                if (!codeMark) { return; }
+                const { from } = state.selection;
+                const textNode = state.schema.text("\u200b", [codeMark.create()]);
+                const tr = state.tr.insert(from, textNode);
+                tr.setSelection(TextSelection.create(tr.doc, from + 1));
+                view.dispatch(tr);
+                view.focus();
+            });
+        }),
     );
     toolbar.appendChild(
         btn(IconEraser, t("Clear Formatting"), () => {
