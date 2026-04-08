@@ -261,11 +261,13 @@ export class MarkdownEditorProvider
                         const scrollToLine = this._consumePendingNavigation(document.uri.fsPath)
                             ?? this._consumeGlobalRevealLine();
                         console.log('[ready] scrollToLine:', scrollToLine);
+                        // 重置稳定化基准（新的 init 意味着内容将重新从磁盘加载）
                         webviewPanel.webview.postMessage({
                             type: "init",
                             content: displayContent,
                             lineMap: computeLineMap(initContent),
                             frontmatter: this._frontmatterMap.get(uriKey) || undefined,
+                            imageUriMap: Object.fromEntries(this._imageUriMaps.get(uriKey) ?? []),
                             ...(scrollToLine !== undefined ? { scrollToLine } : {}),
                         });
                         break;
@@ -274,8 +276,7 @@ export class MarkdownEditorProvider
                         if (message.content !== undefined) {
                             const newContent = this._prepareContentForSave(message.content, uriKey);
                             // 若内容与当前内存版本完全相同，跳过 auto-save：
-                            // Milkdown 初始化时会触发 markdownUpdated 并将内容原样回传，
-                            // 如果不跳过，会导致"init/revert → echo-back → save → FileWatcher → revert"死循环
+                            // WebView 侧 isSettled 标志已阻断初始化触发；此处作为最后防线防止死循环
                             if (newContent === document.getText()) { break; }
                             document.update(newContent);
                             // 首次编辑时 pin tab（移除斜体预览状态）
@@ -426,32 +427,48 @@ export class MarkdownEditorProvider
                             this._handleGetPathSuggestions(document, panel, message.id, message.query).catch(() => {});
                         }
                         break;
+                    case "resolveImagePath":
+                        if (message.id && message.relPath) {
+                            this._handleResolveImagePath(document, panel, uriKey, message.id, message.relPath);
+                        }
+                        break;
                 }
             },
         );
 
 
-        // 监听外部文件变化，自动同步到 WebView
-        const watcher = vscode.workspace.createFileSystemWatcher(document.uri.fsPath);
-        watcher.onDidChange(async () => {
-            // 如果是我们自己刚保存导致的变化（1.5 秒内），跳过
-            const lastSave = this._lastSaveTimes.get(uriKey) ?? 0;
-            if (Date.now() - lastSave < 1500) { return; }
-            const cts = new vscode.CancellationTokenSource();
-            try {
-                await document.revert(cts.token);
-                const panel = this._webviewPanels.get(uriKey);
-                if (panel) {
-                    const revertContent = document.getText();
-                    const displayContent = this._prepareContentForDisplay(revertContent, document, panel, uriKey);
-                    panel.webview.postMessage({ type: "revert", content: displayContent, lineMap: computeLineMap(revertContent), frontmatter: this._frontmatterMap.get(uriKey) || undefined });
-                }
-            } finally {
-                cts.dispose();
-            }
+        // 监听外部文件变化（含 AI 工具写入），自动同步到 WebView
+        // 注意：vscode.workspace.createFileSystemWatcher 不会感知同一 Extension Host 写入的文件
+        // 因此改用 Node.js fs.watch，直接监听 OS 级别事件
+        import("fs").then(({ watch: fsWatch }) => {
+            let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+            const targetFile = path.basename(document.uri.fsPath);
+            const fsWatcher = fsWatch(path.dirname(document.uri.fsPath), async (_event, filename) => {
+                if (filename !== targetFile) { return; }
+                // 防抖：短时间内多次触发只处理最后一次
+                if (debounceTimer !== undefined) { clearTimeout(debounceTimer); }
+                debounceTimer = setTimeout(async () => {
+                    debounceTimer = undefined;
+                    // 如果是我们自己的自动保存导致的变化（1.5 秒内），跳过
+                    const lastSave = this._lastSaveTimes.get(uriKey) ?? 0;
+                    if (Date.now() - lastSave < 1500) { return; }
+                    const cts = new vscode.CancellationTokenSource();
+                    try {
+                        await document.revert(cts.token);
+                        const panel = this._webviewPanels.get(uriKey);
+                        if (panel) {
+                            const revertContent = document.getText();
+                            const displayContent = this._prepareContentForDisplay(revertContent, document, panel, uriKey);
+                            panel.webview.postMessage({ type: "revert", content: displayContent, lineMap: computeLineMap(revertContent), frontmatter: this._frontmatterMap.get(uriKey) || undefined, imageUriMap: Object.fromEntries(this._imageUriMaps.get(uriKey) ?? []) });
+                        }
+                    } finally {
+                        cts.dispose();
+                    }
+                }, 200);
+            });
+            // panel 关闭时同步销毁 watcher
+            webviewPanel.onDidDispose(() => { fsWatcher.close(); });
         });
-        // panel 关闭时同步销毁 watcher
-        webviewPanel.onDidDispose(() => { watcher.dispose(); });
     }
 
     private _scheduleAutoSaveOrMarkDirty(document: MarkdownDocument): void {
@@ -644,6 +661,7 @@ export class MarkdownEditorProvider
                 content: displayContent,
                 lineMap: computeLineMap(revertContent),
                 frontmatter: this._frontmatterMap.get(uriKey) || undefined,
+                imageUriMap: Object.fromEntries(this._imageUriMaps.get(uriKey) ?? []),
             });
         }
     }
@@ -727,12 +745,21 @@ export class MarkdownEditorProvider
 
         if (document.uri.scheme !== 'file') { return content; }
         const mdDir = path.dirname(document.uri.fsPath);
+        const workspaceRoot = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath
+            ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const uriMap = this._imageUriMaps.get(uriKey) ?? new Map<string, string>();
         this._imageUriMaps.set(uriKey, uriMap);
         return content.replace(/!\[([^\]]*)\]\(([^)\s"]+)/g, (match, alt, src) => {
             if (/^(https?:|data:|vscode-resource:|vscode-webview-)/.test(src)) { return match; }
             try {
-                const absPath = path.resolve(mdDir, src);
+                let absPath: string;
+                if (src.startsWith('@/')) {
+                    // @/ 是 workspace root 别名，解析到工作区根目录
+                    const root = workspaceRoot ?? mdDir;
+                    absPath = path.join(root, src.slice(2));
+                } else {
+                    absPath = path.resolve(mdDir, src);
+                }
                 const webviewUri = panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
                 uriMap.set(webviewUri, src);
                 return `![${alt}](${webviewUri}`;
@@ -972,6 +999,10 @@ export class MarkdownEditorProvider
         }
 
         const IGNORE = new Set(['node_modules', '.git', 'dist', '.DS_Store', 'out', '.vscode-test']);
+        const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.ico']);
+        const uriKey = document.uri.toString();
+        const uriMap = this._imageUriMaps.get(uriKey) ?? new Map<string, string>();
+        this._imageUriMaps.set(uriKey, uriMap);
         const items = entries
             .filter(([name, type]) =>
                 !IGNORE.has(name) &&
@@ -986,11 +1017,49 @@ export class MarkdownEditorProvider
                 return an.localeCompare(bn);
             })
             .slice(0, 15)
-            .map(([name, type]) => ({
-                path: dirPart + name + (type === vscode.FileType.Directory ? '/' : ''),
-                isDir: type === vscode.FileType.Directory,
-            }));
+            .map(([name, type]) => {
+                const fullPath = dirPart + name + (type === vscode.FileType.Directory ? '/' : '');
+                let webviewUri: string | undefined;
+                if (type === vscode.FileType.File) {
+                    const ext = path.extname(name).toLowerCase();
+                    if (IMAGE_EXTS.has(ext)) {
+                        const absFilePath = path.join(absDir, name);
+                        webviewUri = panel.webview.asWebviewUri(vscode.Uri.file(absFilePath)).toString();
+                        // 登记映射，供 _prepareContentForSave 在保存时转换回相对路径
+                        uriMap.set(webviewUri, fullPath);
+                    }
+                }
+                return { path: fullPath, isDir: type === vscode.FileType.Directory, webviewUri };
+            });
 
         panel.webview.postMessage({ type: 'pathSuggestions', id, items });
+    }
+
+    private _handleResolveImagePath(
+        document: MarkdownDocument,
+        panel: vscode.WebviewPanel,
+        uriKey: string,
+        id: string,
+        relPath: string,
+    ): void {
+        if (document.uri.scheme !== 'file') { return; }
+        const mdDir = path.dirname(document.uri.fsPath);
+        const workspaceRoot = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath
+            ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        try {
+            let absPath: string;
+            if (relPath.startsWith('@/')) {
+                const root = workspaceRoot ?? mdDir;
+                absPath = path.join(root, relPath.slice(2));
+            } else {
+                absPath = path.resolve(mdDir, relPath);
+            }
+            const webviewUri = panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
+            // 登记映射供保存时还原
+            const uriMap = this._imageUriMaps.get(uriKey) ?? new Map<string, string>();
+            this._imageUriMaps.set(uriKey, uriMap);
+            uriMap.set(webviewUri, relPath);
+            panel.webview.postMessage({ type: 'imagePathResolved', id, webviewUri });
+        } catch { /* 路径非法，不响应 */ }
     }
 }

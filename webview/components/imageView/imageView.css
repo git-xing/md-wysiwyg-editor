@@ -201,3 +201,66 @@
     opacity: 1;
     background: rgba(255, 255, 255, 0.1);
 }
+
+/* ─── 图片路径补全下拉框 ───────────────────────────────── */
+.img-path-complete-list {
+    position: fixed;
+    z-index: 9999;
+    margin: 0;
+    padding: 2px 0;
+    list-style: none;
+    background: var(--vscode-editorWidget-background, #252526);
+    border: 1px solid var(--vscode-editorWidget-border, #454545);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    max-height: 240px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+
+.img-path-complete-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.img-path-complete-item--active,
+.img-path-complete-item:hover {
+    background: var(--vscode-list-activeSelectionBackground, #094771);
+    color: var(--vscode-list-activeSelectionForeground, #fff);
+}
+
+.img-complete-thumb {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 2px;
+    flex-shrink: 0;
+    background: var(--vscode-editor-background);
+}
+
+.img-complete-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.img-complete-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.img-complete-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}

@@ -509,10 +509,38 @@ export async function createEditor(
     onRenameImage?: (webviewUri: string, newBasename: string) => Promise<void>,
 ): Promise<Editor> {
     let debounceTimer: ReturnType<typeof setTimeout>;
-    const debouncedUpdate = (md: string) => {
+    // IME 合成期间（compositionstart → compositionend）暂存最新 markdown，
+    // 防止拼音中间态被保存到文件
+    let isComposing = false;
+    let pendingMd: string | null = null;
+
+    const fireUpdate = (md: string) => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => onUpdate(md), 300);
     };
+    const debouncedUpdate = (md: string) => {
+        if (isComposing) {
+            pendingMd = md; // 合成中：暂存，等 compositionend 再发
+            return;
+        }
+        fireUpdate(md);
+    };
+
+    container.addEventListener('compositionstart', () => {
+        isComposing = true;
+    });
+    container.addEventListener('compositionend', () => {
+        isComposing = false;
+        if (pendingMd !== null) {
+            const md = pendingMd;
+            pendingMd = null;
+            fireUpdate(md); // 合成完成后立即触发（仍经 300ms 防抖，合并快速连续提交）
+        }
+    });
+
+    // editor.create() 期间会因设置初始内容而触发 markdownUpdated，
+    // 用此标志阻断该初始触发，避免"打开即静默保存"的问题
+    let isSettled = false;
 
     _editor = await Editor.make()
         .config((ctx) => {
@@ -524,6 +552,7 @@ export async function createEditor(
                 bullet: '-' as const,
             }));
             ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
+                if (!isSettled) return; // 跳过初始化触发
                 debouncedUpdate(markdown);
             });
             // 配置 prism：使用我们已注册语言的 refractor 实例
@@ -562,5 +591,6 @@ export async function createEditor(
         .use(listSpreadNormalizePlugin)
         .create();
 
+    isSettled = true;
     return _editor;
 }

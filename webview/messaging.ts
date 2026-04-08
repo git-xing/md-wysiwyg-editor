@@ -63,6 +63,10 @@ export function notifyGetPathSuggestions(id: string, query: string): void {
     vscode.postMessage({ type: "getPathSuggestions", id, query });
 }
 
+export function notifyResolveImagePath(id: string, relPath: string): void {
+    vscode.postMessage({ type: "resolveImagePath", id, relPath });
+}
+
 export function notifyRenameImage(
     id: string,
     webviewUri: string,

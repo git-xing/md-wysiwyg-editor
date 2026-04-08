@@ -48,6 +48,7 @@ import { t, kbd } from "@/i18n";
 import { sampleDocPosition } from "../selectionToolbar";
 import { notifyOpenSettings, notifyGetProjectImages } from "@/messaging";
 import { createButton, createSeparator } from "@/ui/dom";
+import { attachImgPathComplete } from '../imageView/imgPathComplete';
 import './toolbar.css';
 
 type GetEditor = () => Editor | null;
@@ -295,6 +296,7 @@ function showImageInsertPanel(
     srcInput.placeholder = t("Image URL https://...");
     urlSection.appendChild(srcInput);
     panel.appendChild(urlSection);
+    const detachSrcComplete = attachImgPathComplete(srcInput);
 
     // ── 上传本地 tab ──────────────────────────────────
     const uploadSection = document.createElement("div");
@@ -587,7 +589,8 @@ function showImageInsertPanel(
             cleanup();
             selectedImages.forEach((img) => onConfirm(alt, img.webviewUri));
         } else if (activeTab === "url") {
-            const src = srcInput.value.trim();
+            // 补全选中时 dataset 存有 webviewUri，优先使用；否则直接用输入值
+            const src = (srcInput.dataset.imgWebviewUri ?? "").trim() || srcInput.value.trim();
             cleanup();
             if (src) {
                 onConfirm(alt, src);
@@ -601,6 +604,7 @@ function showImageInsertPanel(
     }
 
     function cleanup(): void {
+        detachSrcComplete();
         if (document.body.contains(panel)) {
             document.body.removeChild(panel);
         }

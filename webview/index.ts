@@ -21,6 +21,8 @@ import {
 import { setupLinkPopup } from "./components/linkPopup";
 import { setupPathLink } from "./components/pathLink";
 import { initPathComplete, dispatchPathSuggestions } from "./components/pathLink/pathComplete";
+import { dispatchImgPathSuggestions, dispatchImagePathResolved } from "./components/imageView/imgPathComplete";
+import { setImageUriMap } from "./components/imageView";
 import { initFindBar } from "./components/findBar";
 import { initHeadingIds } from "./headingIds";
 import {
@@ -632,6 +634,7 @@ onMessage(async (msg) => {
         markdownSource = msg.content; // 保存原始内容，供行号搜索使用
         currentLineMap = msg.lineMap ?? [];
         renderFrontmatterPanel(msg.frontmatter);
+        if (msg.imageUriMap) { setImageUriMap(msg.imageUriMap); }
         await initEditor(container, msg.content);
         // 新 WebView 打开时主动获取 DOM 焦点。
         // 若不调用：旧 WebView（path-link-test.md）在 Cmd+Click 后 blur() 释放了焦点，
@@ -745,5 +748,8 @@ onMessage(async (msg) => {
         }
     } else if (msg.type === "pathSuggestions") {
         dispatchPathSuggestions(msg.id, msg.items);
+        dispatchImgPathSuggestions(msg.id, msg.items);
+    } else if (msg.type === "imagePathResolved") {
+        dispatchImagePathResolved(msg.id, msg.webviewUri);
     }
 });

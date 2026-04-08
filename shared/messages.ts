@@ -15,6 +15,7 @@ export type ProjectImage = {
 export type PathSuggestionItem = {
     path: string;
     isDir: boolean;
+    webviewUri?: string;  // 仅图片文件时返回，供缩略图预览
 };
 
 /**
@@ -33,15 +34,16 @@ export type ToExtensionMessage =
     | { type: "uploadImage"; id: string; data: Uint8Array; mimeType: string; altText: string }
     | { type: "getProjectImages"; id: string }
     | { type: "renameImage"; id: string; webviewUri: string; newBasename: string }
-    | { type: "getPathSuggestions"; id: string; query: string };
+    | { type: "getPathSuggestions"; id: string; query: string }
+    | { type: "resolveImagePath"; id: string; relPath: string };
 
 /**
  * Extension → WebView 方向的消息。
  * lineMap 在 init/revert 中为可选：Extension 始终发送，但 WebView 侧用 `?? []` 兜底以防万一。
  */
 export type ToWebviewMessage =
-    | { type: "init"; content: string; lineMap?: number[]; scrollToLine?: number; frontmatter?: string }
-    | { type: "revert"; content: string; lineMap?: number[]; frontmatter?: string }
+    | { type: "init"; content: string; lineMap?: number[]; scrollToLine?: number; frontmatter?: string; imageUriMap?: Record<string, string> }
+    | { type: "revert"; content: string; lineMap?: number[]; frontmatter?: string; imageUriMap?: Record<string, string> }
     | { type: "scrollToLine"; line: number }
     | { type: "lineMapUpdate"; lineMap: number[] }
     | { type: "setDebugMode"; enabled: boolean }
@@ -51,4 +53,5 @@ export type ToWebviewMessage =
     | { type: "imageRenamed"; id: string; oldWebviewUri: string; newWebviewUri: string }
     | { type: "imageRenameError"; id: string; error: string }
     | { type: "requestSwitchToTextEditor" }
-    | { type: "pathSuggestions"; id: string; items: PathSuggestionItem[] };
+    | { type: "pathSuggestions"; id: string; items: PathSuggestionItem[] }
+    | { type: "imagePathResolved"; id: string; webviewUri: string };
