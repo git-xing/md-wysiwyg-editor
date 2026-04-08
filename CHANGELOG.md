@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.1.4] - 2026-04-08
+
+### Fixed
+
+- Fixed the "简体中文" link in the Marketplace README pointing to a non-existent URL (corrected `--baseContentUrl` to include `/blob/main`)
+- Fixed incorrect release dates in CHANGELOG for versions 0.1.0–0.1.2
+
+---
+
 ## [0.1.3] - 2026-04-07
 
 ### Added
@@ -15,13 +24,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **File-type icons**: the suggestion dropdown shows color-coded vscode-icons for 9 file types (folder, TypeScript, JavaScript, Markdown, JSON, CSS, HTML, image, and generic file)
 - **`#line-number` jump in links**: links such as `README.md#27` or `README.md#27-30` jump directly to the specified line in the target file
 
-### Fixed
-
-- Fixed Cmd+Click on a `.md` link followed by Cmd+W closing both the source and target tabs simultaneously (B088)
-
 ---
 
-## [0.1.2] - 2026-03-30
+## [0.1.2] - 2026-04-07
 
 ### Added
 
@@ -34,7 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.1.1] - 2026-03-15
+## [0.1.1] - 2026-04-01
 
 ### Added
 
@@ -45,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.1.0] - 2026-02-01
+## [0.1.0] - 2026-03-31
 
 ### Added
 
