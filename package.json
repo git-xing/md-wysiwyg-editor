@@ -215,15 +215,22 @@
     "vscode:prepublish": "node esbuild.mjs --production",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "package": "vsce package --no-dependencies --out releases/ --baseContentUrl https://github.com/git-xing/md-wysiwyg-editor/blob/main --baseImagesUrl https://github.com/git-xing/md-wysiwyg-editor/raw/main"
+    "package": "vsce package --no-dependencies --out releases/ --baseContentUrl https://github.com/git-xing/md-wysiwyg-editor/blob/main --baseImagesUrl https://github.com/git-xing/md-wysiwyg-editor/raw/main",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/dompurify": "^3.2.0",
+    "@types/jsdom": "^21.1.0",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.80.0",
+    "@vitest/coverage-v8": "^2.1.0",
     "@vscode/vsce": "^2.32.0",
     "esbuild": "^0.24.0",
-    "typescript": "^5.7.0"
+    "jsdom": "24.1.3",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
   },
   "dependencies": {
     "@milkdown/core": "^7.5.0",

@@ -4,28 +4,9 @@ import { MarkdownDocument } from "./MarkdownDocument";
 import { getNonce } from "./utils/getNonce";
 import { ZH_CN_WEBVIEW } from "./i18n/webviewTranslations";
 import { saveImageLocally, uploadImageToServer } from "./utils/imageService";
+import { computeLineMap } from "./utils/lineMap";
+import { extractFrontmatter, restoreContentForSave } from "./utils/contentTransform";
 import type { ToExtensionMessage, ToWebviewMessage } from "../shared/messages";
-
-function computeLineMap(content: string): number[] {
-    const lines = content.split('\n');
-    const map: number[] = [];
-    let i = 0;
-    while (i < lines.length) {
-        while (i < lines.length && lines[i].trim() === '') i++;
-        if (i >= lines.length) break;
-        map.push(i + 1);
-        const fenceMatch = lines[i].trimStart().match(/^(`{3,}|~{3,})/);
-        if (fenceMatch) {
-            const fence = fenceMatch[1];
-            i++;
-            while (i < lines.length && !lines[i].trimStart().startsWith(fence)) i++;
-            if (i < lines.length) i++;
-        } else {
-            while (i < lines.length && lines[i].trim() !== '') i++;
-        }
-    }
-    return map;
-}
 
 
 export class MarkdownEditorProvider
@@ -76,13 +57,29 @@ export class MarkdownEditorProvider
         this._pendingRevealLine = { line, ts: Date.now() };
     }
 
-    /** 消费全局兜底跳转行号（3 秒内有效） */
+    /** 消费全局兜底跳转行号（10 秒内有效，大文件 Milkdown 初始化较慢） */
     private _consumeGlobalRevealLine(): number | undefined {
         const p = this._pendingRevealLine;
         if (!p) { return undefined; }
         this._pendingRevealLine = undefined;
-        if (Date.now() - p.ts > 3000) { return undefined; }
+        if (Date.now() - p.ts > 10000) { return undefined; }
         return p.line;
+    }
+
+    /** 返回当前所有已注册（open）的 .md 面板的 fsPath 列表 */
+    public getAllMdFsPaths(): string[] {
+        const paths: string[] = [];
+        for (const uriKey of this._webviewPanels.keys()) {
+            try {
+                const uri = vscode.Uri.parse(uriKey);
+                if (uri.fsPath.endsWith('.md') || uri.fsPath.endsWith('.markdown')) {
+                    paths.push(uri.fsPath);
+                }
+            } catch {
+                // 忽略无效 URI
+            }
+        }
+        return paths;
     }
 
     /** 切换到文本编辑器时调用：1.5 秒内屏蔽来自文本编辑器的行号回传 */
@@ -233,19 +230,20 @@ export class MarkdownEditorProvider
                 return;
             }
             // revealLine 可能在 viewState 变化之后才触发（全局搜索时序不确定）
-            // 延迟 600ms 再检查一次全局兜底行号
+            // 延迟 1000ms 再检查一次全局兜底行号或 pending navigation
             setTimeout(() => {
                 try {
                     if (!p.active) { return; }
                 } catch {
                     return; // 面板已销毁（如 preview tab 被替换），忽略
                 }
-                const delayedLine = this._consumeGlobalRevealLine();
+                const delayedLine = this._consumePendingNavigation(document.uri.fsPath)
+                    ?? this._consumeGlobalRevealLine();
                 if (delayedLine !== undefined) {
                     console.log('[viewState] delayed scrollToLine:', delayedLine);
                     p.webview.postMessage({ type: "scrollToLine", line: delayedLine });
                 }
-            }, 600);
+            }, 1000);
         });
 
         webviewPanel.webview.onDidReceiveMessage(
@@ -725,21 +723,13 @@ export class MarkdownEditorProvider
 </html>`;
     }
 
-    private _extractFrontmatter(content: string): { frontmatter: string; body: string } {
-        const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
-        if (match) {
-            return { frontmatter: match[0], body: content.slice(match[0].length) };
-        }
-        return { frontmatter: '', body: content };
-    }
-
     private _prepareContentForDisplay(
         content: string,
         document: MarkdownDocument,
         panel: vscode.WebviewPanel,
         uriKey: string,
     ): string {
-        const { frontmatter, body } = this._extractFrontmatter(content);
+        const { frontmatter, body } = extractFrontmatter(content);
         this._frontmatterMap.set(uriKey, frontmatter);
         content = body;
 
@@ -770,16 +760,9 @@ export class MarkdownEditorProvider
     }
 
     private _prepareContentForSave(content: string, uriKey: string): string {
-        const frontmatter = this._frontmatterMap.get(uriKey) ?? '';
-        if (frontmatter) { content = frontmatter + content; }
-
-        const uriMap = this._imageUriMaps.get(uriKey);
-        if (!uriMap || uriMap.size === 0) { return content; }
-        let result = content;
-        for (const [webviewUri, relPath] of uriMap) {
-            result = result.split(webviewUri).join(relPath);
-        }
-        return result;
+        const frontmatter = this._frontmatterMap.get(uriKey) ?? "";
+        const uriMap = this._imageUriMaps.get(uriKey) ?? new Map<string, string>();
+        return restoreContentForSave(content, frontmatter, uriMap);
     }
 
     private async _handleImageUpload(
