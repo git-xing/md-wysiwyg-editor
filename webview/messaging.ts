@@ -80,3 +80,11 @@ export function onMessage(handler: (msg: IncomingMessage) => void): void {
         handler(event.data as IncomingMessage);
     });
 }
+
+export function getWebviewState(): Record<string, unknown> | null {
+    return vscode.getState() as Record<string, unknown> | null;
+}
+
+export function setWebviewState(state: Record<string, unknown>): void {
+    vscode.setState(state);
+}

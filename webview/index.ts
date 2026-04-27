@@ -16,6 +16,8 @@ import {
     notifyUploadImage,
     notifyGetProjectImages,
     notifyRenameImage,
+    getWebviewState,
+    setWebviewState,
 } from "./messaging";
 
 import { setupLinkPopup } from "./components/linkPopup";
@@ -623,6 +625,30 @@ window.addEventListener("keydown", (e) => {
 // WebView 加载完成，通知 Extension 侧发送初始内容
 notifyReady();
 
+// ── 滚动位置持久化 ────────────────────────────────────────────
+// 保存：滚动时防抖写入 VSCode WebView 状态（跨会话可恢复）
+let _scrollSaveTimer: ReturnType<typeof setTimeout> | null = null;
+window.addEventListener('scroll', () => {
+    if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
+    _scrollSaveTimer = setTimeout(() => {
+        const cur = getWebviewState() ?? {};
+        setWebviewState({ ...cur, scrollY: window.scrollY });
+    }, 200);
+}, { passive: true });
+
+// 恢复（主路径）：tab 切换时 iframe 被隐藏再显示，浏览器会重置 scrollY
+// visibilitychange 触发时读取已保存位置并还原
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const state = getWebviewState();
+    if (state?.scrollY !== undefined) {
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: state.scrollY as number });
+        });
+    }
+});
+// ─────────────────────────────────────────────────────────────
+
 // 监听来自 Extension 侧的消息
 onMessage(async (msg) => {
     const container = document.getElementById("editor");
@@ -662,6 +688,25 @@ onMessage(async (msg) => {
             // 300ms 首试（Milkdown 渲染需要时间），若失败则在 600ms / 1100ms / 2000ms 继续重试
             for (const delay of [300, 600, 1100, 2000]) {
                 setTimeout(tryScroll, delay);
+            }
+        } else if (msg.type === "init") {
+            // WebView 重建场景（VSCode 重启恢复标签页等）：从持久状态恢复滚动位置
+            const saved = getWebviewState();
+            if (saved?.scrollY) {
+                const targetY = saved.scrollY as number;
+                let restoreDone = false;
+                const tryRestore = () => {
+                    if (restoreDone) return;
+                    const view = getEditorView();
+                    if (!view) return;
+                    const firstChild = view.dom.children[0] as HTMLElement | undefined;
+                    if (!firstChild || firstChild.getBoundingClientRect().height === 0) return;
+                    window.scrollTo({ top: targetY });
+                    restoreDone = true;
+                };
+                for (const delay of [300, 600, 1100, 2000]) {
+                    setTimeout(tryRestore, delay);
+                }
             }
         }
     } else if (msg.type === "requestSwitchToTextEditor") {
