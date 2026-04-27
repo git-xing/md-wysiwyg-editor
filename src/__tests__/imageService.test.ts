@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as path from "path";
+import * as https from "https";
+import * as http from "http";
 
 // 从 vscode mock 导入（alias 已在 vitest.config.ts 中配置）
 import * as vscode from "vscode";
+
+// 模块级 mock（Vitest 自动 hoist 至 import 之前）
+vi.mock("https", () => ({ request: vi.fn() }));
+vi.mock("http", () => ({ request: vi.fn() }));
 const mockFs = vscode.workspace.fs as {
     readFile: ReturnType<typeof vi.fn>;
     writeFile: ReturnType<typeof vi.fn>;
@@ -17,6 +23,7 @@ import {
     buildRelPath,
     getByPath,
     saveImageLocally,
+    uploadImageToServer,
 } from "../../src/utils/imageService";
 
 // ─────────────────────────────────────────────────────────────
@@ -265,5 +272,265 @@ describe("saveImageLocally — 目录选择", () => {
         expect(mockFs.createDirectory).toHaveBeenCalled();
         const [createdUri] = mockFs.createDirectory.mock.calls[0] as [{ fsPath: string }];
         expect(createdUri.fsPath).toContain("images");
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// saveImageLocally — 额外路径分支
+// ─────────────────────────────────────────────────────────────
+describe("saveImageLocally — 额外路径分支", () => {
+    const imageData = new Uint8Array([1, 2, 3]);
+
+    function makeCfg(overrides: Record<string, unknown> = {}) {
+        return { get: vi.fn((key: string, def?: unknown) => overrides[key] ?? def) };
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (vscode.workspace.getWorkspaceFolder as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
+        mockFs.readDirectory.mockResolvedValue([]);
+        mockFs.writeFile.mockResolvedValue(undefined);
+        mockFs.createDirectory.mockResolvedValue(undefined);
+        mockFs.stat.mockRejectedValue(new Error("ENOENT"));
+    });
+
+    it("相对 imageLocalPath + 有 workspace folder：使用 workspace root 拼接路径", async () => {
+        const docUri = vscode.Uri.file("/project/docs/note.md");
+        (vscode.workspace.getWorkspaceFolder as ReturnType<typeof vi.fn>)
+            .mockReturnValue({ uri: vscode.Uri.file("/project") });
+
+        const cfg = makeCfg({ imageLocalPath: "static/images" });
+        await saveImageLocally(docUri, cfg as never, imageData, "image/png", "x");
+
+        const [callUri] = mockFs.writeFile.mock.calls[0] as [{ fsPath: string }];
+        expect(callUri.fsPath).toContain("static/images");
+    });
+
+    it("相对 imageLocalPath + 无 workspace folder：使用 .md 同级目录拼接路径", async () => {
+        const docUri = vscode.Uri.file("/project/docs/note.md");
+
+        const cfg = makeCfg({ imageLocalPath: "imgs" });
+        await saveImageLocally(docUri, cfg as never, imageData, "image/png", "x");
+
+        const [callUri] = mockFs.writeFile.mock.calls[0] as [{ fsPath: string }];
+        expect(callUri.fsPath).toContain("imgs");
+    });
+
+    it("untitled（非 file scheme）文档降级保存到 home/images/ 目录", async () => {
+        const untitledUri = {
+            fsPath: "untitled-1",
+            scheme: "untitled",
+            toString: () => "untitled:untitled-1",
+        };
+
+        const cfg = makeCfg();
+        await saveImageLocally(untitledUri as never, cfg as never, imageData, "image/png", "x");
+
+        expect(mockFs.createDirectory).toHaveBeenCalled();
+        const [callUri] = mockFs.writeFile.mock.calls[0] as [{ fsPath: string }];
+        expect(callUri.fsPath).toContain("images");
+    });
+
+    it("自动检测时优先使用已存在的 imgs 候选目录", async () => {
+        const docUri = vscode.Uri.file("/project/docs/note.md");
+        mockFs.stat.mockImplementation(({ fsPath }: { fsPath: string }) =>
+            fsPath.endsWith("imgs")
+                ? Promise.resolve({ type: vscode.FileType.Directory })
+                : Promise.reject(new Error("ENOENT")),
+        );
+
+        const cfg = makeCfg();
+        await saveImageLocally(docUri, cfg as never, imageData, "image/png", "x");
+
+        const [callUri] = mockFs.writeFile.mock.calls[0] as [{ fsPath: string }];
+        expect(callUri.fsPath).toContain("imgs");
+        expect(mockFs.createDirectory).not.toHaveBeenCalled();
+    });
+
+    it("MD5 去重：readFile 读取失败时跳过该文件继续处理", async () => {
+        const docUri = vscode.Uri.file("/project/docs/note.md");
+        mockFs.readDirectory.mockResolvedValue([["broken.png", vscode.FileType.File]]);
+        mockFs.readFile.mockRejectedValue(new Error("EPERM"));
+
+        const cfg = makeCfg();
+        const result = await saveImageLocally(docUri, cfg as never, imageData, "image/png", "x");
+
+        expect(mockFs.writeFile).toHaveBeenCalledOnce();
+        expect(result.relPath).toMatch(/\.png$/);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// uploadImageToServer
+// ─────────────────────────────────────────────────────────────
+
+function createSuccessMockTransport(responseBody: string) {
+    const dataHandlers: Array<(chunk: Buffer) => void> = [];
+    const endHandlers: Array<() => void> = [];
+
+    const mockRes = {
+        on: vi.fn((event: string, cb: unknown) => {
+            if (event === "data") dataHandlers.push(cb as (c: Buffer) => void);
+            if (event === "end") endHandlers.push(cb as () => void);
+        }),
+    };
+
+    const mockReq = {
+        on: vi.fn(),
+        setTimeout: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(() => {
+            dataHandlers.forEach(h => h(Buffer.from(responseBody)));
+            endHandlers.forEach(h => h());
+        }),
+        destroy: vi.fn(),
+    };
+
+    return { mockRes, mockReq };
+}
+
+function createErrorMockTransport(error: Error) {
+    const errHandlers: Array<(e: Error) => void> = [];
+
+    return {
+        on: vi.fn((event: string, cb: unknown) => {
+            if (event === "error") errHandlers.push(cb as (e: Error) => void);
+        }),
+        setTimeout: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(() => { errHandlers.forEach(h => h(error)); }),
+        destroy: vi.fn(),
+    };
+}
+
+describe("uploadImageToServer", () => {
+    const imageData = new Uint8Array([1, 2, 3, 4]);
+
+    function makeCfg(overrides: Record<string, unknown> = {}) {
+        return { get: vi.fn((key: string, def?: unknown) => overrides[key] ?? def) };
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("serverUrl 为空时立即抛出错误，不发起网络请求", async () => {
+        const cfg = makeCfg({ imageServerUrl: "" });
+        await expect(
+            uploadImageToServer(cfg as never, imageData, "image/png", "photo"),
+        ).rejects.toThrow("请先在设置中配置");
+    });
+
+    it("HTTPS 上传成功，返回响应中的 URL", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport('{"url":"https://cdn.example.com/img.png"}');
+        vi.mocked(https.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({ imageServerUrl: "https://upload.example.com/api" });
+        const result = await uploadImageToServer(cfg as never, imageData, "image/png", "photo");
+        expect(result).toBe("https://cdn.example.com/img.png");
+    });
+
+    it("HTTP URL 使用 http 模块而非 https 模块", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport('{"url":"http://cdn.example.com/img.png"}');
+        vi.mocked(http.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({ imageServerUrl: "http://upload.example.com/api" });
+        await uploadImageToServer(cfg as never, imageData, "image/png", "photo");
+
+        expect(vi.mocked(http.request)).toHaveBeenCalled();
+        expect(vi.mocked(https.request)).not.toHaveBeenCalled();
+    });
+
+    it("extraParams 被序列化并写入请求体", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport('{"url":"https://cdn.example.com/img.png"}');
+        vi.mocked(https.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({
+            imageServerUrl: "https://upload.example.com/api",
+            imageServerExtraParams: '{"token":"abc123"}',
+        });
+        await uploadImageToServer(cfg as never, imageData, "image/png", "photo");
+
+        const body = (mockReq.write.mock.calls[0]?.[0] as Buffer).toString();
+        expect(body).toContain("token");
+        expect(body).toContain("abc123");
+    });
+
+    it("extraParams 为无效 JSON 时忽略并继续上传", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport('{"url":"https://cdn.example.com/img.png"}');
+        vi.mocked(https.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({
+            imageServerUrl: "https://upload.example.com/api",
+            imageServerExtraParams: "not-valid-json!!!",
+        });
+        await expect(
+            uploadImageToServer(cfg as never, imageData, "image/png", "photo"),
+        ).resolves.toBe("https://cdn.example.com/img.png");
+    });
+
+    it("服务端返回非 JSON 时抛出错误", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport("Internal Server Error");
+        vi.mocked(https.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({ imageServerUrl: "https://upload.example.com/api" });
+        await expect(
+            uploadImageToServer(cfg as never, imageData, "image/png", "photo"),
+        ).rejects.toThrow("non-JSON");
+    });
+
+    it("响应 JSON 中路径提取不到 URL 时抛出错误", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport('{"status":"ok"}');
+        vi.mocked(https.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({ imageServerUrl: "https://upload.example.com/api" });
+        await expect(
+            uploadImageToServer(cfg as never, imageData, "image/png", "photo"),
+        ).rejects.toThrow("Cannot extract URL");
+    });
+
+    it("网络错误时 Promise reject", async () => {
+        const mockReq = createErrorMockTransport(new Error("ECONNREFUSED"));
+        vi.mocked(https.request).mockImplementation(() => mockReq as never);
+
+        const cfg = makeCfg({ imageServerUrl: "https://upload.example.com/api" });
+        await expect(
+            uploadImageToServer(cfg as never, imageData, "image/png", "photo"),
+        ).rejects.toThrow("ECONNREFUSED");
+    });
+
+    it("嵌套 responsePath（如 data.url）正确提取 URL", async () => {
+        const { mockRes, mockReq } = createSuccessMockTransport(
+            '{"data":{"url":"https://cdn.example.com/img.png"}}',
+        );
+        vi.mocked(https.request).mockImplementation((_opts, cb) => {
+            (cb as (r: typeof mockRes) => void)(mockRes);
+            return mockReq as never;
+        });
+
+        const cfg = makeCfg({
+            imageServerUrl: "https://upload.example.com/api",
+            imageServerResponsePath: "data.url",
+        });
+        const result = await uploadImageToServer(cfg as never, imageData, "image/png", "photo");
+        expect(result).toBe("https://cdn.example.com/img.png");
     });
 });
