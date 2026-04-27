@@ -79,17 +79,17 @@
 
 安装扩展后，在 VSCode 中打开任意 `.md` / `.markdown` 文件，将自动以 WYSIWYG 模式打开。
 
-| 操作               | 方式                                    |
-| ---------------- | ------------------------------------- |
-| 切换到文本编辑器         | 点击标题栏 👁 图标，或右键文件 → 打开方式              |
-| 切换回 WYSIWYG      | 点击标题栏 👁 图标                           |
-| 插入行/列            | 鼠标悬浮表格行/列边框，点击 **+**                  |
-| 拖拽重排行/列          | 悬浮 **⠿** handle 后拖拽                   |
-| 选中整行/整列          | 点击 **⠿** handle                       |
-| 路径自动补全           | 在 inline code 中输入 `@/`、`./` 或 `../`  |
-| 发送段落到 Claude     | `Option+K`（macOS）/ `Alt+K`（Windows）   |
-| 文档内搜索            | `Cmd+F`（macOS）/ `Ctrl+F`（Windows）     |
-| 手动保存             | `Cmd+S`（macOS）/ `Ctrl+S`（Windows）     |
+| 操作           | 方式                                  |
+| ------------ | ----------------------------------- |
+| 切换到文本编辑器     | 点击标题栏 👁 图标，或右键文件 → 打开方式            |
+| 切换回 WYSIWYG  | 点击标题栏 👁 图标                         |
+| 插入行/列        | 鼠标悬浮表格行/列边框，点击 **+**                |
+| 拖拽重排行/列      | 悬浮 **⠿** handle 后拖拽                 |
+| 选中整行/整列      | 点击 **⠿** handle                     |
+| 路径自动补全       | 在 inline code 中输入 `@/`、`./` 或 `../` |
+| 发送段落到 Claude | `Option+K`（macOS）/ `Alt+K`（Windows） |
+| 文档内搜索        | `Cmd+F`（macOS）/ `Ctrl+F`（Windows）   |
+| 手动保存         | `Cmd+S`（macOS）/ `Ctrl+S`（Windows）   |
 
 ***
 
@@ -104,7 +104,7 @@
 | `markdownWysiwyg.editorMaxWidth`     | number  | `900`       | 编辑器内容最大宽度（像素）                                        |
 | `markdownWysiwyg.fontFamily`         | string  | `""`        | 编辑器字体，留空继承 VSCode 编辑器字体，示例：`Georgia, serif`          |
 | `markdownWysiwyg.imageStorage`       | string  | `"local"`   | 图片存储模式：`local`（本地保存）或 `server`（上传至自定义 URL）           |
-| `markdownWysiwyg.imageLocalPath`     | string  | `""`        | 本地图片存储路径（相对于 workspace 根目录）                           |
+| `markdownWysiwyg.imageLocalPath`     | string  | `""`        | 本地图片存储路径（相对于 workspace 根目录）                          |
 
 ***
 
@@ -117,3 +117,6 @@
 ## 已知限制
 
 - 部分复杂 Markdown 扩展语法（如脚注、数学公式）尚未支持
+- **链接弹窗撤销**（`Cmd+Z` / `Ctrl+Z`）：在链接 URL / 文字输入框内，撤销操作被 VS Code Electron 层拦截，暂无法使用
+- **表格单元格行号**（发送到 Claude）：选中表格单元格时，上报的行号范围可能偏差，根因是 ProseMirror 节点索引与源码行号映射不对齐
+- **全局搜索跳转**：点击 `.md` 文件的全局搜索结果时，若同时打开多个 `.md` 文件，WYSIWYG 编辑器可能无法精确跳转到匹配行

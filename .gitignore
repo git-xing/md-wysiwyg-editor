@@ -7,6 +7,7 @@ docs/
 releases/
 .DS_Store
 .docs
-.claude/
+.idea
+.claude/settings.local.json
 .env
 .env.*

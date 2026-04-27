@@ -64,6 +64,16 @@ export function activate(context: vscode.ExtensionContext) {
                 const uriStr = uri.toString();
                 if (MarkdownEditorProvider.suppressAutoSwitch.has(uriStr)) { continue; }
 
+                // 若 URI fragment 包含行号（全局搜索传入 #L10 格式），提前存储以便 WYSIWYG 初始化后跳转
+                const fragMatch = uri.fragment?.match(/^L?(\d+)/);
+                if (fragMatch) {
+                    const fragLine = parseInt(fragMatch[1], 10);
+                    if (fragLine >= 1) {
+                        console.log('[onDidChangeTabs] fragment line:', fragLine, 'fsPath:', uri.fsPath);
+                        MarkdownEditorProvider.current?.setPendingNavigation(uri.fsPath, fragLine);
+                    }
+                }
+
                 // 先关文本 tab，再开 WYSIWYG（与 switchToPreview 命令保持一致）
                 const isPreview = tab.isPreview;
                 const viewCol = tab.group.viewColumn;
@@ -104,7 +114,17 @@ export function activate(context: vscode.ExtensionContext) {
                 const targetLine = args.lineNumber + 1; // 转为 1-indexed
                 // 始终写入全局兜底：确保 onDidChangeViewState（含延迟检查）能消费到
                 MarkdownEditorProvider.current?.setGlobalRevealLine(targetLine);
-                // 同时：若当前有 active 的 .md 自定义 tab 且已初始化，直接发送（不等 viewState）
+                // 对所有已注册的 .md 面板设置 pending navigation
+                // 避免仅靠 tab.isActive 判断（tab 切换和 revealLine 触发顺序不确定）
+                const mdPaths = MarkdownEditorProvider.current?.getAllMdFsPaths() ?? [];
+                if (mdPaths.length > 0) {
+                    console.log('[revealLine] 已注册 .md 面板数:', mdPaths.length, '行号:', targetLine);
+                    for (const fsPath of mdPaths) {
+                        MarkdownEditorProvider.current?.setPendingNavigation(fsPath, targetLine);
+                    }
+                    return;
+                }
+                // 兜底：遍历 tab groups 查找 active .md 自定义 tab
                 for (const group of vscode.window.tabGroups.all) {
                     for (const tab of group.tabs) {
                         if (tab.input instanceof vscode.TabInputCustom) {
@@ -117,7 +137,7 @@ export function activate(context: vscode.ExtensionContext) {
                         }
                     }
                 }
-                console.log('[revealLine] 未找到 active .md 自定义 tab，等待 viewState 延迟消费');
+                console.log('[revealLine] 未找到 .md 面板，等待 viewState 延迟消费');
                 // 回退：文本编辑器使用 revealRange
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
