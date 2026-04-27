@@ -2,7 +2,7 @@
   "name": "md-wysiwyg-editor",
   "displayName": "WYSIWYG Markdown Editor",
   "description": "WYSIWYG Markdown editor with live table editing",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "chance-liu",
   "engines": {
     "vscode": "^1.80.0"
