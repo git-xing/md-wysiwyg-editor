@@ -17,6 +17,7 @@ import {
 } from "@milkdown/preset-gfm";
 import { undo, redo } from "@milkdown/prose/history";
 import { lift } from "@milkdown/prose/commands";
+import { TextSelection } from "@milkdown/prose/state";
 import type { Editor } from "@milkdown/core";
 import type { EditorView } from "@milkdown/prose/view";
 import {
@@ -38,22 +39,22 @@ import {
     IconCheck,
     IconX,
     IconToc,
-    IconHeading,
     IconChevronDown,
     IconEraser,
     IconSettings,
-} from "../../ui/icons";
-import { applyTooltip } from "../../ui/tooltip";
-import { t, kbd } from "../../i18n";
+} from "@/ui/icons";
+import { applyTooltip } from "@/ui/tooltip";
+import { t, kbd } from "@/i18n";
 import { sampleDocPosition } from "../selectionToolbar";
-import { notifyOpenSettings, notifyGetProjectImages } from "../../messaging";
+import { notifyOpenSettings, notifyGetProjectImages } from "@/messaging";
+import { createButton, createSeparator } from "@/ui/dom";
+import { attachImgPathComplete } from '../imageView/imgPathComplete';
+import './toolbar.css';
 
 type GetEditor = () => Editor | null;
 
 function sep(): HTMLElement {
-    const el = document.createElement("div");
-    el.className = "tb-sep";
-    return el;
+    return createSeparator("tb-sep");
 }
 
 function btn(
@@ -62,16 +63,12 @@ function btn(
     onClick: () => void,
     extraClass = "",
 ): HTMLButtonElement {
-    const b = document.createElement("button");
-    b.className = `tb-btn${extraClass ? " " + extraClass : ""}`;
-    b.innerHTML = icon;
-    applyTooltip(b, title);
-    b.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation(); // 防止 ProseMirror 检测到编辑器外 mousedown 导致选区丢失
-        onClick();
+    return createButton({
+        className: `tb-btn${extraClass ? " " + extraClass : ""}`,
+        icon,
+        title,
+        onClick,
     });
-    return b;
 }
 
 // 调用 Milkdown 命令：传 command.key（CmdKey），而非 command 本身
@@ -299,6 +296,7 @@ function showImageInsertPanel(
     srcInput.placeholder = t("Image URL https://...");
     urlSection.appendChild(srcInput);
     panel.appendChild(urlSection);
+    const detachSrcComplete = attachImgPathComplete(srcInput);
 
     // ── 上传本地 tab ──────────────────────────────────
     const uploadSection = document.createElement("div");
@@ -591,7 +589,8 @@ function showImageInsertPanel(
             cleanup();
             selectedImages.forEach((img) => onConfirm(alt, img.webviewUri));
         } else if (activeTab === "url") {
-            const src = srcInput.value.trim();
+            // 补全选中时 dataset 存有 webviewUri，优先使用；否则直接用输入值
+            const src = (srcInput.dataset.imgWebviewUri ?? "").trim() || srcInput.value.trim();
             cleanup();
             if (src) {
                 onConfirm(alt, src);
@@ -605,6 +604,7 @@ function showImageInsertPanel(
     }
 
     function cleanup(): void {
+        detachSrcComplete();
         if (document.body.contains(panel)) {
             document.body.removeChild(panel);
         }
@@ -737,7 +737,7 @@ export function initToolbar(
 
     const fmtBtn = document.createElement("button");
     fmtBtn.className = "tb-btn tb-fmt-btn";
-    fmtBtn.innerHTML = IconHeading + IconChevronDown;
+    fmtBtn.innerHTML = `<span class="tb-fmt-label">P</span>${IconChevronDown}`;
     fmtBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -832,9 +832,27 @@ export function initToolbar(
         ),
     );
     toolbar.appendChild(
-        btn(IconCode, t("Inline Code") + " " + kbd("Mod-e"), () =>
-            callCmd(getEditor, toggleInlineCodeCommand),
-        ),
+        btn(IconCode, t("Inline Code") + " " + kbd("Mod-e"), () => {
+            const editor = getEditor();
+            if (!editor) { return; }
+            editor.action((ctx) => {
+                const view = ctx.get(editorViewCtx);
+                const { state } = view;
+                if (!state.selection.empty) {
+                    ctx.get(commandsCtx).call(toggleInlineCodeCommand.key as any);
+                    return;
+                }
+                // 无选区：插入零宽空格占位文本 + inlineCode mark，光标置入其中
+                const codeMark = state.schema.marks["inlineCode"];
+                if (!codeMark) { return; }
+                const { from } = state.selection;
+                const textNode = state.schema.text("\u200b", [codeMark.create()]);
+                const tr = state.tr.insert(from, textNode);
+                tr.setSelection(TextSelection.create(tr.doc, from + 1));
+                view.dispatch(tr);
+                view.focus();
+            });
+        }),
     );
     toolbar.appendChild(
         btn(IconEraser, t("Clear Formatting"), () => {
@@ -1208,10 +1226,7 @@ export function initToolbar(
         toolbar.appendChild(dbgWrap);
     }
 
-    // ── 设置按钮（最右侧）──────────────────────────────
-    const spacer = document.createElement("div");
-    spacer.style.flex = "1";
-    toolbar.appendChild(spacer);
+    // ── 设置按钮 ────────────────────────────────────────
     toolbar.appendChild(
         btn(IconSettings, t("Settings"), () => notifyOpenSettings()),
     );
@@ -1238,6 +1253,12 @@ export function initToolbar(
                     activeLevel = -1;
                     break;
                 }
+            }
+            // 更新按钮显示的格式标签
+            const labelEl = fmtBtn.querySelector(".tb-fmt-label");
+            if (labelEl) {
+                const labels = ["P","H1","H2","H3","H4","H5","H6"];
+                labelEl.textContent = activeLevel === -1 ? "—" : (labels[activeLevel] ?? "P");
             }
             fmtItems.forEach((item, i) => {
                 // i=0 → P (activeLevel===0), i=1..6 → H1..H6 (activeLevel===i)

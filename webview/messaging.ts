@@ -38,8 +38,8 @@ export function notifySendToClaudeChat(
     vscode.postMessage({ type: "sendToClaudeChat", text, startLine, endLine });
 }
 
-export function notifySwitchToTextEditor(): void {
-    vscode.postMessage({ type: "switchToTextEditor" });
+export function notifySwitchToTextEditor(line?: number): void {
+    vscode.postMessage({ type: "switchToTextEditor", ...(line !== undefined ? { line } : {}) });
 }
 
 export function notifyOpenSettings(): void {
@@ -59,6 +59,14 @@ export function notifyGetProjectImages(id: string): void {
     vscode.postMessage({ type: "getProjectImages", id });
 }
 
+export function notifyGetPathSuggestions(id: string, query: string): void {
+    vscode.postMessage({ type: "getPathSuggestions", id, query });
+}
+
+export function notifyResolveImagePath(id: string, relPath: string): void {
+    vscode.postMessage({ type: "resolveImagePath", id, relPath });
+}
+
 export function notifyRenameImage(
     id: string,
     webviewUri: string,
@@ -71,4 +79,12 @@ export function onMessage(handler: (msg: IncomingMessage) => void): void {
     window.addEventListener("message", (event: MessageEvent) => {
         handler(event.data as IncomingMessage);
     });
+}
+
+export function getWebviewState(): Record<string, unknown> | null {
+    return vscode.getState() as Record<string, unknown> | null;
+}
+
+export function setWebviewState(state: Record<string, unknown>): void {
+    vscode.setState(state);
 }

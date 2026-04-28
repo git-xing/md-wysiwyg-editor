@@ -5,6 +5,8 @@ import {
     registerSelectionChangeHandler,
     setLogTableSel,
 } from "./editor";
+import type { EditorView } from "@milkdown/prose/view";
+import { TextSelection } from "@milkdown/prose/state";
 import {
     notifyReady,
     notifyUpdate,
@@ -14,8 +16,17 @@ import {
     notifyUploadImage,
     notifyGetProjectImages,
     notifyRenameImage,
+    getWebviewState,
+    setWebviewState,
 } from "./messaging";
+
 import { setupLinkPopup } from "./components/linkPopup";
+import { setupPathLink } from "./components/pathLink";
+import { initPathComplete, dispatchPathSuggestions } from "./components/pathLink/pathComplete";
+import { dispatchImgPathSuggestions, dispatchImagePathResolved } from "./components/imageView/imgPathComplete";
+import { setImageUriMap } from "./components/imageView";
+import { initFindBar } from "./components/findBar";
+import { initHeadingIds } from "./headingIds";
 import {
     setupTableAddButtons,
     setDebugMode,
@@ -44,6 +55,42 @@ export function getLineMap(): number[] {
 let markdownSource = "";
 export function getMarkdownSource(): string {
     return markdownSource;
+}
+
+/** 将 lineMap 中的源码行号（1-indexed）对应的块滚动到视口顶部 */
+function scrollToSourceLine(view: EditorView, lineMap: number[], targetLine: number): void {
+    if (!lineMap.length) { return; }
+    let blockIdx = 0;
+    for (let i = 0; i < lineMap.length; i++) {
+        if (lineMap[i] <= targetLine) { blockIdx = i; }
+        else { break; }
+    }
+    const children = view.dom.children;
+    if (blockIdx >= children.length) { return; }
+    const el = children[blockIdx] as HTMLElement;
+    if (!el) { return; }
+    const topbarH = document.querySelector(".editor-topbar")?.getBoundingClientRect().height ?? 40;
+    console.log('[scrollToLine] targetLine:', targetLine, 'blockIdx:', blockIdx, 'lineMap[blockIdx]:', lineMap[blockIdx]);
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - topbarH - 16 });
+}
+
+/** 检测视口顶部对应的源码行号（1-indexed），供切换到文本编辑器时定位用 */
+function getFirstVisibleSourceLine(view: EditorView, lineMap: number[]): number {
+    if (!lineMap.length) { return 1; }
+    const topbarH = document.querySelector(".editor-topbar")?.getBoundingClientRect().height ?? 40;
+    const children = view.dom.children;
+    for (let i = 0; i < children.length && i < lineMap.length; i++) {
+        const rect = (children[i] as HTMLElement).getBoundingClientRect();
+        if (rect.bottom > topbarH + 8) {
+            const result = lineMap[i] ?? 1;
+            console.log('[getFirstVisible] result:', result, 'blockIdx:', i, 'rect.bottom:', rect.bottom.toFixed(0));
+            return result;
+        }
+    }
+    // 全部块都在视口上方（理论上不会发生）→ 返回最后一块
+    const fallback = lineMap[Math.min(lineMap.length - 1, children.length - 1)] ?? 1;
+    console.log('[getFirstVisible] fallback result:', fallback, 'lineMap.length:', lineMap.length);
+    return fallback;
 }
 
 // ── 图片上传：pending promise map ────────────────────
@@ -188,6 +235,60 @@ function insertImageNode(src: string, alt: string): void {
 const toc = initToc(() => getEditorView());
 document.body.appendChild(toc.panel);
 
+// 初始化查找栏
+const findBar = initFindBar(() => document.getElementById("editor"));
+
+/** 解析 YAML frontmatter 字符串为 key-value 数组 */
+function parseFrontmatter(raw: string): { key: string; value: string }[] {
+    return raw
+        .split('\n')
+        .filter(line => !line.match(/^---/) && line.includes(':'))
+        .map(line => {
+            const colonIdx = line.indexOf(':');
+            return {
+                key: line.slice(0, colonIdx).trim(),
+                value: line.slice(colonIdx + 1).trim(),
+            };
+        })
+        .filter(({ key }) => key.length > 0);
+}
+
+/** 在 #editor 前渲染 frontmatter 表格面板；无 frontmatter 时移除面板 */
+function renderFrontmatterPanel(frontmatter: string | undefined): void {
+    const existing = document.getElementById('frontmatter-panel');
+    const editorEl = document.getElementById('editor');
+    if (!frontmatter) {
+        existing?.remove();
+        if (editorEl) { editorEl.style.paddingTop = ''; }
+        return;
+    }
+    const entries = parseFrontmatter(frontmatter);
+    if (entries.length === 0) {
+        existing?.remove();
+        if (editorEl) { editorEl.style.paddingTop = ''; }
+        return;
+    }
+    const panel = existing ?? document.createElement('div');
+    panel.id = 'frontmatter-panel';
+    panel.className = 'frontmatter-panel';
+    panel.innerHTML = `<table class="frontmatter-table"><tbody>${
+        entries.map(({ key, value }) =>
+            `<tr><td class="fm-key">${escapeHtml(key)}</td><td class="fm-val">${escapeHtml(value)}</td></tr>`
+        ).join('')
+    }</tbody></table>`;
+    const editor = document.getElementById('editor');
+    if (!existing) {
+        editor?.parentNode?.insertBefore(panel, editor);
+    }
+    // 有 frontmatter 面板时，editor 的顶部 padding 由面板承担，只保留间距
+    if (editor) { editor.style.paddingTop = '16px'; }
+}
+
+
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 async function initEditor(
     container: HTMLElement,
     markdown: string,
@@ -228,8 +329,29 @@ const topbarTb = topbar
 const editorContainer = document.getElementById("editor");
 if (editorContainer) {
     setupLinkPopup(editorContainer, () => getEditorView());
+    setupPathLink(editorContainer);
+    initHeadingIds(editorContainer);
+    initPathComplete(() => getEditorView());
     setupTableAddButtons(editorContainer, () => getEditorView());
     setupTableHandles(editorContainer, () => getEditorView());
+
+    // 点击 #editor 容器底部空白区域（内容最后一行以下）→ 光标移到文档末尾并聚焦
+    editorContainer.addEventListener("mousedown", (e) => {
+        const view = getEditorView();
+        if (!view) { return; }
+        // 点到 ProseMirror 内容区域内则不干预，让编辑器自己处理
+        if (view.dom.contains(e.target as Node)) { return; }
+        // 只响应内容最后一个块底部以下的点击（排除左/右/顶部 padding 区域）
+        const lastChild = view.dom.lastElementChild;
+        if (!lastChild) { return; }
+        const lastRect = lastChild.getBoundingClientRect();
+        if (e.clientY <= lastRect.bottom) { return; }
+        e.preventDefault();
+        const { state } = view;
+        const sel = TextSelection.atEnd(state.doc);
+        view.dispatch(state.tr.setSelection(sel));
+        view.focus();
+    });
 
     // 拖放图片文件到编辑器
     editorContainer.addEventListener("dragover", (e) => {
@@ -366,11 +488,31 @@ document.addEventListener(
     true,
 );
 
-// Cmd/Ctrl+Shift+M：切换到文本编辑器（WebView 捕获键盘事件，需在此转发给 Extension）
+// Cmd/Ctrl+F：打开查找栏（预填当前选区文字）
+window.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.code === "KeyF" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const view = getEditorView();
+        let initialQuery: string | undefined;
+        if (view) {
+            const { selection, doc } = view.state;
+            if (!selection.empty) {
+                const text = doc.textBetween(selection.from, selection.to);
+                if (text.trim()) { initialQuery = text; }
+            }
+        }
+        findBar.open(initialQuery);
+    }
+});
+
+// Cmd/Ctrl+Shift+M：切换到文本编辑器（附带当前视口顶部行号，供文本编辑器定位）
 window.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === "KeyM") {
         e.preventDefault();
-        notifySwitchToTextEditor();
+        const view = getEditorView();
+        const line = view ? getFirstVisibleSourceLine(view, currentLineMap) : undefined;
+        notifySwitchToTextEditor(line);
     }
 });
 
@@ -483,6 +625,30 @@ window.addEventListener("keydown", (e) => {
 // WebView 加载完成，通知 Extension 侧发送初始内容
 notifyReady();
 
+// ── 滚动位置持久化 ────────────────────────────────────────────
+// 保存：滚动时防抖写入 VSCode WebView 状态（跨会话可恢复）
+let _scrollSaveTimer: ReturnType<typeof setTimeout> | null = null;
+window.addEventListener('scroll', () => {
+    if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
+    _scrollSaveTimer = setTimeout(() => {
+        const cur = getWebviewState() ?? {};
+        setWebviewState({ ...cur, scrollY: window.scrollY });
+    }, 200);
+}, { passive: true });
+
+// 恢复（主路径）：tab 切换时 iframe 被隐藏再显示，浏览器会重置 scrollY
+// visibilitychange 触发时读取已保存位置并还原
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const state = getWebviewState();
+    if (state?.scrollY !== undefined) {
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: state.scrollY as number });
+        });
+    }
+});
+// ─────────────────────────────────────────────────────────────
+
 // 监听来自 Extension 侧的消息
 onMessage(async (msg) => {
     const container = document.getElementById("editor");
@@ -493,7 +659,77 @@ onMessage(async (msg) => {
     if (msg.type === "init" || msg.type === "revert") {
         markdownSource = msg.content; // 保存原始内容，供行号搜索使用
         currentLineMap = msg.lineMap ?? [];
+        renderFrontmatterPanel(msg.frontmatter);
+        if (msg.imageUriMap) { setImageUriMap(msg.imageUriMap); }
         await initEditor(container, msg.content);
+        // 新 WebView 打开时主动获取 DOM 焦点。
+        // 若不调用：旧 WebView（path-link-test.md）在 Cmd+Click 后 blur() 释放了焦点，
+        // 但新 WebView（README.md）的 iframe 未必自动获得焦点；
+        // VS Code 可能仍将 Cmd+W 路由到旧 iframe，导致两个 .md 标签都被关闭。
+        // init 仅在首次打开时触发（revert 是内容变更），此处只对首次打开生效。
+        if (msg.type === "init") {
+            window.focus();
+        }
+        // 全局搜索导航或切换回预览时，滚动到指定源码行
+        // Milkdown 渲染 + 浏览器布局需要时间，多次重试确保 DOM 就绪后才滚动
+        if (msg.type === "init" && msg.scrollToLine) {
+            const targetLine = msg.scrollToLine;
+            let scrollDone = false;
+            const tryScroll = () => {
+                if (scrollDone) { return; }
+                const view = getEditorView();
+                if (!view) { return; }
+                // 检查第一个块的 DOM 高度：若为 0 说明布局尚未完成
+                const firstChild = view.dom.children[0] as HTMLElement | undefined;
+                if (!firstChild || firstChild.getBoundingClientRect().height === 0) { return; }
+                scrollToSourceLine(view, currentLineMap, targetLine);
+                scrollDone = true;
+            };
+            // 300ms 首试（Milkdown 渲染需要时间），若失败则在 600ms / 1100ms / 2000ms 继续重试
+            for (const delay of [300, 600, 1100, 2000]) {
+                setTimeout(tryScroll, delay);
+            }
+        } else if (msg.type === "init") {
+            // WebView 重建场景（VSCode 重启恢复标签页等）：从持久状态恢复滚动位置
+            const saved = getWebviewState();
+            if (saved?.scrollY) {
+                const targetY = saved.scrollY as number;
+                let restoreDone = false;
+                const tryRestore = () => {
+                    if (restoreDone) return;
+                    const view = getEditorView();
+                    if (!view) return;
+                    const firstChild = view.dom.children[0] as HTMLElement | undefined;
+                    if (!firstChild || firstChild.getBoundingClientRect().height === 0) return;
+                    window.scrollTo({ top: targetY });
+                    restoreDone = true;
+                };
+                for (const delay of [300, 600, 1100, 2000]) {
+                    setTimeout(tryRestore, delay);
+                }
+            }
+        }
+    } else if (msg.type === "requestSwitchToTextEditor") {
+        // 来自菜单按钮/命令面板的"切换到文本编辑器"请求
+        // 与 Cmd+Shift+M 快捷键逻辑相同：先获取当前可见行再通知 Extension
+        const view = getEditorView();
+        const line = view ? getFirstVisibleSourceLine(view, currentLineMap) : undefined;
+        notifySwitchToTextEditor(line);
+    } else if (msg.type === "scrollToLine") {
+        // 面板已打开时（如全局搜索点击已打开文件）直接滚动
+        // 若 initEditor 正在重建（getEditorView 返回 null），最多重试 8 次
+        const scrollLine = msg.line;
+        let scrollAttempts = 0;
+        const tryScrollNow = () => {
+            const view = getEditorView();
+            if (view) {
+                scrollToSourceLine(view, currentLineMap, scrollLine);
+            } else if (scrollAttempts < 8) {
+                scrollAttempts++;
+                setTimeout(tryScrollNow, 250);
+            }
+        };
+        tryScrollNow();
     } else if (msg.type === "lineMapUpdate") {
         currentLineMap = msg.lineMap;
     } else if (msg.type === "setDebugMode") {
@@ -555,5 +791,10 @@ onMessage(async (msg) => {
             _pendingRenames.delete(msg.id);
             cb.reject(new Error(msg.error));
         }
+    } else if (msg.type === "pathSuggestions") {
+        dispatchPathSuggestions(msg.id, msg.items);
+        dispatchImgPathSuggestions(msg.id, msg.items);
+    } else if (msg.type === "imagePathResolved") {
+        dispatchImagePathResolved(msg.id, msg.webviewUri);
     }
 });

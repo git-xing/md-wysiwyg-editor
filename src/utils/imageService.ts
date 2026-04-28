@@ -6,7 +6,7 @@ import * as crypto from "crypto";
 import * as vscode from "vscode";
 
 // 按点分路径从对象中提取值
-function getByPath(obj: unknown, dotPath: string): unknown {
+export function getByPath(obj: unknown, dotPath: string): unknown {
     return dotPath.split(".").reduce<unknown>((acc, key) => {
         if (acc != null && typeof acc === "object") {
             return (acc as Record<string, unknown>)[key];
@@ -16,7 +16,7 @@ function getByPath(obj: unknown, dotPath: string): unknown {
 }
 
 // 从 MIME type 推导扩展名
-function mimeToExt(mimeType: string): string {
+export function mimeToExt(mimeType: string): string {
     const map: Record<string, string> = {
         "image/png": "png",
         "image/jpeg": "jpg",
@@ -31,7 +31,7 @@ function mimeToExt(mimeType: string): string {
 }
 
 // 生成不冲突的文件名
-function generateFilename(altText: string, mimeType: string): string {
+export function generateFilename(altText: string, mimeType: string): string {
     const sanitized =
         (altText || "image")
             .slice(0, 20)
@@ -166,7 +166,7 @@ export async function saveImageLocally(
     return { relPath, absUri: fileUri };
 }
 
-function buildRelPath(docUri: vscode.Uri, fileUri: vscode.Uri): string {
+export function buildRelPath(docUri: vscode.Uri, fileUri: vscode.Uri): string {
     if (docUri.scheme !== "file") {
         return fileUri.fsPath; // untitled：返回绝对路径
     }

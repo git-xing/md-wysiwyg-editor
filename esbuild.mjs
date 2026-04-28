@@ -1,4 +1,5 @@
 import * as esbuild from 'esbuild';
+import path from 'path';
 
 const isProduction = process.argv.includes('--production');
 const isWatch = process.argv.includes('--watch');
@@ -18,17 +19,25 @@ const extensionBuild = {
     platform: 'node',
     target: 'node18',
     format: 'cjs',
-    external: ['vscode'], // vscode 模块由 VSCode 运行时注入，不能打包
+    external: ['vscode'],
 };
 
-// WebView 前端（Browser）
+// WebView 前端（Browser）- ESM + code splitting，Mermaid 等懒加载
 const webviewBuild = {
     ...commonOptions,
-    entryPoints: ['webview/index.ts'],
-    outfile: 'dist/webview.js',
+    entryPoints: { webview: 'webview/index.ts' },
+    outdir: 'dist',
     platform: 'browser',
     target: 'es2020',
-    format: 'iife', // WebView 中无 ES module 加载器，使用 IIFE
+    format: 'esm',
+    splitting: true,
+    chunkNames: 'chunks/[name]-[hash]',
+    loader: {
+        '.ttf': 'dataurl',
+    },
+    alias: {
+        '@': path.resolve('./webview'),
+    },
 };
 
 if (isWatch) {

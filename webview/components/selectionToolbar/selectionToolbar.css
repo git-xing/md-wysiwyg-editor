@@ -1,0 +1,108 @@
+/* ─── 选中文字浮动工具栏 ─────────────────────────────── */
+.sel-toolbar {
+    position: fixed;
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 6px;
+    background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    user-select: none;
+}
+
+.sel-tb-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 5px;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: var(--vscode-editorHoverWidget-foreground, #ccc);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.sel-tb-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+}
+
+.sel-tb-btn svg {
+    display: block;
+    flex-shrink: 0;
+}
+
+.sel-tb-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--vscode-editorHoverWidget-border, #454545);
+    margin: 0 3px;
+    flex-shrink: 0;
+}
+
+/* 格式下拉包装（relative 定位，用于子菜单绝对定位） */
+.sel-tb-fmt-wrap {
+    position: relative;
+}
+
+.sel-tb-fmt-btn {
+    gap: 1px;
+}
+
+.sel-tb-fmt-label {
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 16px;
+    text-align: center;
+    line-height: 1;
+}
+
+/* 格式子菜单：显示在工具栏上方 */
+.sel-tb-fmt-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    display: none;
+    flex-direction: column;
+    background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    min-width: 52px;
+}
+
+.sel-tb-fmt-item {
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--vscode-editorHoverWidget-foreground, #ccc);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.sel-tb-fmt-item:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
+}
+
+.sel-tb-fmt-item--active {
+    color: var(--vscode-focusBorder, #007acc);
+    font-weight: 600;
+}
+
+.sel-tb-fmt-item--active::after {
+    content: " ✓";
+    font-size: 10px;
+}
+
+/* 对齐方式子菜单项（图标而非文字，居中显示） */
+.sel-tb-align-item {
+    padding: 5px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

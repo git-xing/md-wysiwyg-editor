@@ -1,0 +1,55 @@
+/* ─── 路径链接高亮（Cmd/Ctrl + 悬浮）─── */
+
+/* 激活态：Cmd 按住 + 鼠标悬浮在路径 code 上 */
+.milkdown .editor code.path-link--active {
+    color: var(--vscode-textLink-foreground, #4ea6ea);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* ─── 路径自动补全下拉 ─── */
+
+.path-complete-list {
+    position: absolute;
+    z-index: 9999;
+    margin: 2px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    min-width: 200px;
+    max-width: 480px;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--vscode-editorSuggestWidget-border, rgba(128, 128, 128, 0.4));
+    border-radius: 4px;
+    background: var(--vscode-editorSuggestWidget-background, var(--vscode-editor-background));
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+}
+
+.path-complete-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    cursor: pointer;
+    color: var(--vscode-editorSuggestWidget-foreground, var(--vscode-editor-foreground));
+}
+
+.path-complete-item--active {
+    background: var(--vscode-editorSuggestWidget-selectedBackground, var(--vscode-list-activeSelectionBackground));
+    color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.path-complete-icon {
+    flex-shrink: 0;
+    line-height: 0;
+    display: flex;
+    align-items: center;
+}
+
+.path-complete-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

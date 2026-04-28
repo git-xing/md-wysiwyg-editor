@@ -1,4 +1,5 @@
 import type { Node as PMNode } from "@milkdown/prose/model";
+import { TextSelection } from "@milkdown/prose/state";
 import type {
     Decoration,
     DecorationSource,
@@ -11,9 +12,35 @@ import {
     IconCheck,
     IconX,
     IconImageOff,
-} from "../../ui/icons";
-import { applyTooltip } from "../../ui/tooltip";
-import { t } from "../../i18n";
+} from "@/ui/icons";
+import { t } from "@/i18n";
+import { createButton, createSeparator, setupInputKeyboard } from "@/ui/dom";
+import { attachImgPathComplete, resolveToWebviewUri } from './imgPathComplete';
+import './imageView.css';
+
+// ─── webviewUri ↔ relPath 双向映射（由 index.ts 在收到 init/revert 消息时写入）─────
+const _uriToRel = new Map<string, string>(); // webviewUri → relPath
+const _relToUri = new Map<string, string>(); // relPath    → webviewUri
+
+/** 由外部（index.ts）在 init/revert 收到 imageUriMap 后调用 */
+export function setImageUriMap(map: Record<string, string>): void {
+    _uriToRel.clear();
+    _relToUri.clear();
+    for (const [uri, rel] of Object.entries(map)) {
+        _uriToRel.set(uri, rel);
+        _relToUri.set(rel, uri);
+    }
+}
+
+/** 将 webviewUri 转为可显示的 relPath（找不到时原样返回） */
+function toDisplayPath(src: string): string {
+    return _uriToRel.get(src) ?? src;
+}
+
+/** 将 relPath 转为可在 NodeView 中直接渲染的 webviewUri（找不到时原样返回） */
+function toWebviewUri(src: string): string {
+    return _relToUri.get(src) ?? src;
+}
 
 type ViewMutationRecord = MutationRecord | { type: "selection"; target: Node };
 
@@ -83,6 +110,8 @@ function isolateInput(input: HTMLInputElement): void {
     input.addEventListener("mousedown", stopOnly);
     input.addEventListener("click", stopOnly);
     input.addEventListener("select", stopOnly);
+    // 注意：不能在此处 stopPropagation keydown——
+    // VS Code WebView 依赖 keydown 冒泡到 window 才能触发原生剪贴板操作
 }
 
 // ─── 辅助：从 src 提取文件名（不含扩展名） ───────────────
@@ -94,18 +123,11 @@ function basenameNoExt(src: string): string {
 
 // ─── 工具栏按钮工厂 ────────────────────────────────────────
 function makeBtn(icon: string, label: string): HTMLButtonElement {
-    const btn = document.createElement("button");
-    btn.className = "img-tb-btn";
-    btn.tabIndex = -1;
-    btn.innerHTML = icon;
-    applyTooltip(btn, label, { placement: "above" });
-    return btn;
+    return createButton({ className: "img-tb-btn", icon, tabIndex: -1, title: label, tooltipPlacement: "above" });
 }
 
 function makeSep(): HTMLElement {
-    const sep = document.createElement("span");
-    sep.className = "img-tb-sep";
-    return sep;
+    return createSeparator("img-tb-sep", "span");
 }
 
 // ─── NodeView 工厂 ─────────────────────────────────────────
@@ -173,18 +195,15 @@ export function createImageView(
     });
 
     // Alt 文本编辑
-    const altBtn = document.createElement("button");
-    altBtn.className = "img-tb-btn";
-    altBtn.tabIndex = -1;
-    altBtn.textContent = "ALT";
-    altBtn.style.fontWeight = "600";
-    applyTooltip(altBtn, t("Edit Alt Text"), { placement: "above" });
-
-    altBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        startAltEdit();
+    const altBtn = createButton({
+        className: "img-tb-btn",
+        tabIndex: -1,
+        label: "ALT",
+        title: t("Edit Alt Text"),
+        tooltipPlacement: "above",
+        onClick: () => startAltEdit(),
     });
+    altBtn.style.fontWeight = "600";
 
     // 铅笔图标：常驻，点击编辑图片路径（src 属性）
     const renameBtn = makeBtn(IconPencil, t("Edit Image Path"));
@@ -316,16 +335,9 @@ export function createImageView(
         input.style.width = "160px";
         isolateInput(input);
 
-        const confirmBtn = document.createElement("button");
-        confirmBtn.className = "img-tb-btn";
-        confirmBtn.tabIndex = -1;
-        confirmBtn.innerHTML = IconCheck;
+        const confirmBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconCheck, onClick: confirm });
         confirmBtn.style.color = "var(--vscode-charts-green, #4caf50)";
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.className = "img-tb-btn";
-        cancelBtn.tabIndex = -1;
-        cancelBtn.innerHTML = IconX;
+        const cancelBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconX, onClick: cancel });
 
         // 暂时隐藏其他按钮
         Array.from(toolbar.children).forEach((el) => {
@@ -337,6 +349,7 @@ export function createImageView(
         toolbar.appendChild(cancelBtn);
         input.focus();
         input.select();
+        setupInputKeyboard(input, confirm, cancel);
 
         function confirm(): void {
             if (!isEditingAlt) {
@@ -376,31 +389,6 @@ export function createImageView(
                 (el as HTMLElement).style.display = "";
             });
         }
-
-        input.addEventListener("keydown", (e) => {
-            if (e.isComposing) {
-                return;
-            }
-            if (e.key === "Enter") {
-                e.stopPropagation();
-                e.preventDefault();
-                confirm();
-            } else if (e.key === "Escape") {
-                e.stopPropagation();
-                e.preventDefault();
-                cancel();
-            }
-        });
-        confirmBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            confirm();
-        });
-        cancelBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            cancel();
-        });
     }
 
     // ── 编辑图片路径（src 属性）────────────────────────────────
@@ -414,21 +402,15 @@ export function createImageView(
 
         const input = document.createElement("input");
         input.className = "img-rename-input";
-        input.value = rawSrc;
+        // 显示相对路径（rawSrc 可能是 webviewUri，转换后更易读）
+        input.value = toDisplayPath(rawSrc);
         input.placeholder = t("Image path or URL");
         input.style.width = "240px";
         isolateInput(input);
 
-        const confirmBtn = document.createElement("button");
-        confirmBtn.className = "img-tb-btn";
-        confirmBtn.tabIndex = -1;
-        confirmBtn.innerHTML = IconCheck;
+        const confirmBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconCheck, onClick: confirm });
         confirmBtn.style.color = "var(--vscode-charts-green, #4caf50)";
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.className = "img-tb-btn";
-        cancelBtn.tabIndex = -1;
-        cancelBtn.innerHTML = IconX;
+        const cancelBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconX, onClick: cancel });
 
         Array.from(toolbar.children).forEach((el) => {
             (el as HTMLElement).style.display = "none";
@@ -439,26 +421,42 @@ export function createImageView(
         toolbar.appendChild(cancelBtn);
         input.focus();
         input.select();
+        const detachComplete = attachImgPathComplete(input, confirm, cancel);
 
         function confirm(): void {
-            if (!isEditingSrc) {
-                return;
-            }
-            const newSrc = input.value.trim();
+            if (!isEditingSrc) { return; }
+            const displayVal = input.value.trim();
+            // ① 补全时 dataset 存的 webviewUri 最可靠
+            const datasetUri = (input.dataset.imgWebviewUri ?? "").trim();
+            // ② 已有映射（init/revert 建立）
+            const mappedUri = displayVal ? toWebviewUri(displayVal) : "";
             isEditingSrc = false;
             cleanup();
-            if (newSrc && newSrc !== rawSrc) {
+
+            const applyUri = (newSrc: string) => {
+                if (!newSrc || newSrc === rawSrc) { view.focus(); return; }
                 const pos = getPos();
-                if (pos !== undefined) {
-                    view.dispatch(
-                        view.state.tr.setNodeMarkup(pos, null, {
-                            ...currentNode.attrs,
-                            src: newSrc,
-                        }),
-                    );
+                if (pos === undefined) { view.focus(); return; }
+                const nodeSize = currentNode.nodeSize;
+                const tr = view.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, src: newSrc });
+                const afterPos = pos + nodeSize;
+                if (afterPos <= tr.doc.content.size) {
+                    try { tr.setSelection(TextSelection.near(tr.doc.resolve(afterPos), 1)); } catch { /* ignore */ }
                 }
+                view.dispatch(tr);
+                view.focus();
+            };
+
+            if (datasetUri) {
+                // 补全选中：直接用
+                applyUri(datasetUri);
+            } else if (mappedUri !== displayVal) {
+                // 映射命中（mappedUri 是 webviewUri，与 displayVal 不同）
+                applyUri(mappedUri);
+            } else if (displayVal) {
+                // 手动输入新路径：向 Extension 解析
+                resolveToWebviewUri(displayVal).then(applyUri);
             }
-            view.focus();
         }
 
         function cancel(): void {
@@ -471,6 +469,7 @@ export function createImageView(
         }
 
         function cleanup(): void {
+            detachComplete();
             if (toolbar.contains(input)) toolbar.removeChild(input);
             if (toolbar.contains(confirmBtn)) toolbar.removeChild(confirmBtn);
             if (toolbar.contains(cancelBtn)) toolbar.removeChild(cancelBtn);
@@ -478,31 +477,6 @@ export function createImageView(
                 (el as HTMLElement).style.display = "";
             });
         }
-
-        input.addEventListener("keydown", (e) => {
-            if (e.isComposing) {
-                return;
-            }
-            if (e.key === "Enter") {
-                e.stopPropagation();
-                e.preventDefault();
-                confirm();
-            } else if (e.key === "Escape") {
-                e.stopPropagation();
-                e.preventDefault();
-                cancel();
-            }
-        });
-        confirmBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            confirm();
-        });
-        cancelBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            cancel();
-        });
     }
 
     // ── NodeView 接口 ─────────────────────────────────────────

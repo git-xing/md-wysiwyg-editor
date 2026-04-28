@@ -12,10 +12,14 @@ import {
     IconCode, IconEye,
     IconZoomIn, IconZoomOut, IconMaximize2, IconResetZoom,
     IconAlertCircle, IconX,
-} from "../../ui/icons";
-import { applyTooltip } from "../../ui/tooltip";
-import { t } from "../../i18n";
+} from "@/ui/icons";
+import { applyTooltip, hideTooltip } from "@/ui/tooltip";
+import { t } from "@/i18n";
 import mermaid from "mermaid";
+import { highlight } from "@/highlighter";
+import { lockBodyScroll, unlockBodyScroll, animateCloseLightbox, bindLightboxDismiss } from "@/utils";
+import { createButton } from "@/ui/dom";
+import './codeBlock.css';
 
 // ─── 语言列表 ───────────────────────────────────────────
 const LANGUAGES: [string, string][] = [
@@ -74,6 +78,10 @@ function ensureMermaid(): void {
         startOnLoad: false,
         theme: isDark ? "dark" : "default",
         securityLevel: "loose",
+        // 禁用 Mermaid 为 SVG 设置 max-width:100%，避免与我们写回的固定 width/height 属性冲突
+        flowchart: { useMaxWidth: false },
+        sequence: { useMaxWidth: false },
+        gantt: { useMaxWidth: false },
     });
 }
 
@@ -269,7 +277,7 @@ export function createCodeBlockView(
     destroy: () => void;
 } {
     const _id = Math.random().toString(36).slice(2, 6);
-    console.log(`[NodeView ${_id}] 工厂创建`, new Error().stack?.split("\n")[2]?.trim());
+    void _id; // 保留供调试使用
 
     const wrapper = document.createElement("div");
     wrapper.className = "code-block-wrapper";
@@ -295,6 +303,7 @@ export function createCodeBlockView(
     let lastRenderedCode = "";
     let isRendering = false;
     let panX = 0, panY = 0, zoomLevel = 1.0;
+    let naturalSvgW = 0, naturalSvgH = 0; // SVG viewBox 自然尺寸（固定不变）
     const ZOOM_MIN = 0.05, ZOOM_MAX = 10.0, ZOOM_BTN = 0.25;
     const PAN_STEP = 80;
     let lbActiveLightbox: HTMLElement | null = null;
@@ -302,12 +311,13 @@ export function createCodeBlockView(
     let zoomValueDisplay: HTMLButtonElement | null = null;
 
     function makeMermaidBtn(icon: string, tipText: string, extraClass = ""): HTMLButtonElement {
-        const btn = document.createElement("button");
-        btn.className = "mermaid-zoom-btn" + (extraClass ? ` ${extraClass}` : "");
-        btn.tabIndex = -1;
-        btn.innerHTML = icon;
-        applyTooltip(btn, tipText, { placement: "above" });
-        return btn;
+        return createButton({
+            className: "mermaid-zoom-btn" + (extraClass ? ` ${extraClass}` : ""),
+            icon,
+            tabIndex: -1,
+            title: tipText,
+            tooltipPlacement: "above",
+        });
     }
 
     // ── Header 按钮（spacer 之后，右对齐）────────────────
@@ -531,23 +541,11 @@ export function createCodeBlockView(
             const containerH = mermaidPreview.clientHeight;
             if (!containerW || !containerH) return;
 
-            let svgW = parseFloat(svgEl.getAttribute("width") ?? "0");
-            let svgH = parseFloat(svgEl.getAttribute("height") ?? "0");
-            if (!svgW || !svgH) {
-                const vb = svgEl.getAttribute("viewBox");
-                if (vb) {
-                    const parts = vb.trim().split(/[\s,]+/);
-                    if (parts.length >= 4) {
-                        svgW = parseFloat(parts[2]);
-                        svgH = parseFloat(parts[3]);
-                    }
-                }
-            }
-            if (!svgW || !svgH) return;
+            if (!naturalSvgW || !naturalSvgH) return;
 
             const padding = 40;
-            const scaleX = (containerW - padding) / svgW;
-            const scaleY = (containerH - padding) / svgH;
+            const scaleX = (containerW - padding) / naturalSvgW;
+            const scaleY = (containerH - padding) / naturalSvgH;
             zoomLevel = Math.min(scaleX, scaleY, ZOOM_MAX);
             zoomLevel = Math.max(ZOOM_MIN, zoomLevel);
             panX = 0; panY = 0;
@@ -563,7 +561,13 @@ export function createCodeBlockView(
 
         ensureMermaid();
         isRendering = true;
+        naturalSvgW = 0; naturalSvgH = 0;
         svgContainer.innerHTML = `<div class="mermaid-loading">${t("Rendering...")}</div>`;
+
+        // svgContainer 是 inline-block，loading div 绝对定位不占空间 → clientWidth=0。
+        // 渲染前临时设置宽度，让 Mermaid（尤其是甘特图）以正确宽度布局。
+        const renderWidth = mermaidPreview.clientWidth || 800;
+        svgContainer.style.width = renderWidth + "px";
 
         // 传入 svgContainer 作为第三参数：mermaid 改用 hidden div（不可见），
         // 不再向 body 注入可见错误元素（bomb icon），且渲染完成后自动移除 hidden div
@@ -573,25 +577,61 @@ export function createCodeBlockView(
             svgContainer.innerHTML = svg;
             const svgEl = svgContainer.querySelector("svg");
             if (svgEl) {
-                // 从 viewBox 提取自然尺寸并写入 width/height 属性
-                // 这样 SVG 有固定 px 尺寸，拖拽容器高度时不会跟着缩放
+                svgEl.style.display = "block";
+                // 多级 fallback 读取自然尺寸（svgContainer.style.width 此时仍为 renderWidth，
+                // 确保甘特图等 width="100%" 的 SVG 在真实宽度下计算 clientWidth）
+                let nw = 0, nh = 0;
+                // 1. viewBox（最精确）
                 const vb = svgEl.getAttribute("viewBox");
                 if (vb) {
                     const parts = vb.trim().split(/[\s,]+/);
                     if (parts.length >= 4) {
-                        const w = parseFloat(parts[2]);
-                        const h = parseFloat(parts[3]);
-                        if (w && h) {
-                            svgEl.setAttribute("width", String(w));
-                            svgEl.setAttribute("height", String(h));
-                        }
+                        nw = parseFloat(parts[2]);
+                        nh = parseFloat(parts[3]);
                     }
                 }
-                svgEl.style.display = "block";
+                // 2. 显式 width/height 属性（排除 "100%" 等百分比值）
+                if (!nw) {
+                    const wa = svgEl.getAttribute("width");
+                    if (wa && !wa.includes("%")) nw = parseFloat(wa);
+                }
+                if (!nh) {
+                    const ha = svgEl.getAttribute("height");
+                    if (ha && !ha.includes("%")) nh = parseFloat(ha);
+                }
+                // 3. 浏览器实际渲染尺寸（svgContainer 宽度还在，clientWidth 有效）
+                if (!nw) nw = svgEl.clientWidth || renderWidth;
+                if (!nh) nh = svgEl.clientHeight || 400;
+                naturalSvgW = nw;
+                naturalSvgH = nh;
+                // 将自然尺寸写回 SVG 属性，确保 CSS scale 以固定像素尺寸为基准
+                // （若 Mermaid 输出 width="100%"，不写回则 CSS scale 会以容器宽度为基准，导致缩放错误）
+                svgEl.setAttribute("width", String(nw));
+                svgEl.setAttribute("height", String(nh));
+                // 清除 Mermaid 可能附加的 max-width:100%;height:auto 内联样式
+                // 否则会覆盖上方写入的 width/height 属性，导致 SVG 以容器宽度渲染
+                svgEl.style.maxWidth = "none";
+                svgEl.style.height = "";
+                // 清除临时渲染宽度（已读取完尺寸）
+                svgContainer.style.width = "";
+                // ── 自适应容器高度 ──────────────────────────────────
+                // 以"填满宽度"缩放比估算合适的容器高度，高图表自动扩展
+                // fitWidthScale 限制 ≤1.0，不对小图放大
+                const availableW = mermaidPreview.clientWidth || 800;
+                const fitWidthScale = Math.min((availableW - 40) / nw, 1.0);
+                const idealH = nh * fitWidthScale + 80; // 上下各 40px padding
+                const maxH = Math.min(window.innerHeight * 0.92, 2000);
+                const finalH = Math.max(300, Math.min(Math.ceil(idealH), maxH));
+                mermaidPreview.style.height = finalH + "px";
+                mermaidPreview.style.minHeight = finalH + "px";
+                // ─────────────────────────────────────────────────────
+            } else {
+                svgContainer.style.width = "";
             }
             lastRenderedCode = code;
             fitToView();
         } catch (err) {
+            svgContainer.style.width = ""; // 出错时同样还原
             const msg = err instanceof Error ? err.message : String(err);
             svgContainer.innerHTML = `
                 <div class="mermaid-error">
@@ -662,29 +702,23 @@ export function createCodeBlockView(
     });
 
     // ── 触控板/滚轮事件 ────────────────────────────────────
-    // ctrlKey=true  → Mac 双指捏合（缩放）
-    // ctrlKey=false → 双指滑动（拖拽 pan）
+    // 内联预览只响应 ctrlKey=true（Mac 双指捏合缩放），普通滚动透传给页面。
+    // 全屏预览（openDiagramLightbox）仍保留滚轮平移+缩放。
     const onPreviewWheel = (e: WheelEvent) => {
+        if (!e.ctrlKey) return; // 普通滚动不拦截，让页面正常滚动
         e.preventDefault();
         e.stopPropagation();
-
-        if (e.ctrlKey) {
-            // 双指捏合：指数平滑缩放，不跳变
-            const factor = Math.pow(0.98, e.deltaY);
-            const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomLevel * factor));
-            // 以鼠标/手指位置为缩放中心
-            const rect = mermaidPreview.getBoundingClientRect();
-            const mx = e.clientX - rect.left - rect.width / 2;
-            const my = e.clientY - rect.top - rect.height / 2;
-            const r = newZoom / zoomLevel;
-            panX = mx + (panX - mx) * r;
-            panY = my + (panY - my) * r;
-            zoomLevel = newZoom;
-        } else {
-            // 双指滑动：直接平移（deltaX 水平，deltaY 垂直）
-            panX -= e.deltaX;
-            panY -= e.deltaY;
-        }
+        // 双指捏合：指数平滑缩放，不跳变
+        const factor = Math.pow(0.98, e.deltaY);
+        const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomLevel * factor));
+        // 以鼠标/手指位置为缩放中心
+        const rect = mermaidPreview.getBoundingClientRect();
+        const mx = e.clientX - rect.left - rect.width / 2;
+        const my = e.clientY - rect.top - rect.height / 2;
+        const r = newZoom / zoomLevel;
+        panX = mx + (panX - mx) * r;
+        panY = my + (panY - my) * r;
+        zoomLevel = newZoom;
         applyTransform();
     };
     mermaidPreview.addEventListener("wheel", onPreviewWheel, { passive: false });
@@ -712,57 +746,141 @@ export function createCodeBlockView(
         else openCodeLightbox();
     });
 
-    // ── 代码全屏 ───────────────────────────────────────────
+    // ── 代码全屏（可编辑 + 语法高亮） ─────────────────────────
     function openCodeLightbox(): void {
         if (lbActiveLightbox) return;
         const overlay = document.createElement("div");
-        overlay.className = "mermaid-lightbox";
+        overlay.className = "mermaid-lightbox code-editor-lightbox";
 
         const lbHeader = document.createElement("div");
         lbHeader.className = "mermaid-lightbox-header";
         lbHeader.contentEditable = "false";
 
+        const lang = (node.attrs["language"] as string) || "";
         const lbTitle = document.createElement("span");
         lbTitle.className = "mermaid-lightbox-title";
-        lbTitle.textContent = getLangLabel((node.attrs["language"] as string) || "");
+        lbTitle.textContent = getLangLabel(lang);
 
         const lbCopyBtn = makeMermaidBtn(IconCopy, t("Copy Code"));
         const lbCloseBtn = makeMermaidBtn(IconX, t("Close"));
 
+        lbHeader.append(lbTitle, lbCopyBtn, lbCloseBtn);
+
+        // ── 编辑器主体：行号区 + 代码区（高亮 pre + textarea 叠加）
+        const lbBody = document.createElement("div");
+        lbBody.className = "mermaid-lightbox-body code-lightbox-body";
+
+        // 行号栏
+        const gutter = document.createElement("div");
+        gutter.className = "code-lightbox-gutter";
+        gutter.setAttribute("aria-hidden", "true");
+
+        // 代码区（pre 高亮层 + textarea 输入层）
+        const codeArea = document.createElement("div");
+        codeArea.className = "code-lightbox-editor-wrap";
+
+        const pre = document.createElement("pre");
+        pre.className = "code-lightbox-pre";
+        pre.setAttribute("aria-hidden", "true");
+        const codeClone = document.createElement("code");
+        if (lang) codeClone.className = `language-${lang}`;
+        pre.appendChild(codeClone);
+
+        const textarea = document.createElement("textarea");
+        textarea.className = "code-lightbox-textarea";
+        textarea.spellcheck = false;
+        textarea.autocomplete = "off";
+        textarea.setAttribute("autocorrect", "off");
+        textarea.setAttribute("autocapitalize", "off");
+
+        const rawCode = codeEl.textContent ?? "";
+        textarea.value = rawCode;
+        codeClone.innerHTML = highlight(rawCode, lang);
+
+        codeArea.append(pre, textarea);
+        lbBody.append(gutter, codeArea);
+        overlay.append(lbHeader, lbBody);
+        document.body.appendChild(overlay);
+        lockBodyScroll();
+        lbActiveLightbox = overlay;
+
+        // ── 行号更新
+        const updateGutter = (): void => {
+            const lines = textarea.value.split("\n");
+            const count = Math.max(1, lines.length);
+            while (gutter.childElementCount < count) gutter.appendChild(document.createElement("span"));
+            while (gutter.childElementCount > count) gutter.removeChild(gutter.lastChild!);
+            Array.from(gutter.children).forEach((el, i) => {
+                (el as HTMLElement).textContent = String(i + 1);
+            });
+        };
+        updateGutter();
+
+        // 自动聚焦
+        requestAnimationFrame(() => textarea.focus());
+
+        // ── 实时高亮 + 行号 + 滚动同步
+        const updateHighlight = (): void => {
+            codeClone.innerHTML = highlight(textarea.value, lang);
+            updateGutter();
+            pre.scrollTop = textarea.scrollTop;
+            pre.scrollLeft = textarea.scrollLeft;
+            gutter.scrollTop = textarea.scrollTop;
+        };
+        textarea.addEventListener("input", updateHighlight);
+        textarea.addEventListener("scroll", () => {
+            pre.scrollTop = textarea.scrollTop;
+            pre.scrollLeft = textarea.scrollLeft;
+            gutter.scrollTop = textarea.scrollTop;
+        });
+
+        // Tab 键插入 4 空格（不跳焦）
+        textarea.addEventListener("keydown", (e) => {
+            if (e.key === "Tab") {
+                e.preventDefault();
+                const s = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                textarea.value = textarea.value.slice(0, s) + "    " + textarea.value.slice(end);
+                textarea.selectionStart = textarea.selectionEnd = s + 4;
+                updateHighlight();
+            }
+        });
+
+        // ── 复制当前 textarea 内容
         lbCopyBtn.addEventListener("mousedown", (e) => {
             e.preventDefault(); e.stopPropagation();
-            navigator.clipboard?.writeText(codeEl.textContent ?? "").catch(() => {});
+            navigator.clipboard?.writeText(textarea.value).catch(() => {});
             lbCopyBtn.innerHTML = IconCheck;
             setTimeout(() => { lbCopyBtn.innerHTML = IconCopy; }, 1500);
         });
 
-        lbHeader.append(lbTitle, lbCopyBtn, lbCloseBtn);
-
-        const lbBody = document.createElement("div");
-        lbBody.className = "mermaid-lightbox-body code-lightbox-body";
-
-        const lbPre = document.createElement("pre");
-        lbPre.className = "code-lightbox-pre";
-        const lbCode = document.createElement("code");
-        lbCode.textContent = codeEl.textContent ?? "";
-        const lang = (node.attrs["language"] as string) || "";
-        if (lang) lbCode.className = `language-${lang}`;
-        lbPre.appendChild(lbCode);
-        lbBody.appendChild(lbPre);
-        overlay.append(lbHeader, lbBody);
-        document.body.appendChild(overlay);
-        lbActiveLightbox = overlay;
-
+        // ── 关闭（带淡出动画 + 写回 ProseMirror）
         function closeLb(): void {
-            if (lbActiveLightbox && document.body.contains(lbActiveLightbox))
-                document.body.removeChild(lbActiveLightbox);
-            lbActiveLightbox = null;
-            document.removeEventListener("keydown", onKey);
+            const newCode = textarea.value;
+            const originalCode = codeEl.textContent ?? "";
+            if (newCode !== originalCode) {
+                const pos = getPos();
+                if (pos !== undefined) {
+                    const n = view.state.doc.nodeAt(pos);
+                    if (n) {
+                        view.dispatch(
+                            view.state.tr.replaceWith(
+                                pos + 1,
+                                pos + n.nodeSize - 1,
+                                newCode ? view.state.schema.text(newCode) : [],
+                            )
+                        );
+                    }
+                }
+            }
+            unlockBodyScroll();
+            animateCloseLightbox(overlay, () => {
+                lbActiveLightbox = null;
+                removeKeyListener();
+            });
         }
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); closeLb(); } };
-        lbCloseBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); closeLb(); });
-        overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) closeLb(); });
-        document.addEventListener("keydown", onKey);
+
+        const removeKeyListener = bindLightboxDismiss(overlay, lbCloseBtn, closeLb);
     }
 
     // ── Mermaid 图表全屏 ──────────────────────────────────
@@ -771,10 +889,14 @@ export function createCodeBlockView(
         if (!svgContainer.querySelector("svg")) return;
 
         let lbPanX = 0, lbPanY = 0, lbZoom = 1.0;
+        let lbIsCodeMode = false;
+        const originalCode = codeEl.textContent ?? "";
 
+        // ── Overlay ───────────────────────────────────────────
         const overlay = document.createElement("div");
         overlay.className = "mermaid-lightbox";
 
+        // ── Header ────────────────────────────────────────────
         const lbHeader = document.createElement("div");
         lbHeader.className = "mermaid-lightbox-header";
         lbHeader.contentEditable = "false";
@@ -783,6 +905,11 @@ export function createCodeBlockView(
         lbTitle.className = "mermaid-lightbox-title";
         lbTitle.textContent = "Mermaid";
 
+        const lbToggleBtn = document.createElement("button");
+        lbToggleBtn.className = "mermaid-zoom-btn";
+        lbToggleBtn.tabIndex = -1;
+        lbToggleBtn.innerHTML = IconCode;
+        const lbToggleTip = applyTooltip(lbToggleBtn, t("Edit Code"), { placement: "above" });
         const lbZoomOutBtn  = makeMermaidBtn(IconZoomOut, t("Zoom Out"));
         const lbZoomResetBtn = document.createElement("button");
         lbZoomResetBtn.className = "mermaid-zoom-btn";
@@ -792,98 +919,236 @@ export function createCodeBlockView(
         const lbZoomInBtn = makeMermaidBtn(IconZoomIn, t("Zoom In"));
         const lbCloseBtn  = makeMermaidBtn(IconX, t("Close"));
 
-        lbHeader.append(lbTitle, lbZoomOutBtn, lbZoomResetBtn, lbZoomInBtn, lbCloseBtn);
+        lbHeader.append(lbTitle, lbToggleBtn, lbZoomOutBtn, lbZoomResetBtn, lbZoomInBtn, lbCloseBtn);
 
+        // ── Body ──────────────────────────────────────────────
         const lbBody = document.createElement("div");
         lbBody.className = "mermaid-lightbox-body";
+
+        // 预览面板
+        const lbPreviewPane = document.createElement("div");
+        lbPreviewPane.className = "lb-mermaid-preview-pane";
 
         const lbSvgContainer = document.createElement("div");
         lbSvgContainer.className = "mermaid-lightbox-svg";
         lbSvgContainer.innerHTML = svgContainer.innerHTML;
-
         const lbSvgEl = lbSvgContainer.querySelector("svg");
         if (lbSvgEl) lbSvgEl.style.display = "block";
+        lbPreviewPane.appendChild(lbSvgContainer);
 
-        lbBody.appendChild(lbSvgContainer);
+        // 代码编辑面板（复用 code lightbox 结构）
+        const lbCodePane = document.createElement("div");
+        lbCodePane.className = "lb-mermaid-code-pane";
+
+        const gutter = document.createElement("div");
+        gutter.className = "code-lightbox-gutter";
+        gutter.setAttribute("aria-hidden", "true");
+
+        const codeArea = document.createElement("div");
+        codeArea.className = "code-lightbox-editor-wrap";
+
+        const lbPre = document.createElement("pre");
+        lbPre.className = "code-lightbox-pre";
+        lbPre.setAttribute("aria-hidden", "true");
+        const lbCodeEl = document.createElement("code");
+        lbCodeEl.className = "language-mermaid";
+        lbPre.appendChild(lbCodeEl);
+
+        const textarea = document.createElement("textarea");
+        textarea.className = "code-lightbox-textarea";
+        textarea.spellcheck = false;
+        textarea.autocomplete = "off";
+        textarea.setAttribute("autocorrect", "off");
+        textarea.setAttribute("autocapitalize", "off");
+        textarea.value = originalCode;
+        lbCodeEl.innerHTML = highlight(originalCode, "mermaid");
+
+        codeArea.append(lbPre, textarea);
+        lbCodePane.append(gutter, codeArea);
+
+        lbBody.append(lbPreviewPane, lbCodePane);
         overlay.append(lbHeader, lbBody);
         document.body.appendChild(overlay);
+        lockBodyScroll();
         lbActiveLightbox = overlay;
 
+        // ── 行号 ──────────────────────────────────────────────
+        const updateGutter = (): void => {
+            const lines = textarea.value.split("\n");
+            const count = Math.max(1, lines.length);
+            while (gutter.childElementCount < count) gutter.appendChild(document.createElement("span"));
+            while (gutter.childElementCount > count) gutter.removeChild(gutter.lastChild!);
+            Array.from(gutter.children).forEach((el, i) => {
+                (el as HTMLElement).textContent = String(i + 1);
+            });
+        };
+        updateGutter();
+
+        // ── 实时高亮 + 滚动同步 ──────────────────────────────
+        const updateHighlight = (): void => {
+            lbCodeEl.innerHTML = highlight(textarea.value, "mermaid");
+            updateGutter();
+            lbPre.scrollTop = textarea.scrollTop;
+            lbPre.scrollLeft = textarea.scrollLeft;
+            gutter.scrollTop = textarea.scrollTop;
+        };
+        textarea.addEventListener("input", updateHighlight);
+        textarea.addEventListener("scroll", () => {
+            lbPre.scrollTop = textarea.scrollTop;
+            lbPre.scrollLeft = textarea.scrollLeft;
+            gutter.scrollTop = textarea.scrollTop;
+        });
+        textarea.addEventListener("keydown", (e) => {
+            if (e.key === "Tab") {
+                e.preventDefault();
+                const s = textarea.selectionStart, end = textarea.selectionEnd;
+                textarea.value = textarea.value.slice(0, s) + "    " + textarea.value.slice(end);
+                textarea.selectionStart = textarea.selectionEnd = s + 4;
+                updateHighlight();
+            }
+        });
+
+        // ── 预览区 transform ──────────────────────────────────
         function applyLbTransform(): void {
             lbSvgContainer.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`;
             lbZoomResetBtn.textContent = `${Math.round(lbZoom * 100)}%`;
         }
 
-        // 自动适配全屏
-        requestAnimationFrame(() => {
+        function fitLbView(): void {
             const svgEl2 = lbSvgContainer.querySelector("svg");
             if (!svgEl2) return;
-            const bW = lbBody.clientWidth, bH = lbBody.clientHeight;
+            const bW = lbPreviewPane.clientWidth, bH = lbPreviewPane.clientHeight;
             const sW = parseFloat(svgEl2.getAttribute("width") ?? "0");
             const sH = parseFloat(svgEl2.getAttribute("height") ?? "0");
             if (sW && sH && bW && bH) {
-                lbZoom = Math.min((bW - 80) / sW, (bH - 80) / sH, ZOOM_MAX);
-                lbZoom = Math.max(ZOOM_MIN, lbZoom);
+                lbPanX = 0; lbPanY = 0;
+                lbZoom = Math.max(ZOOM_MIN, Math.min((bW - 80) / sW, (bH - 80) / sH, ZOOM_MAX));
                 applyLbTransform();
             }
+        }
+
+        requestAnimationFrame(fitLbView);
+
+        // ── Lightbox 内部 Mermaid 渲染 ────────────────────────
+        async function renderLbMermaid(code: string): Promise<void> {
+            ensureMermaid();
+            lbSvgContainer.innerHTML = `<div class="mermaid-loading">${t("Rendering...")}</div>`;
+            const id = `lbmm-${Math.random().toString(36).slice(2, 9)}`;
+            const hidden = document.createElement("div");
+            hidden.style.cssText = "position:absolute;visibility:hidden;pointer-events:none";
+            document.body.appendChild(hidden);
+            try {
+                const { svg } = await mermaid.render(id, code, hidden);
+                lbSvgContainer.innerHTML = svg;
+                const svgEl = lbSvgContainer.querySelector("svg");
+                if (svgEl) {
+                    const vb = svgEl.getAttribute("viewBox");
+                    if (vb) {
+                        const parts = vb.trim().split(/[\s,]+/);
+                        if (parts.length >= 4) {
+                            const w = parseFloat(parts[2]), h = parseFloat(parts[3]);
+                            if (w && h) { svgEl.setAttribute("width", String(w)); svgEl.setAttribute("height", String(h)); }
+                        }
+                    }
+                    svgEl.style.display = "block";
+                }
+                requestAnimationFrame(fitLbView);
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                lbSvgContainer.innerHTML = `<div class="mermaid-error"><span>${IconAlertCircle}</span><pre class="mermaid-error-msg">${escapeHtml(msg)}</pre></div>`;
+            } finally {
+                if (document.body.contains(hidden)) document.body.removeChild(hidden);
+            }
+        }
+
+        // ── 切换代码 / 预览 ───────────────────────────────────
+        function switchToCodeMode(): void {
+            lbIsCodeMode = true;
+            lbPreviewPane.style.display = "none";
+            lbCodePane.style.display = "flex";
+            [lbZoomOutBtn, lbZoomResetBtn, lbZoomInBtn].forEach(b => (b.style.display = "none"));
+            lbToggleBtn.innerHTML = IconEye;
+            lbToggleTip.setText(t("Preview Diagram"));
+            hideTooltip();
+            requestAnimationFrame(() => textarea.focus());
+        }
+
+        function switchToPreviewMode(): void {
+            lbIsCodeMode = false;
+            lbPreviewPane.style.display = "";
+            lbCodePane.style.display = "none";
+            [lbZoomOutBtn, lbZoomResetBtn, lbZoomInBtn].forEach(b => (b.style.display = ""));
+            lbToggleBtn.innerHTML = IconCode;
+            lbToggleTip.setText(t("Edit Code"));
+            hideTooltip();
+            if (textarea.value !== originalCode) renderLbMermaid(textarea.value);
+        }
+
+        lbToggleBtn.addEventListener("mousedown", (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (lbIsCodeMode) switchToPreviewMode(); else switchToCodeMode();
         });
 
-        lbBody.addEventListener("mousedown", (e) => {
+        // ── 预览区交互（拖拽平移 + 滚轮缩放）────────────────
+        lbPreviewPane.addEventListener("mousedown", (e) => {
             if (e.button !== 0 || (e.target as Element).closest("button")) return;
             e.preventDefault();
             const sx = e.clientX - lbPanX, sy = e.clientY - lbPanY;
-            lbBody.style.cursor = "grabbing";
+            lbPreviewPane.style.cursor = "grabbing";
             const onMove = (ev: MouseEvent) => { lbPanX = ev.clientX - sx; lbPanY = ev.clientY - sy; applyLbTransform(); };
-            const onUp = () => { lbBody.style.cursor = "grab"; document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+            const onUp = () => { lbPreviewPane.style.cursor = "grab"; document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
             document.addEventListener("mousemove", onMove);
             document.addEventListener("mouseup", onUp);
         });
 
-        lbBody.addEventListener("wheel", (e) => {
+        lbPreviewPane.addEventListener("wheel", (e) => {
             e.preventDefault();
-            let nz: number;
             if (e.ctrlKey) {
-                nz = lbZoom * Math.pow(0.98, e.deltaY);
+                let nz = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, lbZoom * Math.pow(0.98, e.deltaY)));
+                const rect = lbPreviewPane.getBoundingClientRect();
+                const mx = e.clientX - rect.left - rect.width / 2;
+                const my = e.clientY - rect.top - rect.height / 2;
+                const r = nz / lbZoom;
+                lbPanX = mx + (lbPanX - mx) * r;
+                lbPanY = my + (lbPanY - my) * r;
+                lbZoom = nz;
             } else {
                 lbPanX -= e.deltaX;
                 lbPanY -= e.deltaY;
-                applyLbTransform();
-                return;
             }
-            nz = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, nz));
-            const rect = lbBody.getBoundingClientRect();
-            const mx = e.clientX - rect.left - rect.width / 2;
-            const my = e.clientY - rect.top - rect.height / 2;
-            const r = nz / lbZoom;
-            lbPanX = mx + (lbPanX - mx) * r;
-            lbPanY = my + (lbPanY - my) * r;
-            lbZoom = nz;
             applyLbTransform();
         }, { passive: false });
 
-        lbZoomInBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault(); e.stopPropagation();
-            lbZoom = Math.min(ZOOM_MAX, lbZoom + ZOOM_BTN); applyLbTransform();
-        });
-        lbZoomOutBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault(); e.stopPropagation();
-            lbZoom = Math.max(ZOOM_MIN, lbZoom - ZOOM_BTN); applyLbTransform();
-        });
-        lbZoomResetBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault(); e.stopPropagation();
-            lbPanX = 0; lbPanY = 0; lbZoom = 1.0; applyLbTransform();
-        });
+        lbZoomInBtn.addEventListener("mousedown",  (e) => { e.preventDefault(); e.stopPropagation(); lbZoom = Math.min(ZOOM_MAX, lbZoom + ZOOM_BTN); applyLbTransform(); });
+        lbZoomOutBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); lbZoom = Math.max(ZOOM_MIN, lbZoom - ZOOM_BTN); applyLbTransform(); });
+        lbZoomResetBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); lbPanX = 0; lbPanY = 0; lbZoom = 1.0; applyLbTransform(); });
 
+        // ── 关闭（写回 ProseMirror）──────────────────────────
         function closeLb(): void {
-            if (lbActiveLightbox && document.body.contains(lbActiveLightbox))
-                document.body.removeChild(lbActiveLightbox);
-            lbActiveLightbox = null;
-            document.removeEventListener("keydown", onLbKey);
+            const newCode = textarea.value;
+            if (newCode !== originalCode) {
+                const pos = getPos();
+                if (pos !== undefined) {
+                    const n = view.state.doc.nodeAt(pos);
+                    if (n) {
+                        view.dispatch(
+                            view.state.tr.replaceWith(
+                                pos + 1,
+                                pos + n.nodeSize - 1,
+                                newCode ? view.state.schema.text(newCode) : [],
+                            )
+                        );
+                    }
+                }
+            }
+            unlockBodyScroll();
+            animateCloseLightbox(overlay, () => {
+                lbActiveLightbox = null;
+                removeKeyListener();
+            });
         }
-        const onLbKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); closeLb(); } };
-        lbCloseBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); closeLb(); });
-        overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) closeLb(); });
-        document.addEventListener("keydown", onLbKey);
+
+        const removeKeyListener = bindLightboxDismiss(overlay, lbCloseBtn, closeLb);
     }
 
     return {
@@ -914,14 +1179,18 @@ export function createCodeBlockView(
                 lastRenderedCode = "";
             }
             if (isMermaid && isPreviewMode) {
-                if (renderTimer) clearTimeout(renderTimer);
-                renderTimer = setTimeout(() => renderMermaid(updatedNode.textContent), 600);
+                const newCode = updatedNode.textContent;
+                if (newCode !== lastRenderedCode) {
+                    if (renderTimer) clearTimeout(renderTimer);
+                    renderTimer = setTimeout(() => renderMermaid(newCode), 600);
+                }
             }
             return true;
         },
 
         ignoreMutation(mutation: ViewMutationRecord): boolean {
             if (mutation.type === "selection") return false;
+            if (mutation.type === "attributes") return true; // update() 会修改 className，忽略 attribute mutation 防止 reconcile 死循环（B085）
             return (
                 !codeEl.contains(mutation.target as Node) &&
                 mutation.target !== codeEl

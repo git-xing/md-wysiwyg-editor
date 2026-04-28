@@ -2,10 +2,12 @@ node_modules/
 dist/
 out/
 test/
+docs/
 *.vsix
 releases/
 .DS_Store
 .docs
-.claude/
+.idea
+.claude/settings.local.json
 .env
 .env.*

@@ -13,5 +13,9 @@
     },
     "[css]": {
         "editor.tabSize": 4
-    }
+    },
+    "i18n-ally.localesPaths": [
+        "src/i18n",
+        "webview/i18n"
+    ]
 }

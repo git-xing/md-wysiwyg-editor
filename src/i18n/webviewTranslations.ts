@@ -82,4 +82,10 @@ export const ZH_CN_WEBVIEW: Record<string, string> = {
     'Reset Zoom': '重置缩放',
     'View Fullscreen': '全屏查看',
     'Rendering...': '渲染中...',
+    // findBar
+    'Find': '查找',
+    'Previous Match': '上一个匹配项',
+    'Next Match': '下一个匹配项',
+    'Match Case': '区分大小写',
+    'No results': '无结果',
 };

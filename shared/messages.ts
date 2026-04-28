@@ -11,6 +11,13 @@ export type ProjectImage = {
     name: string;
 };
 
+/** 路径补全建议条目 */
+export type PathSuggestionItem = {
+    path: string;
+    isDir: boolean;
+    webviewUri?: string;  // 仅图片文件时返回，供缩略图预览
+};
+
 /**
  * WebView → Extension 方向的消息。
  * 所有字段反映发送方的实际约束：发送方必须提供的字段不得写成可选。
@@ -20,24 +27,31 @@ export type ToExtensionMessage =
     | { type: "update"; content: string }
     | { type: "openUrl"; url: string }
     | { type: "openFile"; path: string }
+    | { type: "debug"; message: string }
     | { type: "sendToClaudeChat"; text: string; startLine: number; endLine: number }
-    | { type: "switchToTextEditor" }
+    | { type: "switchToTextEditor"; line?: number }
     | { type: "openSettings" }
     | { type: "uploadImage"; id: string; data: Uint8Array; mimeType: string; altText: string }
     | { type: "getProjectImages"; id: string }
-    | { type: "renameImage"; id: string; webviewUri: string; newBasename: string };
+    | { type: "renameImage"; id: string; webviewUri: string; newBasename: string }
+    | { type: "getPathSuggestions"; id: string; query: string }
+    | { type: "resolveImagePath"; id: string; relPath: string };
 
 /**
  * Extension → WebView 方向的消息。
  * lineMap 在 init/revert 中为可选：Extension 始终发送，但 WebView 侧用 `?? []` 兜底以防万一。
  */
 export type ToWebviewMessage =
-    | { type: "init"; content: string; lineMap?: number[] }
-    | { type: "revert"; content: string; lineMap?: number[] }
+    | { type: "init"; content: string; lineMap?: number[]; scrollToLine?: number; frontmatter?: string; imageUriMap?: Record<string, string> }
+    | { type: "revert"; content: string; lineMap?: number[]; frontmatter?: string; imageUriMap?: Record<string, string> }
+    | { type: "scrollToLine"; line: number }
     | { type: "lineMapUpdate"; lineMap: number[] }
     | { type: "setDebugMode"; enabled: boolean }
     | { type: "imageUploaded"; id: string; url: string }
     | { type: "imageUploadError"; id: string; error: string }
     | { type: "projectImagesList"; id: string; images: ProjectImage[] }
     | { type: "imageRenamed"; id: string; oldWebviewUri: string; newWebviewUri: string }
-    | { type: "imageRenameError"; id: string; error: string };
+    | { type: "imageRenameError"; id: string; error: string }
+    | { type: "requestSwitchToTextEditor" }
+    | { type: "pathSuggestions"; id: string; items: PathSuggestionItem[] }
+    | { type: "imagePathResolved"; id: string; webviewUri: string };

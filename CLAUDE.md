@@ -1,20 +1,18 @@
 # Claude 项目指令 — markdownView
 
+## 语言规范
+
+- **始终用简体中文回复**，禁止使用韩文或其他语言
+
 ## 项目基本规则
 
-* **包管理器**：必须用 `pnpm`，禁止 npm/yarn
-
-* **构建**：修改代码后执行 `pnpm build` 验证编译无误
-
-* **调试**：F5 启动扩展调试实例（`.vscode/launch.json`）
-
-* **语言**：全部 TypeScript；Extension 端用 `tsconfig.json`，WebView 端用 `tsconfig.webview.json`
-
-* **双目标构建**：`dist/extension.js`（Node.js）+ `dist/webview.js`（Browser），由 `esbuild.mjs` 完成
-
-* **打包发布**：VSIX 包必须输出到 `releases/` 文件夹，命令：`pnpm run package`
-
-* **Git commit 规范**：commit 描述部分必须用**中文**，类型前缀（`feat:`、`fix:`、`refactor:`、`chore:`、`docs:` 等）保留英文。例：`feat: 新增图片上传功能`、`fix: 修复表格拖拽偏移问题`
+- **包管理器**：必须用 `pnpm`，禁止 npm/yarn
+- **构建**：修改代码后执行 `pnpm build` 验证编译无误
+- **调试**：F5 启动扩展调试实例（`.vscode/launch.json`）
+- **语言**：全部 TypeScript；Extension 端用 `tsconfig.json`，WebView 端用 `tsconfig.webview.json`
+- **双目标构建**：`dist/extension.js`（Node.js）+ `dist/webview.js`（Browser），由 `esbuild.mjs` 完成
+- **打包发布**：VSIX 包必须输出到 `releases/` 文件夹，命令：`pnpm run package`
+- **Git commit 规范**：commit 描述部分必须用**中文**，类型前缀（`feat:`、`fix:`、`refactor:`、`chore:`、`docs:` 等）保留英文。例：`feat: 新增图片上传功能`、`fix: 修复表格拖拽偏移问题`
 
 ***
 
@@ -50,56 +48,116 @@ docs/roadmap.md                          — 项目路线图
 
 ## 架构约束
 
-* WebView ↔ Extension 通信**只通过** `webview/messaging.ts` 中封装的函数
-
-* WebView 侧不直接 `import` VSCode API，通过 `acquireVsCodeApi()` 获取句柄
-
-* CSS 必须使用 `--vscode-*` 变量以适配亮/暗主题
-
-* 不在模块外部维护全局状态（单例除外，如 editor view）
+- WebView ↔ Extension 通信**只通过** `webview/messaging.ts` 中封装的函数
+- WebView 侧不直接 `import` VSCode API，通过 `acquireVsCodeApi()` 获取句柄
+- CSS 必须使用 `--vscode-*` 变量以适配亮/暗主题
+- 不在模块外部维护全局状态（单例除外，如 editor view）
 
 ***
 
 ## 开发留痕规范
 
-**每次开发会话结束时，Claude 必须执行以下操作：**
+**已知 bug 和功能需求不再记录到本地文件，改用** **`/devlog`** **skill 直接提交为 GitHub Issue。**
 
-### 1. 更新 `docs/devlog.md`
+### /devlog Skill 说明
 
-在文件顶部（`---` 分隔线之后、第一条条目之前）新增一条，序号递增：
+- **已知 Bug**：加 `bug` + `known-limitation` label，仅记录开发完成后仍未修复的问题
+- **功能需求**：加 `enhancement` + `roadmap` label，记录计划功能（含完善度、实现思路、涉及文件）
+- Skill 定义：`.claude/skills/devlog/SKILL.md`
+- 触发方式：用户说"记录 bug"、"记录需求"、"功能需求"，或直接输入 `/devlog`
 
-```markdown
-## [NNN] YYYY-MM-DD — 一句话标题（概括本次做了什么）
+### 若阶段进度有变化，同步更新 `docs/roadmap.md`
 
-**涉及文件：** `路径1`, `路径2`
+### 更新 `~/.claude/projects/-Users-liuyaoming-code-vsocde-expand-markdownView/memory/MEMORY.md` 中的"当前状态"
 
-### 完成内容
-- 功能/修复描述
+***
 
-### Bug / 问题
-| 编号 | 描述 | 根因 | 解决方案 | 状态 |
-|------|------|------|----------|------|
-| BNNN | 问题描述 | 根因分析 | 解决方案 | ✅已修复 |
+## 测试规范
 
-### 备注
-特别说明、遗留问题、后续跟进...
+### 技术栈
 
----
+| 层次 | 框架 | 适用范围 |
+|------|------|----------|
+| Extension 单元测试 | **Vitest 2.x**（Node 环境） | `src/utils/`、`src/MarkdownDocument.ts` |
+| WebView 单元测试 | **Vitest 2.x + jsdom 24.x** | `webview/utils/`、`webview/messaging.ts` |
+| 集成测试（计划中） | **@vscode/test-electron + Mocha** | 需真实 VSCode Extension Host |
+
+`vscode` 模块通过 `__mocks__/vscode.ts` 统一 mock，由 `vitest.config.ts` 的 `resolve.alias` 注入，禁止在单个测试文件中 `vi.mock("vscode")`。
+
+### 测试命令
+
+```bash
+pnpm test              # 一次性运行全部单元测试
+pnpm test:watch        # 监听模式（开发期间使用）
+pnpm test:coverage     # 运行测试并生成覆盖率报告（coverage/）
 ```
 
-**Bug 编号规则：** B001、B002... **全局唯一，跨会话不重置**。新增 bug 编号接续上一条目的最大编号。
+### 目录与命名规范
 
-**状态标识：**
+```
+src/__tests__/           — Extension 侧单元测试（Node 环境）
+webview/__tests__/       — WebView 侧单元测试（jsdom 环境）
+webview/__tests__/setup.ts  — jsdom 全局 setup（注入 acquireVsCodeApi）
+shared/__tests__/        — 共享类型测试
+__mocks__/vscode.ts      — vscode API 统一 mock
+```
 
-* `✅ 已修复` — 本次会话已解决
+- 测试文件命名：`<模块名>.test.ts`，与被测文件同名
+- 测试结构遵循 **AAA 原则**（Arrange / Act / Assert），`describe` → `it` 两层
+- `it` 描述格式：`输入条件 应该 期望结果`（中文）
 
-* `🔄 反复` — 多次修改仍未彻底解决
+### 覆盖率要求
 
-* `⏳ 待处理` — 已知但暂未修复
+| 模块 | 行覆盖率下限 |
+|------|------------|
+| `src/utils/imageService.ts` | ≥ 85% |
+| `src/utils/getNonce.ts` | 100% |
+| `src/MarkdownDocument.ts` | ≥ 80% |
+| `src/utils/contentTransform.ts` | ≥ 90% |
+| `src/utils/lineMap.ts` | ≥ 90% |
+| `webview/utils/slug.ts` | ≥ 90% |
+| **整体** | ≥ 70% |
 
-### 2. 若阶段进度有变化，同步更新 `docs/roadmap.md`
+### 强制流程
 
-### 3. 更新 `~/.claude/projects/-Users-liuyaoming-code-vsocde-expand-markdownView/memory/MEMORY.md` 中的"当前状态"
+#### 功能开发后
+1. 编写对应单元测试（核心逻辑、边界值、异常路径各至少一个用例）
+2. 运行 `pnpm test` 确认全部通过
+3. 运行 `pnpm build` 确认编译无误
+4. 方可 `git commit`
+
+#### Bug 修复后
+1. 先补充**能复现该 bug 的测试用例**（写在修复同一 commit 内）
+2. 确认该用例在修复前失败、修复后通过
+3. 运行 `pnpm test` 确认全套通过后方可提交
+
+#### git push 前
+- **必须**执行 `pnpm test`，全部通过才允许推送
+- CI 的 `unit-test` job 会在每次 push/PR 时自动运行（`.github/workflows/ci.yml`），失败则阻断构建
+
+### 测试失败处理流程
+
+```
+测试失败
+  │
+  ├─ 是新引入的失败？→ 定位代码变更，修复后重新运行
+  │
+  ├─ 是测试预期不符实现（实现已有意变更）？→ 同步更新测试
+  │
+  └─ 是环境/依赖问题？→ 检查 jsdom 版本、vscode mock 是否完整
+```
+
+**禁止行为**：
+- 禁止跳过（`it.skip`）或注释失败的测试用例来让 CI 通过
+- 禁止修改测试预期值来掩盖 bug（除非实现有意变更且经过评审）
+- 禁止在未运行测试的情况下 push 到 `main` 或 `dev` 分支
+
+### Mock 规范
+
+- 每个 `describe` 块在 `beforeEach` 中调用 `vi.clearAllMocks()` 重置 mock 状态
+- 文件系统操作统一 mock `vscode.workspace.fs`（禁止使用真实 fs 写磁盘）
+- 依赖时间的逻辑使用 `vi.useFakeTimers()` / `vi.useRealTimers()`，禁止 `setTimeout` 真实等待
+- 禁止测试 `private` 类方法，通过公共接口验证行为
 
 ***
 
