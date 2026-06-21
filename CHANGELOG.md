@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Editor plugin architecture**: Complete refactoring with heading fold/collapse, heading sticky, code block enhancement, and TOC optimization.
+- **Frontmatter panel**: Editable frontmatter panel with inline editing support.
 - **Color theme support**: New `markdownWysiwyg.colorTheme` setting to override VS Code's default theme. Use Command Palette "Select Color Theme" to browse and select from installed themes.
 - **Custom theme support**: Define custom color themes via `markdownWysiwyg.customThemes` configuration in `.vscode/settings.json`. Select themes from Command Palette with "Select Color Theme".
 - **Table wrap mode**: New `markdownWysiwyg.tableWrap` setting with three modes: `normal` (default, avoid word breaks), `aggressive` (break long words), `none` (disable wrapping).
