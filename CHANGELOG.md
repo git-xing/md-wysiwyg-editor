@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.0] - 2026-06-21
+
+### Added
+
+- **Custom theme support**: Define custom color themes via `markdownWysiwyg.customThemes` configuration in `.vscode/settings.json`. Select themes from Command Palette with "Select Color Theme".
+- **Table wrap mode**: New `markdownWysiwyg.tableWrap` setting with three modes: `normal` (default, avoid word breaks), `aggressive` (break long words), `none` (disable wrapping).
+- **Tab key optimization**: Code blocks insert 4 spaces, list items support indentation, normal text inserts 2 spaces.
+- **Custom theme documentation**: Added comprehensive documentation in `docs/custom-themes.md` (Chinese) and `docs/en/custom-themes.md` (English).
+
+### Fixed
+
+- **Tab key in lists**: Pressing Tab in a list now correctly indents to the next level instead of scrolling to the top.
+
+---
+
 ## [0.1.6] - 2026-04-27
 
 ### Fixed
