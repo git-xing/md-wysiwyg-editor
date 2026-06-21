@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.1] - 2026-06-21
+
+### Fixed
+
+- **TOC z-index**: Increased TOC panel z-index to 1200 to prevent heading-sticky-title from covering it on narrow screens.
+- **Sticky heading position**: Adjusted sticky heading position when TOC is open, adding 220px offset to prevent overlap.
+
+---
+
 ## [0.2.0] - 2026-06-21
 
 ### Added
