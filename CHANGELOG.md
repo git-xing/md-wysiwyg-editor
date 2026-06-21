@@ -10,14 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Color theme support**: New `markdownWysiwyg.colorTheme` setting to override VS Code's default theme. Use Command Palette "Select Color Theme" to browse and select from installed themes.
 - **Custom theme support**: Define custom color themes via `markdownWysiwyg.customThemes` configuration in `.vscode/settings.json`. Select themes from Command Palette with "Select Color Theme".
 - **Table wrap mode**: New `markdownWysiwyg.tableWrap` setting with three modes: `normal` (default, avoid word breaks), `aggressive` (break long words), `none` (disable wrapping).
-- **Tab key optimization**: Code blocks insert 4 spaces, list items support indentation, normal text inserts 2 spaces.
+- **Tab key optimization**: Code blocks insert 4 spaces, list items support indentation to next level, normal text inserts 2 spaces.
 - **Custom theme documentation**: Added comprehensive documentation in `docs/custom-themes.md` (Chinese) and `docs/en/custom-themes.md` (English).
 
 ### Fixed
 
 - **Tab key in lists**: Pressing Tab in a list now correctly indents to the next level instead of scrolling to the top.
+- **Tab key in code blocks and text**: Fixed Tab key behavior to insert spaces instead of triggering browser default action.
+- **Table word break**: Added `word-break: keep-all` to table cells to prevent mid-character line breaks in CJK text.
+- **List Tab at deepest level**: Fixed issue where pressing Tab at the deepest list indentation level would scroll to the top.
 
 ---
 
