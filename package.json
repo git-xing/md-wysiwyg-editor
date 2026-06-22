@@ -31,7 +31,9 @@
         "url": "https://github.com/git-xing/md-wysiwyg-editor/issues"
     },
     "homepage": "https://github.com/git-xing/md-wysiwyg-editor#readme",
-    "activationEvents": [],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
     "main": "./dist/extension.js",
     "l10n": "./l10n",
     "contributes": {
