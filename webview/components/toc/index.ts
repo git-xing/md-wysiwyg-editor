@@ -361,6 +361,17 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
         scrollRafId = requestAnimationFrame(updateActiveHeadingOnScroll);
     }
 
+    // 测试钩子：暴露 TOC 状态到全局，便于 E2E 测试
+    (window as any).__toc__ = {
+        get width() { return tocWidth; },
+        get isDragging() { return isDragging; },
+        get isOpen() { return isOpen; },
+        get mode() { return tocMode; },
+        panel,
+        resizeHandle,
+        tabEl,
+    };
+
     requestAnimationFrame(() => {
         tocMode = resolveMode();
         const headings = getHeadings();
