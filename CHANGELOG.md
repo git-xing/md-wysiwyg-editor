@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.2] - 2026-06-21
+
+### Fixed
+
+- **Heading sticky position**: Reverted the position adjustment that caused incorrect left offset. Heading sticky title now uses the original positioning logic.
+
+---
+
 ## [0.2.1] - 2026-06-21
 
 ### Fixed
