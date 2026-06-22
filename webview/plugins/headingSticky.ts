@@ -207,10 +207,7 @@ export const headingStickyPlugin = $prose(() =>
                 sticky.hidden = false;
                 sticky.dataset["headingPos"] = String(headingPos);
                 sticky.style.top = `${top}px`;
-                // 检测 TOC 是否打开，如果是则调整 left 位置
-                const tocPanel = document.querySelector(".toc-panel--open");
-                const tocWidth = tocPanel ? 220 : 0;
-                sticky.style.left = `${rect.left + tocWidth}px`;
+                sticky.style.left = `${rect.left}px`;
                 sticky.style.width = `${rect.width}px`;
 
                 if (
