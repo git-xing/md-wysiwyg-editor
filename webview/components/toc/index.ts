@@ -16,7 +16,9 @@ interface HeadingEntry {
     pos: number;
 }
 
-const TOC_WIDTH = 220;
+const TOC_WIDTH_DEFAULT = 220;
+const TOC_WIDTH_MIN = 150;
+const TOC_WIDTH_MAX = 400;
 const DOCKED_MIN_CONTENT_WIDTH = 720;
 const HEADING_SELECTOR = "h1,h2,h3,h4,h5,h6";
 const tocAutoHideThreshold = window.__i18n?.tocAutoHideThreshold ?? 3;
@@ -37,8 +39,12 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
     const list = document.createElement("div");
     list.className = "toc-list";
 
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "toc-resize-handle";
+
     panel.appendChild(header);
     panel.appendChild(list);
+    panel.appendChild(resizeHandle);
 
     // ── 右侧收起/展开 Tab（独立 fixed 元素，不受 panel overflow:hidden 影响）──
     const tabEl = document.createElement("button");
@@ -52,6 +58,10 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
     let userToggled = false;
     let activeHeadingPos: number | null = null;
     let scrollRafId: number | null = null;
+    let tocWidth = TOC_WIDTH_DEFAULT;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartWidth = 0;
 
     function setActiveHeadingPos(pos: number | null): void {
         activeHeadingPos = pos;
@@ -70,7 +80,14 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
 
     function updateTab(): void {
         tabEl.textContent = isOpen ? "‹" : "›";
-        tabEl.style.left = isOpen ? `${TOC_WIDTH}px` : "0px";
+        tabEl.style.left = isOpen ? `${tocWidth}px` : "0px";
+    }
+
+    function updateTocWidth(newWidth: number): void {
+        tocWidth = Math.max(TOC_WIDTH_MIN, Math.min(TOC_WIDTH_MAX, newWidth));
+        panel.style.width = `${tocWidth}px`;
+        document.documentElement.style.setProperty("--toc-width", `${tocWidth}px`);
+        updateTab();
     }
 
     function updateBodyClasses(): void {
@@ -95,6 +112,8 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
         panel.classList.toggle("toc-panel--open", isOpen);
         panel.classList.toggle("toc-panel--docked", tocMode === "docked");
         panel.classList.toggle("toc-panel--overlay", tocMode === "overlay");
+        panel.style.width = `${tocWidth}px`;
+        document.documentElement.style.setProperty("--toc-width", `${tocWidth}px`);
         updateBodyClasses();
         updateTab();
         syncOutsideClickHandler();
@@ -243,17 +262,46 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
         toggle();
     });
 
+    // ── 拖拽调整 TOC 宽度 ──────────────────────────────────
+    resizeHandle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartWidth = tocWidth;
+        panel.classList.add("toc-panel--dragging");
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+        if (!isDragging) {
+            return;
+        }
+        const delta = e.clientX - dragStartX;
+        updateTocWidth(dragStartWidth + delta);
+    });
+
+    document.addEventListener("mouseup", () => {
+        if (isDragging) {
+            isDragging = false;
+            panel.classList.remove("toc-panel--dragging");
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        }
+    });
+
     // ── 自动展开检测 ──────────────────────────────────────
     function hasEnoughSpace(): boolean {
         if (document.body.classList.contains("editor-width-auto")) {
-            return window.innerWidth >= TOC_WIDTH + DOCKED_MIN_CONTENT_WIDTH;
+            return window.innerWidth >= tocWidth + DOCKED_MIN_CONTENT_WIDTH;
         }
         const editorEl = document.getElementById("editor");
         if (!editorEl) {
             return false;
         }
         const rect = editorEl.getBoundingClientRect();
-        return rect.left >= TOC_WIDTH && rect.width >= DOCKED_MIN_CONTENT_WIDTH;
+        return rect.left >= tocWidth && rect.width >= DOCKED_MIN_CONTENT_WIDTH;
     }
 
     function resolveMode(): TocMode {

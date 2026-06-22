@@ -3,7 +3,7 @@
     position: fixed;
     top: 40px;
     left: 0;
-    width: 220px;
+    width: var(--toc-width, 220px);
     height: calc(100vh - 40px);
     background: var(
         --vscode-sideBar-background,
@@ -126,4 +126,28 @@
 
 body.toc-overlay-open .toc-toggle-tab {
     display: none;
+}
+
+/* ─── TOC 拖拽调整宽度手柄 ───────────────────────────── */
+.toc-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s ease, width 0.15s ease;
+    z-index: 101;
+}
+
+.toc-resize-handle:hover {
+    width: 6px;
+    background: var(--vscode-focusBorder, rgba(0, 122, 204, 0.6));
+    border-left: 1px solid var(--vscode-focusBorder, rgba(0, 122, 204, 0.8));
+}
+
+.toc-panel.toc-panel--dragging .toc-resize-handle {
+    width: 6px;
+    background: var(--vscode-focusBorder, rgba(0, 122, 204, 0.8));
 }
