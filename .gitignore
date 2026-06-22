@@ -10,3 +10,9 @@ releases/
 .claude/settings.local.json
 .env
 .env.*
+.vscode-test/
+coverage/
+*.log
+.mimocode/
+test-results/
+playwright-report/

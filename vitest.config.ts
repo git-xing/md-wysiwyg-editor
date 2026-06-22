@@ -10,6 +10,7 @@ export default defineConfig({
         },
     },
     test: {
+        exclude: ["src/__tests__/e2e/**"],
         coverage: {
             provider: "v8",
             reporter: ["text", "lcov", "html"],
