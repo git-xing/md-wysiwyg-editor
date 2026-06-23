@@ -158,20 +158,11 @@ test.describe('TOC Resize Feature', () => {
             }));
             console.log('Frame content:', frameContent);
 
-            // 如果 TOC 面板未打开，通过测试钩子直接打开
+            // 如果 TOC 面板未打开，点击 toggle 按钮打开
             if (!frameContent.tocPanelOpen) {
-                console.log('TOC not open, using test hook...');
-                await contentFrame.evaluate(() => {
-                    const toc = (window as any).__toc__;
-                    if (toc) {
-                        // 直接设置 panel 样式显示
-                        toc.panel.style.transform = 'translateX(0)';
-                        toc.panel.classList.add('toc-panel--open');
-                        toc.tabEl.style.left = '220px';
-                        toc.tabEl.textContent = '‹';
-                    }
-                });
-                await vsCodeWin.waitForTimeout(1000);
+                console.log('TOC not open, clicking toggle...');
+                await contentFrame.locator('.toc-toggle-tab').click();
+                await vsCodeWin.waitForTimeout(2000);
 
                 frameContent = await contentFrame.evaluate(() => ({
                     hasTocPanel: !!document.querySelector('.toc-panel'),
@@ -179,7 +170,7 @@ test.describe('TOC Resize Feature', () => {
                     hasResizeHandle: !!document.querySelector('.toc-resize-handle'),
                     tocPanelOpen: document.querySelector('.toc-panel')?.classList.contains('toc-panel--open') ?? false,
                 }));
-                console.log('After test hook:', frameContent);
+                console.log('After click toggle:', frameContent);
             }
 
             expect(frameContent.hasResizeHandle).toBe(true);
