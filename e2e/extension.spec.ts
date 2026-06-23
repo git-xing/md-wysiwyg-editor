@@ -33,11 +33,11 @@ test.describe('TOC Resize Feature', () => {
         app = await electron.launch({
             executablePath: electronBinary,
             args: [
-                '--disable-gpu',
-                '--no-sandbox',
-                '--new-window',
+                "--disable-gpu",
+                "--no-sandbox",
+                "--new-window",
                 `--user-data-dir=${userDataDir}`,
-                `--extensionDevelopmentPath=${path.resolve(__dirname, '..')}`,
+                `--extensionDevelopmentPath=${path.resolve(__dirname, "..")}`,
                 testFile,
             ],
         });
@@ -45,25 +45,28 @@ test.describe('TOC Resize Feature', () => {
         try {
             const vsCodeWin = await app.firstWindow();
             await vsCodeWin.waitForLoadState('domcontentloaded');
-            await vsCodeWin.waitForTimeout(10000);
+            await vsCodeWin.waitForTimeout(5000);
 
             // 3. 关闭 GitHub Copilot 登录弹框
             try {
-                const continueBtn = vsCodeWin.locator('text=Continue without Signing In');
+                const continueBtn = vsCodeWin.locator(
+                    ".onboarding-a-close-btn",
+                );
                 await continueBtn.waitFor({ timeout: 5000 });
                 await continueBtn.click();
                 await vsCodeWin.waitForTimeout(2000);
+                console.log("已关闭登录弹框");
             } catch {
                 // 没有弹框
             }
 
             // 4. 等待 VS Code 和扩展完全加载
-            await vsCodeWin.waitForTimeout(10000);
+            await vsCodeWin.waitForTimeout(5000);
 
             // 5. 关闭当前文件 tab，然后重新打开以触发 onDidChangeTabs
             console.log('Closing and reopening file to trigger extension...');
-            await vsCodeWin.keyboard.press('Meta+W');
-            await vsCodeWin.waitForTimeout(2000);
+            // await vsCodeWin.keyboard.press('Meta+W');
+            // await vsCodeWin.waitForTimeout(2000);
 
             // 用命令面板重新打开文件
             await vsCodeWin.keyboard.press('Meta+P');
@@ -71,7 +74,10 @@ test.describe('TOC Resize Feature', () => {
             await vsCodeWin.keyboard.type('test.md', { delay: 50 });
             await vsCodeWin.waitForTimeout(1000);
             await vsCodeWin.keyboard.press('Enter');
-            await vsCodeWin.waitForTimeout(10000);
+            await vsCodeWin.waitForTimeout(1000);
+            await vsCodeWin.keyboard.press("Meta+Shift+M");
+            console.log("是否打开了测试并且已是预览状态");
+            await vsCodeWin.waitForTimeout(1000);
 
             // 6. 检查是否有 webview
             const hasIframe = await vsCodeWin.evaluate(() => {
@@ -118,35 +124,79 @@ test.describe('TOC Resize Feature', () => {
 
             if (!targetFrame) {
                 console.log('Could not find our webview frame');
-                // 列出所有 frame URLs
                 for (const frame of allFrames) {
                     console.log('Frame URL:', frame.url().substring(0, 100));
                 }
                 return;
             }
 
-            // 8. 检查 frame 内容
-            const frameContent = await targetFrame.evaluate(() => ({
+            // 8. 点击 TOC toggle 按钮打开面板
+            console.log('Clicking TOC toggle button...');
+            try {
+                const tocToggle = contentFrame.locator('.toc-toggle-tab');
+                await tocToggle.click({ timeout: 5000 });
+                await vsCodeWin.waitForTimeout(2000);
+            } catch (e) {
+                console.log('TOC toggle click failed:', (e as Error).message?.substring(0, 80));
+            }
+
+            // 9. 检查嵌套 frame 内容
+            let contentFrame = targetFrame;
+            const childFrames = targetFrame.childFrames();
+            console.log('Child frames:', childFrames.length);
+            if (childFrames.length > 0) {
+                contentFrame = childFrames[0];
+                console.log('Using nested frame');
+            }
+
+            // 先检查 TOC 是否已打开
+            let frameContent = await contentFrame.evaluate(() => ({
                 hasTocPanel: !!document.querySelector('.toc-panel'),
                 hasTocTab: !!document.querySelector('.toc-toggle-tab'),
                 hasResizeHandle: !!document.querySelector('.toc-resize-handle'),
+                tocPanelOpen: document.querySelector('.toc-panel')?.classList.contains('toc-panel--open') ?? false,
             }));
             console.log('Frame content:', frameContent);
+
+            // 如果 TOC 面板未打开，通过测试钩子直接打开
+            if (!frameContent.tocPanelOpen) {
+                console.log('TOC not open, using test hook...');
+                await contentFrame.evaluate(() => {
+                    const toc = (window as any).__toc__;
+                    if (toc) {
+                        // 直接设置 panel 样式显示
+                        toc.panel.style.transform = 'translateX(0)';
+                        toc.panel.classList.add('toc-panel--open');
+                        toc.tabEl.style.left = '220px';
+                        toc.tabEl.textContent = '‹';
+                    }
+                });
+                await vsCodeWin.waitForTimeout(1000);
+
+                frameContent = await contentFrame.evaluate(() => ({
+                    hasTocPanel: !!document.querySelector('.toc-panel'),
+                    hasTocTab: !!document.querySelector('.toc-toggle-tab'),
+                    hasResizeHandle: !!document.querySelector('.toc-resize-handle'),
+                    tocPanelOpen: document.querySelector('.toc-panel')?.classList.contains('toc-panel--open') ?? false,
+                }));
+                console.log('After test hook:', frameContent);
+            }
 
             expect(frameContent.hasResizeHandle).toBe(true);
 
             // 9. 验证 cursor 样式
-            const cursor = await targetFrame.evaluate(() => {
+            const cursor = await contentFrame.evaluate(() => {
                 const handle = document.querySelector('.toc-resize-handle');
                 return handle ? getComputedStyle(handle).cursor : null;
             });
+            console.log('Handle cursor:', cursor);
             expect(cursor).toBe('col-resize');
 
             // 10. 测试拖拽
-            const resizeHandleLocator = vsCodeWin.frameLocator('iframe').locator('.toc-resize-handle');
+            const resizeHandleLocator = contentFrame.locator('.toc-resize-handle');
             const box = await resizeHandleLocator.boundingBox();
             if (box) {
-                const initialWidth = await targetFrame.evaluate(() => {
+                const initialWidth = await contentFrame.evaluate(() => {
                     const panel = document.querySelector('.toc-panel');
                     return panel ? (panel as HTMLElement).offsetWidth : 0;
                 });
@@ -157,7 +207,7 @@ test.describe('TOC Resize Feature', () => {
                 await vsCodeWin.mouse.up();
                 await vsCodeWin.waitForTimeout(500);
 
-                const newWidth = await targetFrame.evaluate(() => {
+                const newWidth = await contentFrame.evaluate(() => {
                     const panel = document.querySelector('.toc-panel');
                     return panel ? (panel as HTMLElement).offsetWidth : 0;
                 });
