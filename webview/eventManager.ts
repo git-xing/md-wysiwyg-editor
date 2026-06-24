@@ -34,6 +34,8 @@ export interface ShortcutOptions {
     meta?: boolean;
     /** 是否需要 Ctrl 键 */
     ctrl?: boolean;
+    /** 是否需要 Meta 或 Ctrl 键（跨平台兼容） */
+    metaOrCtrl?: boolean;
     /** 是否需要 Shift 键 */
     shift?: boolean;
     /** 是否需要 Alt/Option 键 */
@@ -148,6 +150,7 @@ export class EventManager {
             code,
             meta = false,
             ctrl = false,
+            metaOrCtrl = false,
             shift = false,
             alt = false,
             preventDefault = true,
@@ -156,8 +159,9 @@ export class EventManager {
 
         return this.onWindow("keydown", (e) => {
             // 检查组合键
-            if (meta && !e.metaKey) { return; }
-            if (ctrl && !e.ctrlKey) { return; }
+            if (metaOrCtrl && !e.metaKey && !e.ctrlKey) { return; }
+            if (meta && !metaOrCtrl && !e.metaKey) { return; }
+            if (ctrl && !metaOrCtrl && !e.ctrlKey) { return; }
             if (shift && !e.shiftKey) { return; }
             if (alt && !e.altKey) { return; }
             

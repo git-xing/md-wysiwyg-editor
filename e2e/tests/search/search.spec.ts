@@ -83,9 +83,9 @@ test.describe('Search Feature (Command+F)', () => {
     test('输入关键词并搜索', async ({ contentFrame, vsCodeWin }) => {
         await openSearch(contentFrame, vsCodeWin);
 
-        // 输入搜索关键词
+        // 输入搜索关键词（使用文件中实际存在的内容）
         const searchInput = contentFrame.locator('.find-bar__input');
-        await searchInput.fill('Heading');
+        await searchInput.fill('标题');
         await vsCodeWin.waitForTimeout(500);
 
         // 检查搜索结果计数
@@ -94,7 +94,7 @@ test.describe('Search Feature (Command+F)', () => {
             return count ? count.textContent : '';
         });
 
-        // 搜索应该有结果（Heading 在测试文件中存在）
+        // 搜索应该有结果（标题 在测试文件中存在）
         expect(resultCount).toContain('/');
         expect(resultCount).not.toBe('No results');
 

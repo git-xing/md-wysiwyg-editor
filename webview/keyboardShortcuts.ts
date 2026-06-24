@@ -34,7 +34,7 @@ export function initKeyboardShortcuts(
 ): void {
     // Cmd/Ctrl+F：打开查找栏（预填当前选区文字）
     eventManager.onShortcut(
-        { code: "KeyF", meta: true, ctrl: true, stopPropagation: true },
+        { code: "KeyF", metaOrCtrl: true, stopPropagation: true },
         () => {
             const view = getEditorView();
             let initialQuery: string | undefined;
@@ -51,7 +51,7 @@ export function initKeyboardShortcuts(
 
     // Cmd/Ctrl+Shift+M：切换到文本编辑器（附带当前视口顶部行号，供文本编辑器定位）
     eventManager.onShortcut(
-        { code: "KeyM", meta: true, ctrl: true, shift: true },
+        { code: "KeyM", metaOrCtrl: true, shift: true },
         () => {
             const view = getEditorView();
             const lineMap = getLineMap();
