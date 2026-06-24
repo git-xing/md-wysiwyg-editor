@@ -104,10 +104,22 @@ test.describe('Search Feature (Command+F)', () => {
     test('区分大小写搜索', async ({ contentFrame, vsCodeWin }) => {
         await openSearch(contentFrame, vsCodeWin);
 
-        // 点击区分大小写按钮
+        // 输入小写关键词搜索（TypeScriptjava 包含 typescript）
+        const searchInput = contentFrame.locator('.find-bar__input');
+        await searchInput.fill('typescript');
+        await vsCodeWin.waitForTimeout(500);
+
+        // 记录不区分大小写的结果数
+        const countBefore = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(countBefore).toContain('/');
+
+        // 开启区分大小写
         const caseBtn = contentFrame.locator('.find-bar__btn[aria-label*="Case"]');
         await caseBtn.click();
-        await vsCodeWin.waitForTimeout(300);
+        await vsCodeWin.waitForTimeout(500);
 
         // 验证按钮状态
         const isCaseActive = await contentFrame.evaluate(() => {
@@ -115,6 +127,107 @@ test.describe('Search Feature (Command+F)', () => {
             return btn ? btn.getAttribute('aria-pressed') === 'true' : false;
         });
         expect(isCaseActive).toBe(true);
+
+        // 记录区分大小写后的结果数
+        const countAfter = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+
+        // 区分大小写后应该没有结果（文件中是 TypeScriptjava，不是 typescript）
+        expect(countAfter).toBe('No results');
+
+        await closeSearch(contentFrame, vsCodeWin);
+    });
+
+    test('搜索结果切换 - 下一个', async ({ contentFrame, vsCodeWin }) => {
+        await openSearch(contentFrame, vsCodeWin);
+
+        // 输入有多个匹配的关键词
+        const searchInput = contentFrame.locator('.find-bar__input');
+        await searchInput.fill('标题');
+        await vsCodeWin.waitForTimeout(500);
+
+        // 获取初始结果位置
+        const initialCount = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(initialCount).toContain('1/');
+
+        // 按 Enter 跳到下一个
+        await searchInput.press('Enter');
+        await vsCodeWin.waitForTimeout(300);
+
+        // 验证结果位置变化
+        const afterNextCount = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(afterNextCount).toContain('2/');
+
+        await closeSearch(contentFrame, vsCodeWin);
+    });
+
+    test('搜索结果切换 - 上一个', async ({ contentFrame, vsCodeWin }) => {
+        await openSearch(contentFrame, vsCodeWin);
+
+        // 输入有多个匹配的关键词
+        const searchInput = contentFrame.locator('.find-bar__input');
+        await searchInput.fill('标题');
+        await vsCodeWin.waitForTimeout(500);
+
+        // 先跳到第2个
+        await searchInput.press('Enter');
+        await vsCodeWin.waitForTimeout(300);
+
+        const countAt2 = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(countAt2).toContain('2/');
+
+        // 按 Shift+Enter 跳回上一个
+        await searchInput.press('Shift+Enter');
+        await vsCodeWin.waitForTimeout(300);
+
+        // 验证回到第1个
+        const countAt1 = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(countAt1).toContain('1/');
+
+        await closeSearch(contentFrame, vsCodeWin);
+    });
+
+    test('Enter 切换下一个，Shift+Enter 切换上一个', async ({ contentFrame, vsCodeWin }) => {
+        await openSearch(contentFrame, vsCodeWin);
+
+        // 输入有多个匹配的关键词
+        const searchInput = contentFrame.locator('.find-bar__input');
+        await searchInput.fill('标题');
+        await vsCodeWin.waitForTimeout(500);
+
+        // 按 Enter 跳到下一个
+        await searchInput.press('Enter');
+        await vsCodeWin.waitForTimeout(300);
+
+        const countAfterEnter = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(countAfterEnter).toContain('2/');
+
+        // 按 Shift+Enter 跳回上一个
+        await searchInput.press('Shift+Enter');
+        await vsCodeWin.waitForTimeout(300);
+
+        const countAfterShiftEnter = await contentFrame.evaluate(() => {
+            const count = document.querySelector('.find-bar__count');
+            return count ? count.textContent : '';
+        });
+        expect(countAfterShiftEnter).toContain('1/');
 
         await closeSearch(contentFrame, vsCodeWin);
     });
