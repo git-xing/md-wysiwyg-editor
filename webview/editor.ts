@@ -14,6 +14,7 @@ import type { EditorView } from "@milkdown/prose/view";
 import DOMPurify from "dompurify";
 import { createCodeBlockView } from "./components/codeBlock";
 import { createImageView } from "./components/imageView";
+import { createPictureView } from "./components/pictureEditor";
 import { refractor } from "./highlighter";
 import {
     cellClickFixPlugin,
@@ -33,8 +34,10 @@ import {
     tabKeymapPlugin,
     trailingHrParagraphPlugin,
 } from "./plugins";
+import { alignmentPlugin, alignmentPluginKey } from "./plugins/alignment";
 
 export { registerSelectionChangeHandler, setLogTableSel } from "./plugins";
+import { initAPI, emitContentChange, emitSave } from "./api";
 
 // ─── 比较规范化辅助函数 ─────────────────────────────────────────────────────
 
@@ -148,6 +151,7 @@ function applyMinimalChanges(saved: string, serialized: string): string {
     const insertAfter   = new Map<number, string[]>(); // lineIdx (-1=头部) → lines
 
     let lastSavedLineIdx = -1;
+    let lastSerialLineIdx = -1;
     let e = 0;
     while (e < edits.length) {
         const edit = edits[e];
@@ -156,6 +160,7 @@ function applyMinimalChanges(saved: string, serialized: string): string {
             // del + ins = 替换
             replacements.set(edit.saved.lineIdx, next.serial.text);
             lastSavedLineIdx = edit.saved.lineIdx;
+            lastSerialLineIdx = next.serial.lineIdx;
             e += 2;
         } else if (edit.op === 'del') {
             toDelete.add(edit.saved.lineIdx);
@@ -163,11 +168,17 @@ function applyMinimalChanges(saved: string, serialized: string): string {
             e++;
         } else if (edit.op === 'ins') {
             const bucket = insertAfter.get(lastSavedLineIdx) ?? [];
+            if (lastSerialLineIdx >= 0) {
+                const gap = edit.serial.lineIdx - lastSerialLineIdx - 1;
+                for (let i = 0; i < gap; i++) bucket.push('');
+            }
             bucket.push(edit.serial.text);
             insertAfter.set(lastSavedLineIdx, bucket);
+            lastSerialLineIdx = edit.serial.lineIdx;
             e++;
         } else { // keep
             lastSavedLineIdx = edit.saved.lineIdx;
+            lastSerialLineIdx = edit.serial.lineIdx;
             e++;
         }
     }
@@ -231,10 +242,11 @@ function serializeTableNoAlign(node: any, _parent: any, state: any): string {
 // Milkdown 的 html 节点（atom, inline）默认以 textContent 显示原始标签。
 // 此 NodeView 用 DOMPurify 净化后渲染真实 HTML，实现只读预览。
 function createHtmlView(node: { attrs: Record<string, string> }) {
-    const dom = document.createElement("span");
-    dom.className = "html-inline";
-    dom.dataset["type"] = "html";
     const raw = node.attrs["value"] ?? "";
+    const isBlock = /<div[\s>]/i.test(raw);
+    const dom = document.createElement(isBlock ? "div" : "span");
+    dom.className = `html-inline${isBlock ? " html-block" : ""}`;
+    dom.dataset["type"] = "html";
     dom.innerHTML = DOMPurify.sanitize(raw, {
         USE_PROFILES: { html: true },
         ADD_ATTR: ["align", "style", "width", "height"],
@@ -295,7 +307,10 @@ export async function createEditor(
 
     const fireUpdate = (md: string) => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => onUpdate(md), 300);
+        debounceTimer = setTimeout(() => {
+            onUpdate(md);
+            emitSave();
+        }, 300);
     };
     const debouncedUpdate = (md: string) => {
         if (isComposing) {
@@ -345,6 +360,7 @@ export async function createEditor(
                 if (toSave === _savedMarkdown) return; // 内容无实质变化，不触发保存
                 _savedMarkdown = toSave;
                 debouncedUpdate(toSave);
+                emitContentChange(toSave);
             });
             // 配置 prism：使用我们已注册语言的 refractor 实例
             ctx.set(prismConfig.key, {
@@ -366,6 +382,7 @@ export async function createEditor(
                             onRenameImage,
                         ),
                 ],
+                ["picture", (node, view, getPos) => createPictureView(node, view, getPos)],
             ]);
         })
         .use(commonmark)
@@ -383,6 +400,7 @@ export async function createEditor(
         .use(selectionPlugin)
         .use(headingFoldPlugin)
         .use(headingStickyPlugin)
+        .use(alignmentPlugin)
         .use(formatKeymapPlugin)
         .use(tabKeymapPlugin)
         .use(cellClickFixPlugin)
@@ -391,5 +409,11 @@ export async function createEditor(
         .create();
 
     isSettled = true;
+
+    const view = _editor.action((ctx) => ctx.get(editorViewCtx));
+    if (view) {
+        initAPI(view);
+    }
+
     return _editor;
 }
