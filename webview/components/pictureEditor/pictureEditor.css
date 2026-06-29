@@ -1,0 +1,204 @@
+.picture-view {
+    display: inline-block;
+    position: relative;
+    border: 1px dashed transparent;
+    border-radius: 4px;
+    transition: border-color 0.15s;
+}
+
+.picture-view:hover {
+    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+}
+
+.picture-view-content {
+    display: inline-block;
+}
+
+.picture-view-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.picture-view-toolbar {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.picture-view:hover .picture-view-toolbar {
+    opacity: 1;
+}
+
+.picture-view-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.picture-view-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.picture-view-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.picture-edit-panel {
+    min-width: 360px;
+    max-width: 480px;
+    background: var(--vscode-editorWidget-background, #252526);
+    border: 1px solid var(--vscode-editorWidget-border, #454545);
+    border-radius: 6px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: 12px 16px;
+}
+
+.picture-edit-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.picture-edit-close {
+    background: transparent;
+    border: none;
+    color: var(--vscode-editor-foreground);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+}
+
+.picture-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.picture-edit-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vscode-descriptionForeground);
+    margin-top: 4px;
+}
+
+.picture-edit-source-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.picture-edit-input {
+    flex: 1;
+    height: 24px;
+    padding: 0 6px;
+    background: var(--vscode-input-background, rgba(128, 128, 128, 0.1));
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+}
+
+.picture-edit-input:focus {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.picture-edit-input--wide {
+    width: 100%;
+}
+
+.picture-edit-remove-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.picture-edit-remove-btn:hover {
+    color: var(--vscode-errorForeground, #f44);
+    background: var(--vscode-toolbar-hoverBackground);
+}
+
+.picture-edit-remove-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.picture-edit-add-btn {
+    align-self: flex-start;
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px dashed var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.picture-edit-add-btn:hover {
+    color: var(--vscode-editor-foreground);
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.picture-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.2));
+}
+
+.picture-edit-save {
+    padding: 4px 14px;
+    background: var(--vscode-button-background, #007acc);
+    color: var(--vscode-button-foreground, #fff);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.picture-edit-save:hover {
+    background: var(--vscode-button-hoverBackground, #0062a3);
+}
+
+.picture-edit-cancel {
+    padding: 4px 14px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.picture-edit-cancel:hover {
+    background: var(--vscode-list-hoverBackground);
+}
