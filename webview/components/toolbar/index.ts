@@ -21,6 +21,9 @@ import { TextSelection } from "@milkdown/prose/state";
 import type { Editor } from "@milkdown/core";
 import type { EditorView } from "@milkdown/prose/view";
 import {
+    IconAlignCenter,
+    IconAlignLeft,
+    IconAlignRight,
     IconBold,
     IconItalic,
     IconStrikethrough,
@@ -50,6 +53,7 @@ import { notifyOpenSettings, notifyGetProjectImages } from "@/messaging";
 import { createButton, createSeparator } from "@/ui/dom";
 import { attachImgPathComplete } from '../imageView/imgPathComplete';
 import './toolbar.css';
+import { alignmentPluginKey } from '../../plugins/alignment';
 
 type GetEditor = () => Editor | null;
 
@@ -1124,6 +1128,89 @@ export function initToolbar(
             callCmd(getEditor, insertHrCommand),
         ),
     );
+
+    const alignWrap = document.createElement("div");
+    alignWrap.className = "tb-align-wrap";
+
+    const alignBtn = document.createElement("button");
+    alignBtn.className = "tb-btn";
+    alignBtn.innerHTML = IconAlignLeft;
+    applyTooltip(alignBtn, t("Align Left"));
+    alignBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    const alignMenu = document.createElement("div");
+    alignMenu.className = "tb-align-menu";
+    alignMenu.style.display = "none";
+
+    const alignDefs: [string, string, string][] = [
+        [IconAlignLeft, t("Align Left"), "left"],
+        [IconAlignCenter, t("Align Center"), "center"],
+        [IconAlignRight, t("Align Right"), "right"],
+    ];
+    alignDefs.forEach(([icon, title, value]) => {
+        const item = document.createElement("div");
+        item.className = "tb-align-item";
+        item.innerHTML = icon;
+        applyTooltip(item as HTMLElement, title, { placement: "right" });
+        item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const editor = getEditor();
+            if (!editor) return;
+            const view = editor.ctx.get(editorViewCtx);
+            if (!view) return;
+            const { $from } = view.state.selection;
+            const pos = $from.before($from.depth);
+            const node = $from.node($from.depth);
+
+            if (node.type.name === "html") {
+                const text = node.textContent;
+                const paraType = view.state.schema.nodes["paragraph"];
+                if (!paraType) return;
+                const newPara = paraType.create({}, view.state.schema.text(text));
+                const tr = view.state.tr.replaceWith(pos, pos + node.nodeSize, newPara);
+                tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
+                view.dispatch(tr);
+            } else if (node.type.name === "paragraph") {
+                const tr = view.state.tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
+                view.dispatch(tr);
+            }
+            // 更新主按钮图标和tooltip
+            alignBtn.innerHTML = icon;
+            applyTooltip(alignBtn, title);
+            alignMenu.style.display = "none";
+        });
+        alignMenu.appendChild(item);
+    });
+
+    let alignHideTimer: ReturnType<typeof setTimeout> | null = null;
+    alignWrap.addEventListener("mouseenter", () => {
+        if (alignHideTimer) { clearTimeout(alignHideTimer); alignHideTimer = null; }
+        const rect = alignBtn.getBoundingClientRect();
+        const approxH = alignDefs.length * 34;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < approxH + 8) {
+            alignMenu.style.top = "auto";
+            alignMenu.style.bottom = "calc(100% + 6px)";
+        } else {
+            alignMenu.style.bottom = "auto";
+            alignMenu.style.top = "calc(100% + 6px)";
+        }
+        alignMenu.style.display = "flex";
+    });
+    alignWrap.addEventListener("mouseleave", () => {
+        alignHideTimer = setTimeout(() => { alignMenu.style.display = "none"; }, 100);
+    });
+    alignMenu.addEventListener("mouseenter", () => {
+        if (alignHideTimer) { clearTimeout(alignHideTimer); alignHideTimer = null; }
+    });
+
+    alignWrap.appendChild(alignBtn);
+    alignWrap.appendChild(alignMenu);
+    toolbar.appendChild(alignWrap);
 
     // ── 调试工具按钮（始终创建，由 setDebugMode 控制显隐）─────────────────
     let dbgSep: HTMLElement | null = null;

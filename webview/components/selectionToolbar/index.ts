@@ -34,6 +34,7 @@ import { applyTooltip } from "@/ui/tooltip";
 import { notifySendToClaudeChat } from "@/messaging";
 import { t, kbd } from "@/i18n";
 import { createButton, createSeparator } from "@/ui/dom";
+import { alignmentPluginKey } from '../../plugins/alignment';
 import './selectionToolbar.css';
 
 type GetEditor = () => Editor | null;
@@ -704,7 +705,28 @@ export function setupSelectionToolbar(
             if (!view) {
                 return;
             }
-            setCellAttr("alignment", value)(view.state, view.dispatch);
+            const { selection } = view.state;
+            // 表格模式：使用setCellAttr
+            if (selection instanceof CellSelection) {
+                setCellAttr("alignment", value)(view.state, view.dispatch);
+            } else {
+                // 文字模式：使用alignmentPluginKey
+                const { $from } = selection;
+                const pos = $from.before($from.depth);
+                const node = $from.node($from.depth);
+                if (node.type.name === "html") {
+                    const text = node.textContent;
+                    const paraType = view.state.schema.nodes["paragraph"];
+                    if (!paraType) return;
+                    const newPara = paraType.create({}, view.state.schema.text(text));
+                    const tr = view.state.tr.replaceWith(pos, pos + node.nodeSize, newPara);
+                    tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
+                    view.dispatch(tr);
+                } else if (node.type.name === "paragraph") {
+                    const tr = view.state.tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
+                    view.dispatch(tr);
+                }
+            }
             alignMenu.style.display = "none";
         });
         alignMenu.appendChild(item);
@@ -989,9 +1011,9 @@ export function setupSelectionToolbar(
         codeBtn.style.display = "";
         textInlineSep.style.display = "";
 
-        // 表格专属元素：隐藏
-        tableSep.style.display = "none";
-        alignWrap.style.display = "none";
+        // 对齐方式：文字模式下也显示
+        tableSep.style.display = "";
+        alignWrap.style.display = "";
         deleteRowBtn.style.display = "none";
         clearHeaderBtn.style.display = "none";
         deleteTableBtn.style.display = "none";

@@ -20,8 +20,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 26px;
-    height: 24px;
+    min-width: 30px;
+    height: 28px;
     padding: 0 4px;
     background: transparent;
     color: var(--vscode-editor-foreground);
@@ -61,7 +61,7 @@
 }
 
 .tb-select {
-    height: 24px;
+    height: 28px;
     padding: 0 4px;
     background: transparent;
     color: var(--vscode-editor-foreground);
@@ -543,4 +543,36 @@
 }
 .img-lightbox-close:hover {
     background: rgba(0, 0, 0, 0.8);
+}
+
+/* ─── 对齐方式菜单 ─── */
+.tb-align-wrap {
+    position: relative;
+}
+
+.tb-align-menu {
+    position: absolute;
+    left: 0;
+    display: none;
+    flex-direction: column;
+    background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    min-width: 32px;
+    z-index: 200;
+}
+
+.tb-align-item {
+    padding: 5px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--vscode-editorHoverWidget-foreground, #ccc);
+}
+
+.tb-align-item:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
 }
