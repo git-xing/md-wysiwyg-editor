@@ -4,6 +4,7 @@ out/
 test/
 *.vsix
 releases/
+.vscode/settings.json
 .DS_Store
 .docs
 .idea
