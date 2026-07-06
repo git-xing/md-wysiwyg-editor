@@ -1,13 +1,13 @@
 /* ── Find Widget — 与 VSCode 搜索框风格一致 ────────────── */
 
 ::highlight(find-highlight) {
-    background-color: var(--find-highlight);
-    color: #1a1a1a;
+    background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 200, 0, 0.35));
+    color: inherit;
 }
 
 ::highlight(find-highlight-current) {
-    background-color: var(--find-highlight-current);
-    color: #1a1a1a;
+    background-color: var(--vscode-editor-findMatchBackground, rgba(255, 100, 0, 0.45));
+    color: inherit;
 }
 
 .find-widget {

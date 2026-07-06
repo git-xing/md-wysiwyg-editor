@@ -4,8 +4,6 @@
 :root {
     --selection-green: rgba(52, 211, 153, 0.15);
     --selection-green-border: rgba(52, 211, 153, 0.6);
-    --find-highlight: rgba(52, 211, 153, 0.3);
-    --find-highlight-current: rgba(52, 211, 153, 0.6);
 }
 
 * {
