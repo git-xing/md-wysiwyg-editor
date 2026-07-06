@@ -1,6 +1,74 @@
+@import "./icon/codicon.css";
+
 /* 全局重置，使用 VSCode 编辑器主题变量 */
+:root {
+    --selection-green: rgba(52, 211, 153, 0.15);
+    --selection-green-border: rgba(52, 211, 153, 0.6);
+    --find-highlight: rgba(52, 211, 153, 0.3);
+    --find-highlight-current: rgba(52, 211, 153, 0.6);
+}
+
 * {
     box-sizing: border-box;
+}
+
+/* ─── 公共 icon 按钮样式 ──────────────────────────────── */
+.icon-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--vscode-icon-foreground, var(--vscode-descriptionForeground, #cccccc));
+    cursor: pointer;
+    line-height: 1;
+    outline: none;
+    user-select: none;
+    -webkit-user-select: none;
+    flex-shrink: 0;
+    transition: background 0.1s ease, color 0.1s ease;
+
+    &:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: var(--vscode-toolbar-hoverOutline, transparent);
+        color: var(--vscode-icon-foreground, #cccccc);
+    }
+
+    &:active {
+        background: var(--vscode-toolbar-activeBackground, rgba(99, 102, 103, 0.31));
+    }
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    &.icon-btn--sm {
+        width: 18px;
+        height: 18px;
+
+        svg {
+            width: 12px;
+            height: 12px;
+        }
+    }
+
+    &.icon-btn--lg {
+        width: 26px;
+        height: 26px;
+
+        svg {
+            width: 16px;
+            height: 16px;
+        }
+    }
 }
 
 html,
@@ -296,7 +364,6 @@ body.editor-width-auto {
             align-items: center;
             justify-content: flex-end;
             gap: 4px;
-            width: 58px;
             height: 1.3em;
             color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.72));
             font-weight: 600;
@@ -322,18 +389,6 @@ body.editor-width-auto {
         }
 
         .heading-fold-toggle {
-            box-sizing: border-box;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            padding: 0;
-            border: 0;
-            border-radius: 4px;
-            background: transparent;
-            color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.72));
-            cursor: pointer;
             opacity: 0;
             pointer-events: none;
             transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
@@ -438,6 +493,7 @@ body.editor-width-auto {
         ul,
         ol {
             padding-left: 1.8em;
+            margin: 0;
         }
 
         li {
@@ -603,13 +659,13 @@ body.editor-width-auto {
         /* ─── 表格单元格范围选择（prosemirror-tables CellSelection）─── */
         .selectedCell {
             position: relative;
-            background: rgba(52, 211, 153, 0.15) !important;
+            background: var(--selection-green) !important;
 
             &::after {
                 content: "";
                 position: absolute;
                 inset: -1px;
-                border: 2px solid rgba(52, 211, 153, 0.6);
+                border: 2px solid var(--selection-green-border);
                 pointer-events: none;
                 z-index: 1;
             }

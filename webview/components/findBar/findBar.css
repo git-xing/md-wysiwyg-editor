@@ -1,147 +1,226 @@
-/* ── Find Bar — 与 VSCode 编辑器内置搜索框风格保持一致 ──── */
+/* ── Find Widget — 与 VSCode 搜索框风格一致 ────────────── */
 
-/* 容器 */
-.find-bar {
-    position: fixed;
-    top: calc(var(--editor-topbar-height, 40px) + 6px);
-    right: 16px;
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 3px 2px 3px 6px;
-    background: var(--vscode-editorWidget-background, #252526);
-    border: 1px solid var(--vscode-editorWidget-border, #454545);
-    border-radius: 2px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
-    font-size: 13px;
-    font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, sans-serif);
-    color: var(--vscode-editorWidget-foreground, #cccccc);
-    opacity: 0;
-    transform: translateY(-4px);
-    transition: opacity 0.1s ease, transform 0.1s ease;
-    pointer-events: none;
-    min-width: 340px;
-    max-width: 420px;
-}
-
-.find-bar.find-bar--visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-/* 输入框 */
-.find-bar__input {
-    flex: 1;
-    min-width: 0;
-    height: 22px;
-    padding: 0 4px;
-    background: var(--vscode-input-background, #3c3c3c);
-    border: 1px solid var(--vscode-input-border, transparent);
-    border-radius: 2px;
-    color: var(--vscode-input-foreground, #cccccc);
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    box-sizing: border-box;
-}
-
-.find-bar__input:focus {
-    border-color: var(--vscode-focusBorder, #007fd4);
-}
-
-.find-bar--no-results .find-bar__input {
-    border-color: var(--vscode-inputValidation-errorBorder, #f44747);
-    background: var(--vscode-inputValidation-errorBackground, rgba(244,71,71,0.1));
-}
-
-/* 匹配数量 */
-.find-bar__count {
-    padding: 0 6px;
-    font-size: 12px;
-    white-space: nowrap;
-    color: var(--vscode-descriptionForeground, #858585);
-    min-width: 46px;
-    text-align: right;
-    flex-shrink: 0;
-}
-
-.find-bar--no-results .find-bar__count {
-    color: var(--vscode-inputValidation-errorForeground, var(--vscode-editorError-foreground, #f48771));
-}
-
-/* 分隔线 */
-.find-bar__sep {
-    width: 1px;
-    height: 16px;
-    background: var(--vscode-editorWidget-border, var(--vscode-widget-border, #454545));
-    margin: 0 3px;
-    flex-shrink: 0;
-}
-
-/* 按钮通用 */
-.find-bar__btn {
-    -webkit-appearance: none;
-    appearance: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    margin: 0;
-    flex-shrink: 0;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    color: var(--vscode-icon-foreground, #cccccc);
-    cursor: pointer;
-    font-size: 11px;
-    font-family: inherit;
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1;
-    outline: none;
-    user-select: none;
-    -webkit-user-select: none;
-}
-
-.find-bar__btn:hover {
-    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
-    border-color: var(--vscode-toolbar-hoverOutline, transparent);
-    color: var(--vscode-icon-foreground, #cccccc);
-}
-
-.find-bar__btn:active {
-    background: var(--vscode-toolbar-activeBackground, rgba(99, 102, 103, 0.31));
-}
-
-.find-bar__btn--active {
-    background: var(--vscode-toolbar-activeBackground, rgba(99, 102, 103, 0.31));
-    border-color: var(--vscode-contrastActiveBorder, transparent);
-    color: var(--vscode-icon-foreground, #cccccc);
-}
-
-.find-bar__btn--active:hover {
-    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
-}
-
-.find-bar__btn svg {
-    display: block;
-    width: 16px;
-    height: 16px;
-    fill: currentColor;
-    flex-shrink: 0;
-}
-
-/* CSS Custom Highlight API */
 ::highlight(find-highlight) {
-    background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33));
-    color: inherit;
+    background-color: var(--find-highlight);
+    color: #1a1a1a;
 }
 
 ::highlight(find-highlight-current) {
-    background-color: var(--vscode-editor-findMatchBackground, rgba(246, 185, 77, 0.7));
-    color: inherit;
+    background-color: var(--find-highlight-current);
+    color: #1a1a1a;
+}
+
+.find-widget {
+    position: fixed;
+    top: calc(var(--editor-topbar-height, 40px) + 2px);
+    right: 12px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: row;
+    width: 320px;
+    background: var(--vscode-editorWidget-background, #252526);
+    border-radius: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
+    font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, sans-serif);
+    color: var(--vscode-editorWidget-foreground, #cccccc);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+
+    &.find-widget--visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    &.find-widget--no-results {
+        .find-widget__count {
+            color: var(--vscode-inputValidation-errorForeground, var(--vscode-editorError-foreground, #f48771));
+        }
+    }
+
+    &.find-widget--regex-error {
+        .find-widget__input {
+            border-color: var(--vscode-inputValidation-errorBorder, #f44747);
+            background: var(--vscode-inputValidation-errorBackground, rgba(244, 71, 71, 0.1));
+        }
+
+        .find-widget__count {
+            color: var(--vscode-inputValidation-errorForeground, var(--vscode-editorError-foreground, #f48771));
+        }
+    }
+
+    /* ── 内容区 ───────────────────────────────────────── */
+    .find-widget__content {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* ── 行容器 ───────────────────────────────────────── */
+    .find-widget__row {
+        display: flex;
+        align-items: stretch;
+        padding: 2px;
+        gap: 0;
+    }
+
+    /* ── 输入框容器 ───────────────────────────────────── */
+    .find-widget__input-wrapper {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .find-widget__input {
+        width: 100%;
+        height: 22px;
+        padding: 0 4px;
+        background: var(--vscode-input-background, #3c3c3c);
+        border: 1px solid transparent;
+        border-radius: 2px;
+        color: var(--vscode-input-foreground, #cccccc);
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        box-sizing: border-box;
+
+        &:focus {
+            border-color: var(--vscode-focusBorder, #007fd4);
+        }
+    }
+
+    .find-widget__input--has-actions {
+        padding-right: 44px;
+    }
+
+    /* ── 内嵌按钮组 ──────────────────────────────────── */
+    .find-widget__input-actions {
+        position: absolute;
+        right: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+
+    /* ── 匹配计数 ────────────────────────────────────── */
+    .find-widget__count {
+        padding: 0 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        color: var(--vscode-descriptionForeground, #858585);
+        min-width: 48px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    /* ── 按钮通用 ────────────────────────────────────── */
+    .find-widget__btn {
+        font-size: 11px;
+    }
+
+    .find-widget__btn svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+        flex-shrink: 0;
+    }
+
+    .find-widget__btn.codicon {
+        font-size: 14px;
+    }
+
+    .find-widget__btn.spacing,
+    .icon-btn.spacing {
+        margin-left: 3px;
+    }
+
+    .find-widget__btn--active {
+        background: var(--vscode-toolbar-activeBackground, rgba(99, 102, 103, 0.31));
+        border-color: var(--vscode-contrastActiveBorder, transparent);
+        color: var(--vscode-icon-foreground, #cccccc);
+
+        &:hover {
+            background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        }
+    }
+
+    .find-widget__btn--disabled {
+        opacity: 0.4;
+        cursor: default;
+        pointer-events: none;
+
+        &:hover {
+            background: transparent;
+            border-color: transparent;
+        }
+    }
+
+    .find-widget__close {
+        margin-left: 2px;
+    }
+
+    /* ── 拖拽手柄 ────────────────────────────────────── */
+    .find-widget__drag-handle {
+        width: 4px;
+        min-height: 20px;
+        flex-shrink: 0;
+        cursor: col-resize;
+        background: transparent;
+        border-radius: 3px 0 0 3px;
+        align-self: stretch;
+        transition: background 0.15s;
+
+        &:hover {
+            background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        }
+    }
+
+    /* ── 替换区展开按钮 ──────────────────────────────── */
+    .find-widget__toggle-replace {
+        width: 20px;
+        height: auto;
+        align-self: stretch;
+        border: none;
+    }
+
+    .find-widget__toggle-replace .codicon {
+        transition: transform 0.1s ease;
+    }
+
+    .find-widget__toggle-replace--expanded .codicon {
+        transform: rotate(90deg);
+    }
+
+    /* ── 替换行 ──────────────────────────────────────── */
+    .find-widget__replace {
+        display: none;
+        padding: 0 2px 2px;
+    }
+
+    .find-widget__replace--visible {
+        display: block;
+    }
+
+    .find-widget__replace-inner {
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+
+    .find-widget__replace-tail-spacer {
+        width: 65px;
+        flex-shrink: 0;
+    }
+
+    /* ── 分隔线 ──────────────────────────────────────── */
+    .find-widget__sep {
+        width: 1px;
+        height: 16px;
+        background: var(--vscode-editorWidget-border, var(--vscode-widget-border, #454545));
+        margin: 0 2px;
+        flex-shrink: 0;
+    }
 }

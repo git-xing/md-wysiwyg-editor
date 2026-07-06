@@ -69,24 +69,15 @@
 
 /* ─── 通用按钮 ─── */
 .lp-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 26px;
     height: 26px;
     border-radius: 5px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    background: transparent;
-    color: var(--vscode-editor-foreground);
-    flex-shrink: 0;
     opacity: 0.6;
     transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
 
-    &:hover {
-        opacity: 1;
-        background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
-    }
+.lp-btn:hover {
+    opacity: 1;
 }
 
 /* 编辑按钮激活态（编辑模式中） */

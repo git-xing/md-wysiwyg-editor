@@ -3,6 +3,7 @@ import type { Node as PMNode } from "@milkdown/prose/model";
 import type { EditorView } from "@milkdown/prose/view";
 import { applyTooltip, hideTooltip } from "@/ui/tooltip";
 import { setPendingToolbarPos } from "../selectionToolbar";
+import { t } from "@/i18n";
 
 type GetView = () => EditorView | null;
 
@@ -15,14 +16,14 @@ export function setupTableHandles(
     rowHandle.className = "table-handle table-handle--row";
     rowHandle.textContent = "⠿";
     document.body.appendChild(rowHandle);
-    applyTooltip(rowHandle, "点击选中整行 · 拖拽重排", { placement: "above" });
+    applyTooltip(rowHandle, t("Click to select entire row · Drag to reorder"), { placement: "above" });
 
     // ── 列 handle（悬停列时显示在列的顶部外部）────────────────
     const colHandle = document.createElement("div");
     colHandle.className = "table-handle table-handle--col";
     colHandle.textContent = "⠿";
     document.body.appendChild(colHandle);
-    applyTooltip(colHandle, "点击选中整列 · 拖拽重排", { placement: "above" });
+    applyTooltip(colHandle, t("Click to select entire column · Drag to reorder"), { placement: "above" });
 
     // ── 拖拽指示线 ───────────────────────────────────────────
     const dragLineH = document.createElement("div");

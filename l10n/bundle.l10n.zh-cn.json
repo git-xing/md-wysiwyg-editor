@@ -1,3 +1,4 @@
 {
-  "Cannot open chat: please install Claude extension or GitHub Copilot": "无法打开聊天：请确保 Claude 扩展或 GitHub Copilot 已安装"
+  "Cannot open chat: please install Claude extension or GitHub Copilot": "无法打开聊天：请确保 Claude 扩展或 GitHub Copilot 已安装",
+  "Please configure markdownWysiwyg.imageServerUrl in settings first": "请先在设置中配置 markdownWysiwyg.imageServerUrl"
 }

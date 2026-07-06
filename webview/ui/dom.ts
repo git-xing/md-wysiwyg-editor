@@ -1,4 +1,5 @@
-import { applyTooltip } from '@/ui/tooltip';
+import { applyTooltip } from "@/ui/tooltip";
+import { hasHtmlTag } from "@/utils/regs";
 
 /**
  * 通用按钮工厂。
@@ -10,23 +11,30 @@ export function createButton(options: {
     label?: string;
     title?: string;
     tabIndex?: number;
-    tooltipPlacement?: 'above' | 'below';
+    tooltipPlacement?: "above" | "below";
     onClick?: () => void;
 }): HTMLButtonElement {
-    const btn = document.createElement('button');
+    const btn = document.createElement("button");
     btn.className = options.className;
     if (options.tabIndex !== undefined) btn.tabIndex = options.tabIndex;
-    if (options.icon) btn.innerHTML = options.icon;
+
+    if (options.icon) {
+        hasHtmlTag(options.icon)
+            ? (btn.innerHTML = options.icon)
+            : btn.classList.add("codicon", "codicon-" + options.icon);
+    }
     if (options.label) btn.textContent = options.label;
 
     const tipText = options.title ?? options.label;
     if (tipText) {
-        applyTooltip(btn, tipText, { placement: options.tooltipPlacement ?? 'below' });
+        applyTooltip(btn, tipText, {
+            placement: options.tooltipPlacement ?? "below",
+        });
     }
 
     if (options.onClick) {
         const handler = options.onClick;
-        btn.addEventListener('mousedown', (e) => {
+        btn.addEventListener("mousedown", (e) => {
             e.preventDefault();
             e.stopPropagation();
             handler();
@@ -40,7 +48,10 @@ export function createButton(options: {
  * 通用分隔线工厂。
  * 取代各组件的 sep() / sSep() / makeSep()。
  */
-export function createSeparator(className: string, tag: 'div' | 'span' = 'div'): HTMLElement {
+export function createSeparator(
+    className: string,
+    tag: "div" | "span" = "div",
+): HTMLElement {
     const el = document.createElement(tag);
     el.className = className;
     return el;
@@ -55,13 +66,13 @@ export function setupInputKeyboard(
     onEnter: () => void,
     onEscape: () => void,
 ): void {
-    input.addEventListener('keydown', (e) => {
+    input.addEventListener("keydown", (e) => {
         if (e.isComposing) return;
         e.stopPropagation();
-        if (e.key === 'Enter') {
+        if (e.key === "Enter") {
             e.preventDefault();
             onEnter();
-        } else if (e.key === 'Escape') {
+        } else if (e.key === "Escape") {
             e.preventDefault();
             onEscape();
         }
@@ -84,14 +95,17 @@ export function onOutsideMousedown(
         const target = e.target as Node;
         if (targets.some((el) => el.contains(target))) return;
         onClose();
-        document.removeEventListener('mousedown', handler);
+        document.removeEventListener("mousedown", handler);
     }
 
     if (delayMs > 0) {
-        setTimeout(() => document.addEventListener('mousedown', handler), delayMs);
+        setTimeout(
+            () => document.addEventListener("mousedown", handler),
+            delayMs,
+        );
     } else {
-        document.addEventListener('mousedown', handler);
+        document.addEventListener("mousedown", handler);
     }
 
-    return () => document.removeEventListener('mousedown', handler);
+    return () => document.removeEventListener("mousedown", handler);
 }

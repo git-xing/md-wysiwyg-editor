@@ -9,6 +9,7 @@
     },
     "packageManager": "pnpm@10.6.1",
     "extensionKind": [
+        "workspace",
         "ui"
     ],
     "icon": "images/icon.jpg",

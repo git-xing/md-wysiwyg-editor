@@ -45,8 +45,9 @@ import {
     IconChevronDown,
     IconEraser,
     IconSettings,
+    IconOverflow,
 } from "@/ui/icons";
-import { applyTooltip } from "@/ui/tooltip";
+import { applyTooltip, hideTooltip } from "@/ui/tooltip";
 import { t, kbd } from "@/i18n";
 import { sampleDocPosition } from "../selectionToolbar";
 import { notifyOpenSettings, notifyGetProjectImages } from "@/messaging";
@@ -54,8 +55,29 @@ import { createButton, createSeparator } from "@/ui/dom";
 import { attachImgPathComplete } from '../imageView/imgPathComplete';
 import './toolbar.css';
 import { alignmentPluginKey } from '../../plugins/alignment';
+import { TableGridSelector } from './tableGridSelector';
 
 type GetEditor = () => Editor | null;
+
+// ── 工具栏配置 ────────────────────────────────────────────
+interface ToolbarItemConfig {
+    /** 唯一标识 */
+    id: string;
+    /** 类型 */
+    type: "button" | "separator" | "group" | "hidden";
+    /** 图标 SVG（button 类型） */
+    icon?: string;
+    /** Tooltip 文本 */
+    title?: string;
+    /** 点击回调（button 类型） */
+    onClick?: () => void;
+    /** 是否可溢出到下拉菜单（默认 true） */
+    overflowable?: boolean;
+    /** 创建自定义 DOM 元素（group/hidden 类型） */
+    createElement?: () => HTMLElement;
+    /** 始终显示（覆盖 overflowable，如 format dropdown） */
+    alwaysVisible?: boolean;
+}
 
 function sep(): HTMLElement {
     return createSeparator("tb-sep");
@@ -75,16 +97,13 @@ function btn(
     });
 }
 
-// 调用 Milkdown 命令：传 command.key（CmdKey），而非 command 本身
 function callCmd<T>(
     getEditor: GetEditor,
     command: { key: unknown },
     payload?: T,
 ): void {
     const editor = getEditor();
-    if (!editor) {
-        return;
-    }
+    if (!editor) return;
     editor.action((ctx) => {
         const mgr = ctx.get(commandsCtx);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,7 +111,6 @@ function callCmd<T>(
     });
 }
 
-// 检查光标是否在指定节点类型内
 function isInNode(view: EditorView, typeName: string): boolean {
     const { $from } = view.state.selection;
     for (let depth = $from.depth; depth >= 0; depth--) {
@@ -103,7 +121,7 @@ function isInNode(view: EditorView, typeName: string): boolean {
     return false;
 }
 
-// 自定义内联链接输入框（文本 + URL 两个输入框）
+// ── 内联链接弹窗 ──────────────────────────────────────────
 function showInlineLinkPrompt(
     near: HTMLElement,
     defaultText: string,
@@ -127,12 +145,12 @@ function showInlineLinkPrompt(
     urlInput.value = defaultHref;
 
     const okBtn = document.createElement("button");
-    okBtn.className = "tb-prompt-ok";
+    okBtn.className = "icon-btn tb-prompt-ok";
     okBtn.innerHTML = IconCheck;
     okBtn.title = t("Confirm");
 
     const cancelBtn = document.createElement("button");
-    cancelBtn.className = "tb-prompt-cancel";
+    cancelBtn.className = "icon-btn tb-prompt-cancel";
     cancelBtn.innerHTML = IconX;
     cancelBtn.title = t("Cancel");
 
@@ -142,12 +160,10 @@ function showInlineLinkPrompt(
     overlay.appendChild(cancelBtn);
     document.body.appendChild(overlay);
 
-    // 定位到按钮下方
     const rect = near.getBoundingClientRect();
     overlay.style.top = `${rect.bottom + 4}px`;
     overlay.style.left = `${rect.left}px`;
 
-    // 有预填文字则聚焦 URL，否则聚焦文字框
     if (defaultText) {
         urlInput.focus();
         urlInput.select();
@@ -207,12 +223,10 @@ function showInlineLinkPrompt(
     }, 0);
 }
 
-/**
- * 图片插入面板：居中悬浮（无遮罩），支持三种模式：浏览项目 / URL / 上传本地
- */
+// ── 图片插入面板 ──────────────────────────────────────────
 function showImageInsertPanel(
     onConfirm: (alt: string, src: string) => void,
-    onUploadFile?: (file: File, altText: string) => Promise<string>,
+    onUploadImage?: (file: File, altText: string) => Promise<string>,
     onGetProjectImages?: (
         id: string,
     ) => Promise<Array<{
@@ -225,20 +239,18 @@ function showImageInsertPanel(
     panel.className = "img-insert-panel";
     panel.addEventListener("mousedown", (e) => e.stopPropagation());
 
-    // ── 标题栏 ────────────────────────────────────────
     const titleBar = document.createElement("div");
     titleBar.className = "img-insert-title";
     const titleText = document.createElement("span");
     titleText.textContent = t("Insert Image");
     const closeBtn = document.createElement("button");
-    closeBtn.className = "img-insert-close-btn";
+    closeBtn.className = "icon-btn img-insert-close-btn";
     closeBtn.innerHTML = IconX;
     closeBtn.type = "button";
     titleBar.appendChild(titleText);
     titleBar.appendChild(closeBtn);
     panel.appendChild(titleBar);
 
-    // ── Tab 切换 ──────────────────────────────────────
     const tabsRow = document.createElement("div");
     tabsRow.className = "img-insert-tabs";
 
@@ -262,14 +274,12 @@ function showImageInsertPanel(
     tabsRow.appendChild(tabUpload);
     panel.appendChild(tabsRow);
 
-    // ── Alt 文本（三种模式共用）─────────────────────
     const altInput = document.createElement("input");
     altInput.type = "text";
     altInput.className = "img-insert-input";
     altInput.placeholder = t("Alt text (alt)");
     panel.appendChild(altInput);
 
-    // ── 浏览项目 tab ──────────────────────────────────
     const projectSection = document.createElement("div");
     projectSection.className = "img-insert-section";
 
@@ -289,7 +299,6 @@ function showImageInsertPanel(
     projectSection.appendChild(selectedCount);
     panel.appendChild(projectSection);
 
-    // ── URL 模式内容 ──────────────────────────────────
     const urlSection = document.createElement("div");
     urlSection.className = "img-insert-section";
     urlSection.style.display = "none";
@@ -302,7 +311,6 @@ function showImageInsertPanel(
     panel.appendChild(urlSection);
     const detachSrcComplete = attachImgPathComplete(srcInput);
 
-    // ── 上传本地 tab ──────────────────────────────────
     const uploadSection = document.createElement("div");
     uploadSection.className = "img-insert-section";
     uploadSection.style.display = "none";
@@ -331,7 +339,6 @@ function showImageInsertPanel(
     uploadSection.appendChild(statusText);
     panel.appendChild(uploadSection);
 
-    // ── 确认 / 取消 ──────────────────────────────────
     const btnRow = document.createElement("div");
     btnRow.className = "img-insert-btn-row";
 
@@ -351,13 +358,11 @@ function showImageInsertPanel(
 
     document.body.appendChild(panel);
 
-    // 居中定位
     const pw = Math.min(540, window.innerWidth - 32);
     panel.style.width = pw + "px";
     panel.style.left = Math.round((window.innerWidth - pw) / 2) + "px";
     panel.style.top =
         Math.round((window.innerHeight - panel.offsetHeight) / 2) + "px";
-    // 初次渲染后再垂直居中（offsetHeight 需要元素在 DOM 后才准确）
     requestAnimationFrame(() => {
         panel.style.top =
             Math.round((window.innerHeight - panel.offsetHeight) / 2) + "px";
@@ -383,7 +388,6 @@ function showImageInsertPanel(
         }
     }
 
-    // ── 放大预览（lightbox）────────────────────────────
     function showLightbox(src: string, name: string): void {
         const lb = document.createElement("div");
         lb.className = "img-lightbox";
@@ -395,7 +399,7 @@ function showImageInsertPanel(
         lbImg.alt = name;
 
         const lbClose = document.createElement("button");
-        lbClose.className = "img-lightbox-close";
+        lbClose.className = "icon-btn img-lightbox-close";
         lbClose.innerHTML = IconX;
         lbClose.type = "button";
 
@@ -409,9 +413,7 @@ function showImageInsertPanel(
             }
         };
         lb.addEventListener("mousedown", (e) => {
-            if (e.target === lb) {
-                closeLb();
-            }
+            if (e.target === lb) closeLb();
         });
         lbClose.addEventListener("mousedown", (e) => {
             e.preventDefault();
@@ -425,7 +427,6 @@ function showImageInsertPanel(
         });
     }
 
-    // ── 渲染图片网格 ──────────────────────────────────
     function renderGrid(
         images: Array<{ relPath: string; webviewUri: string; name: string }>,
     ): void {
@@ -467,7 +468,6 @@ function showImageInsertPanel(
             item.appendChild(enlargeBtn);
             imageGrid.appendChild(item);
 
-            // 点击选中/取消
             item.addEventListener("mousedown", (e) => {
                 if (
                     (e.target as Element).closest(".img-insert-thumb-enlarge")
@@ -488,7 +488,6 @@ function showImageInsertPanel(
                 updateSelectedCount();
             });
 
-            // 放大预览
             enlargeBtn.addEventListener("mousedown", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -497,20 +496,15 @@ function showImageInsertPanel(
         });
     }
 
-    // ── 加载项目图片 ──────────────────────────────────
     function loadProjectImages(): void {
-        if (imagesLoaded) {
-            return;
-        }
+        if (imagesLoaded) return;
         imagesLoaded = true;
         gridStatus.textContent = t("Loading...");
         gridStatus.style.display = "";
         imageGrid.innerHTML = "";
         const id = `gimgs_${Date.now().toString(36)}`;
         onGetProjectImages?.(id)
-            .then((images) => {
-                renderGrid(images ?? []);
-            })
+            .then((images) => renderGrid(images ?? []))
             .catch(() => {
                 gridStatus.textContent = t("Failed to load images");
                 gridStatus.style.display = "";
@@ -519,39 +513,27 @@ function showImageInsertPanel(
 
     function switchTab(tab: Tab): void {
         activeTab = tab;
-        tabProject.classList.toggle(
-            "img-insert-tab--active",
-            tab === "project",
-        );
+        tabProject.classList.toggle("img-insert-tab--active", tab === "project");
         tabUrl.classList.toggle("img-insert-tab--active", tab === "url");
         tabUpload.classList.toggle("img-insert-tab--active", tab === "upload");
         projectSection.style.display = tab === "project" ? "" : "none";
         urlSection.style.display = tab === "url" ? "" : "none";
         uploadSection.style.display = tab === "upload" ? "" : "none";
-        if (tab === "url") {
-            srcInput.focus();
-        }
-        if (tab === "project") {
-            loadProjectImages();
-        }
+        if (tab === "url") srcInput.focus();
+        if (tab === "project") loadProjectImages();
     }
 
-    // 上传本地：file input
     selectFileBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         fileInput.click();
     });
     fileInput.addEventListener("change", () => {
         const file = fileInput.files?.[0];
-        if (file) {
-            handleFile(file);
-        }
+        if (file) handleFile(file);
     });
 
     function handleFile(file: File): void {
-        if (!file.type.startsWith("image/")) {
-            return;
-        }
+        if (!file.type.startsWith("image/")) return;
         const reader = new FileReader();
         reader.onload = () => {
             uploadPreview.src = reader.result as string;
@@ -560,16 +542,14 @@ function showImageInsertPanel(
         reader.readAsDataURL(file);
         pendingUploadUrl = "";
 
-        if (!onUploadFile) {
-            return;
-        }
+        if (!onUploadImage) return;
 
         statusText.textContent = t("Uploading...");
         statusText.className = "img-insert-status img-insert-status--loading";
         statusText.style.display = "";
         okBtn.disabled = true;
 
-        onUploadFile(file, altInput.value.trim())
+        onUploadImage(file, altInput.value.trim())
             .then((url) => {
                 pendingUploadUrl = url;
                 statusText.style.display = "none";
@@ -587,23 +567,16 @@ function showImageInsertPanel(
     function confirm(): void {
         const alt = altInput.value.trim();
         if (activeTab === "project") {
-            if (selectedImages.length === 0) {
-                return;
-            }
+            if (selectedImages.length === 0) return;
             cleanup();
             selectedImages.forEach((img) => onConfirm(alt, img.webviewUri));
         } else if (activeTab === "url") {
-            // 补全选中时 dataset 存有 webviewUri，优先使用；否则直接用输入值
             const src = (srcInput.dataset.imgWebviewUri ?? "").trim() || srcInput.value.trim();
             cleanup();
-            if (src) {
-                onConfirm(alt, src);
-            }
+            if (src) onConfirm(alt, src);
         } else {
             cleanup();
-            if (pendingUploadUrl) {
-                onConfirm(alt, pendingUploadUrl);
-            }
+            if (pendingUploadUrl) onConfirm(alt, pendingUploadUrl);
         }
     }
 
@@ -616,37 +589,15 @@ function showImageInsertPanel(
     }
 
     function outsideClick(e: MouseEvent): void {
-        if (!panel.contains(e.target as Node)) {
-            cleanup();
-        }
+        if (!panel.contains(e.target as Node)) cleanup();
     }
 
-    // Tab 切换
-    tabProject.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        switchTab("project");
-    });
-    tabUrl.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        switchTab("url");
-    });
-    tabUpload.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        switchTab("upload");
-    });
-
-    closeBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        cleanup();
-    });
-    okBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        confirm();
-    });
-    cancelBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        cleanup();
-    });
+    tabProject.addEventListener("mousedown", (e) => { e.preventDefault(); switchTab("project"); });
+    tabUrl.addEventListener("mousedown", (e) => { e.preventDefault(); switchTab("url"); });
+    tabUpload.addEventListener("mousedown", (e) => { e.preventDefault(); switchTab("upload"); });
+    closeBtn.addEventListener("mousedown", (e) => { e.preventDefault(); cleanup(); });
+    okBtn.addEventListener("mousedown", (e) => { e.preventDefault(); confirm(); });
+    cancelBtn.addEventListener("mousedown", (e) => { e.preventDefault(); cleanup(); });
 
     [altInput, srcInput].forEach((inp) => {
         inp.addEventListener("keydown", (e) => {
@@ -662,22 +613,20 @@ function showImageInsertPanel(
         });
     });
 
-    // 隐藏不可用 tab
     if (!onGetProjectImages) {
         tabProject.style.display = "none";
         switchTab("url");
     } else {
-        loadProjectImages(); // 默认激活 project tab 时立即加载
+        loadProjectImages();
     }
-    if (!onUploadFile) {
-        tabUpload.style.display = "none";
-    }
+    if (!onUploadImage) tabUpload.style.display = "none";
 
     setTimeout(() => {
         document.addEventListener("mousedown", outsideClick);
     }, 0);
 }
 
+// ── 主函数 ────────────────────────────────────────────────
 export function initToolbar(
     topbar: HTMLElement,
     getEditor: GetEditor,
@@ -701,144 +650,43 @@ export function initToolbar(
     const toolbar = document.createElement("div");
     toolbar.className = "toolbar";
 
-    // ── 目录导航（可选，位于工具栏最左侧）─────────────
+    // ── 工具栏配置：定义所有项目及其溢出行为 ──────────────
+    const config: ToolbarItemConfig[] = [];
+
+    // 目录（条件）
     if (onTocToggle) {
-        toolbar.appendChild(btn(IconToc, t("Table of Contents"), onTocToggle));
-        toolbar.appendChild(sep());
+        config.push(
+            { id: "toc", type: "button", icon: IconToc, title: t("Table of Contents"), onClick: onTocToggle },
+            { id: "sep-toc", type: "separator" },
+        );
     }
 
-    // ── 撤销 / 重做（直接调 ProseMirror history）────────
-    toolbar.appendChild(
-        btn(IconUndo, t("Undo") + " " + kbd("Mod-z"), () => {
+    // 撤销 / 重做
+    config.push(
+        { id: "undo", type: "button", icon: IconUndo, title: t("Undo") + " " + kbd("Mod-z"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
-            editor.action((ctx) => {
-                const view = ctx.get(editorViewCtx);
-                undo(view.state, view.dispatch);
-            });
-        }),
-    );
-    toolbar.appendChild(
-        btn(IconRedo, t("Redo") + " " + kbd("Mod-Shift-z"), () => {
+            if (!editor) return;
+            editor.action((ctx) => { const view = ctx.get(editorViewCtx); undo(view.state, view.dispatch); });
+        }},
+        { id: "redo", type: "button", icon: IconRedo, title: t("Redo") + " " + kbd("Mod-Shift-z"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
-            editor.action((ctx) => {
-                const view = ctx.get(editorViewCtx);
-                redo(view.state, view.dispatch);
-            });
-        }),
+            if (!editor) return;
+            editor.action((ctx) => { const view = ctx.get(editorViewCtx); redo(view.state, view.dispatch); });
+        }},
+        { id: "sep-history", type: "separator" },
     );
 
-    toolbar.appendChild(sep());
+    // 块格式下拉 — 始终可见，不溢出
+    config.push({ id: "format", type: "group", alwaysVisible: true, overflowable: false });
 
-    // ── 块类型下拉（hover 展开，与浮动工具栏风格一致）──
-    const fmtWrap = document.createElement("div");
-    fmtWrap.className = "tb-fmt-wrap";
-
-    const fmtBtn = document.createElement("button");
-    fmtBtn.className = "tb-btn tb-fmt-btn";
-    fmtBtn.innerHTML = `<span class="tb-fmt-label">P</span>${IconChevronDown}`;
-    fmtBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    });
-
-    const fmtMenu = document.createElement("div");
-    fmtMenu.className = "tb-fmt-menu";
-    fmtMenu.style.display = "none";
-
-    const formats: [string, () => void][] = [
-        ["P", () => callCmd(getEditor, turnIntoTextCommand)],
-        ["H1", () => callCmd(getEditor, wrapInHeadingCommand, 1)],
-        ["H2", () => callCmd(getEditor, wrapInHeadingCommand, 2)],
-        ["H3", () => callCmd(getEditor, wrapInHeadingCommand, 3)],
-        ["H4", () => callCmd(getEditor, wrapInHeadingCommand, 4)],
-        ["H5", () => callCmd(getEditor, wrapInHeadingCommand, 5)],
-        ["H6", () => callCmd(getEditor, wrapInHeadingCommand, 6)],
-    ];
-
-    const fmtItems: HTMLElement[] = [];
-    formats.forEach(([label, action]) => {
-        const item = document.createElement("div");
-        item.className = "tb-fmt-item";
-        item.textContent = label;
-        item.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            action();
-            fmtMenu.style.display = "none";
-        });
-        fmtMenu.appendChild(item);
-        fmtItems.push(item);
-    });
-
-    let fmtHideTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function positionFmtMenu(): void {
-        const rect = fmtBtn.getBoundingClientRect();
-        const approxMenuH = formats.length * 30;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        if (spaceBelow < approxMenuH + 8) {
-            fmtMenu.style.top = "auto";
-            fmtMenu.style.bottom = "calc(100% + 6px)";
-        } else {
-            fmtMenu.style.bottom = "auto";
-            fmtMenu.style.top = "calc(100% + 6px)";
-        }
-    }
-
-    fmtWrap.addEventListener("mouseenter", () => {
-        if (fmtHideTimer) {
-            clearTimeout(fmtHideTimer);
-            fmtHideTimer = null;
-        }
-        positionFmtMenu();
-        fmtMenu.style.display = "flex";
-    });
-    fmtWrap.addEventListener("mouseleave", () => {
-        fmtHideTimer = setTimeout(() => {
-            fmtMenu.style.display = "none";
-        }, 100);
-    });
-    fmtMenu.addEventListener("mouseenter", () => {
-        if (fmtHideTimer) {
-            clearTimeout(fmtHideTimer);
-            fmtHideTimer = null;
-        }
-    });
-
-    fmtWrap.appendChild(fmtBtn);
-    fmtWrap.appendChild(fmtMenu);
-    toolbar.appendChild(fmtWrap);
-
-    toolbar.appendChild(sep());
-
-    // ── 内联格式 ──────────────────────────────────────
-    toolbar.appendChild(
-        btn(IconBold, t("Bold") + " " + kbd("Mod-b"), () =>
-            callCmd(getEditor, toggleStrongCommand),
-        ),
-    );
-    toolbar.appendChild(
-        btn(IconItalic, t("Italic") + " " + kbd("Mod-i"), () =>
-            callCmd(getEditor, toggleEmphasisCommand),
-        ),
-    );
-    toolbar.appendChild(
-        btn(
-            IconStrikethrough,
-            t("Strikethrough") + " " + kbd("Mod-Shift-x"),
-            () => callCmd(getEditor, toggleStrikethroughCommand),
-        ),
-    );
-    toolbar.appendChild(
-        btn(IconCode, t("Inline Code") + " " + kbd("Mod-e"), () => {
+    // 内联格式
+    config.push(
+        { id: "bold", type: "button", icon: IconBold, title: t("Bold") + " " + kbd("Mod-b"), onClick: () => callCmd(getEditor, toggleStrongCommand) },
+        { id: "italic", type: "button", icon: IconItalic, title: t("Italic") + " " + kbd("Mod-i"), onClick: () => callCmd(getEditor, toggleEmphasisCommand) },
+        { id: "strikethrough", type: "button", icon: IconStrikethrough, title: t("Strikethrough") + " " + kbd("Mod-Shift-x"), onClick: () => callCmd(getEditor, toggleStrikethroughCommand) },
+        { id: "inline-code", type: "button", icon: IconCode, title: t("Inline Code") + " " + kbd("Mod-e"), onClick: () => {
             const editor = getEditor();
-            if (!editor) { return; }
+            if (!editor) return;
             editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 const { state } = view;
@@ -846,9 +694,8 @@ export function initToolbar(
                     ctx.get(commandsCtx).call(toggleInlineCodeCommand.key as any);
                     return;
                 }
-                // 无选区：插入零宽空格占位文本 + inlineCode mark，光标置入其中
                 const codeMark = state.schema.marks["inlineCode"];
-                if (!codeMark) { return; }
+                if (!codeMark) return;
                 const { from } = state.selection;
                 const textNode = state.schema.text("\u200b", [codeMark.create()]);
                 const tr = state.tr.insert(from, textNode);
@@ -856,21 +703,15 @@ export function initToolbar(
                 view.dispatch(tr);
                 view.focus();
             });
-        }),
-    );
-    toolbar.appendChild(
-        btn(IconEraser, t("Clear Formatting"), () => {
+        }},
+        { id: "clear-format", type: "button", icon: IconEraser, title: t("Clear Formatting"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
+            if (!editor) return;
             editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 const { state } = view;
                 const { from, to, empty } = state.selection;
-                if (empty) {
-                    return;
-                }
+                if (empty) return;
                 let tr = state.tr;
                 Object.values(state.schema.marks).forEach((markType) => {
                     tr = tr.removeMark(from, to, markType);
@@ -878,445 +719,432 @@ export function initToolbar(
                 view.dispatch(tr);
                 view.focus();
             });
-        }),
+        }},
+        { id: "sep-inline", type: "separator" },
     );
 
-    toolbar.appendChild(sep());
-
-    // ── 插入 ──────────────────────────────────────────
-    // 链接：先捕获当前选区文字和已有链接，再通过双输入框获取文本和 URL
-    let linkBtnEl: HTMLButtonElement;
-    linkBtnEl = btn(IconLink, t("Insert/Edit Link"), () => {
-        const editor = getEditor();
-        if (!editor) {
-            return;
-        }
-
-        let capturedFrom = 0;
-        let capturedTo = 0;
-        let existingHref = "";
-        let selectedText = "";
-
-        editor.action((ctx) => {
-            const view = ctx.get(editorViewCtx);
-            const { state } = view;
-            const linkType = state.schema.marks["link"];
-            if (!linkType) {
-                return;
-            }
-            capturedFrom = state.selection.from;
-            capturedTo = state.selection.to;
-            if (capturedFrom !== capturedTo) {
-                selectedText = state.doc.textBetween(capturedFrom, capturedTo);
-            }
-            state.doc.nodesBetween(capturedFrom, capturedTo, (node) => {
-                const mark = linkType.isInSet(node.marks);
-                if (mark) {
-                    existingHref =
-                        (mark.attrs as Record<string, string>)["href"] ?? "";
-                }
-            });
-        });
-
-        showInlineLinkPrompt(
-            linkBtnEl,
-            selectedText,
-            existingHref,
-            (text, href) => {
-                editor.action((ctx) => {
-                    const view = ctx.get(editorViewCtx);
-                    const { state } = view;
-                    const lType = state.schema.marks["link"];
-                    if (!lType) {
-                        return;
-                    }
-                    let tr = state.tr;
-                    if (capturedFrom === capturedTo) {
-                        // 无选区：插入新文字并加链接
-                        const insertText = text || href;
-                        if (!insertText) {
-                            return;
-                        }
-                        tr = tr.insertText(insertText, capturedFrom);
-                        if (href) {
-                            tr = tr.addMark(
-                                capturedFrom,
-                                capturedFrom + insertText.length,
-                                lType.create({ href, title: null }),
-                            );
-                        }
-                    } else {
-                        // 有选区：替换文字并更新链接
-                        const newText = text || selectedText;
-                        tr = tr.removeMark(capturedFrom, capturedTo, lType);
-                        tr = tr.insertText(newText, capturedFrom, capturedTo);
-                        if (href && newText) {
-                            tr = tr.addMark(
-                                capturedFrom,
-                                capturedFrom + newText.length,
-                                lType.create({ href, title: null }),
-                            );
-                        }
-                    }
-                    view.dispatch(tr);
-                    view.focus();
-                });
-            },
-        );
-    });
-    toolbar.appendChild(linkBtnEl);
-
-    // 图片：弹出插入面板后插入 image 节点
-    let imgBtnEl: HTMLButtonElement;
-    imgBtnEl = btn(IconImage, t("Insert Image"), () => {
-        showImageInsertPanel(
-            (alt, src) => {
-                const editor = getEditor();
-                if (!editor) {
-                    return;
-                }
-                editor.action((ctx) => {
-                    const view = ctx.get(editorViewCtx);
-                    const { state } = view;
-                    const imageType = state.schema.nodes["image"];
-                    if (!imageType) {
-                        return;
-                    }
-                    const node = imageType.create({ src, alt, title: "" });
-                    view.dispatch(state.tr.replaceSelectionWith(node));
-                    view.focus();
-                });
-            },
-            onUploadImage,
-            onGetProjectImages,
-        );
-    });
-    toolbar.appendChild(imgBtnEl);
-
-    toolbar.appendChild(
-        btn(IconTable, t("Insert Table"), () =>
-            callCmd(getEditor, insertTableCommand, { row: 3, col: 3 }),
-        ),
+    // 插入
+    config.push(
+        { id: "link", type: "button", icon: IconLink, title: t("Insert/Edit Link") },
+        { id: "image", type: "button", icon: IconImage, title: t("Insert Image") },
+        { id: "table", type: "group", alwaysVisible: true, overflowable: false },
+        { id: "sep-insert", type: "separator" },
     );
 
-    toolbar.appendChild(sep());
-
-    // ── 列表（支持切换：再次点击取消） ──────────────────
-    toolbar.appendChild(
-        btn(IconList, t("Bullet List"), () => {
+    // 列表
+    config.push(
+        { id: "bullet-list", type: "button", icon: IconList, title: t("Bullet List"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
+            if (!editor) return;
             editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 if (isInNode(view, "bullet_list")) {
-                    // 已在无序列表中：lift 取消
                     lift(view.state, view.dispatch);
                 } else {
-                    ctx.get(commandsCtx).call(
-                        wrapInBulletListCommand.key as any,
-                    );
+                    ctx.get(commandsCtx).call(wrapInBulletListCommand.key as any);
                 }
             });
-        }),
-    );
-
-    toolbar.appendChild(
-        btn(IconListOrdered, t("Ordered List"), () => {
+        }},
+        { id: "ordered-list", type: "button", icon: IconListOrdered, title: t("Ordered List"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
+            if (!editor) return;
             editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 if (isInNode(view, "ordered_list")) {
                     lift(view.state, view.dispatch);
                 } else {
-                    ctx.get(commandsCtx).call(
-                        wrapInOrderedListCommand.key as any,
-                    );
+                    ctx.get(commandsCtx).call(wrapInOrderedListCommand.key as any);
                 }
             });
-        }),
-    );
-
-    // 任务列表：检测是否已是任务项，若是则 lift 取消
-    toolbar.appendChild(
-        btn(IconCheckSquare, t("Task List"), () => {
+        }},
+        { id: "task-list", type: "button", icon: IconCheckSquare, title: t("Task List"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
+            if (!editor) return;
             editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 const { state } = view;
-
-                // 检查是否已在 bullet_list 且有 checked 属性（任务列表）
                 const { $from } = state.selection;
                 let isTaskList = false;
                 for (let depth = $from.depth; depth >= 0; depth--) {
                     const node = $from.node(depth);
-                    if (
-                        node.type.name === "list_item" &&
-                        node.attrs["checked"] != null
-                    ) {
+                    if (node.type.name === "list_item" && node.attrs["checked"] != null) {
                         isTaskList = true;
                         break;
                     }
                 }
-
                 if (isTaskList) {
                     lift(state, view.dispatch);
                 } else {
-                    // 先包裹为 bullet_list，再将 list_item 设为任务项
                     const mgr = ctx.get(commandsCtx);
                     mgr.call(wrapInBulletListCommand.key as any);
-
                     const { state: newState, dispatch } = view;
                     const { from, to } = newState.selection;
                     let tr = newState.tr;
                     let changed = false;
                     newState.doc.nodesBetween(from, to, (node, pos) => {
-                        if (
-                            node.type.name === "list_item" &&
-                            node.attrs["checked"] == null
-                        ) {
-                            tr = tr.setNodeMarkup(pos, null, {
-                                ...node.attrs,
-                                checked: false,
-                            });
+                        if (node.type.name === "list_item" && node.attrs["checked"] == null) {
+                            tr = tr.setNodeMarkup(pos, null, { ...node.attrs, checked: false });
                             changed = true;
                         }
                     });
-                    if (changed) {
-                        dispatch(tr);
-                    }
+                    if (changed) dispatch(tr);
                 }
             });
-        }),
+        }},
+        { id: "sep-list", type: "separator" },
     );
 
-    toolbar.appendChild(sep());
-
-    // ── 块（支持切换） ──────────────────────────────────
-    toolbar.appendChild(
-        btn(IconQuote, t("Blockquote"), () => {
+    // 块
+    config.push(
+        { id: "blockquote", type: "button", icon: IconQuote, title: t("Blockquote"), onClick: () => {
             const editor = getEditor();
-            if (!editor) {
-                return;
-            }
+            if (!editor) return;
             editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 if (isInNode(view, "blockquote")) {
                     lift(view.state, view.dispatch);
                 } else {
-                    ctx.get(commandsCtx).call(
-                        wrapInBlockquoteCommand.key as any,
-                    );
+                    ctx.get(commandsCtx).call(wrapInBlockquoteCommand.key as any);
                 }
             });
-        }),
-    );
-    toolbar.appendChild(
-        btn(IconTerminal, t("Code Block"), () =>
-            callCmd(getEditor, createCodeBlockCommand),
-        ),
-    );
-    toolbar.appendChild(
-        btn(IconMinus, t("Horizontal Rule"), () =>
-            callCmd(getEditor, insertHrCommand),
-        ),
+        }},
+        { id: "code-block", type: "button", icon: IconTerminal, title: t("Code Block"), onClick: () => callCmd(getEditor, createCodeBlockCommand) },
+        { id: "hr", type: "button", icon: IconMinus, title: t("Horizontal Rule"), onClick: () => callCmd(getEditor, insertHrCommand) },
     );
 
-    const alignWrap = document.createElement("div");
-    alignWrap.className = "tb-align-wrap";
+    // 对齐 — 永远隐藏，不参与溢出
+    config.push({ id: "align", type: "hidden", overflowable: false });
 
-    const alignBtn = document.createElement("button");
-    alignBtn.className = "tb-btn";
-    alignBtn.innerHTML = IconAlignLeft;
-    applyTooltip(alignBtn, t("Align Left"));
-    alignBtn.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    });
+    // 调试 — 条件隐藏
+    if (debugOpts) {
+        config.push({ id: "debug", type: "hidden", overflowable: false });
+    }
 
-    const alignMenu = document.createElement("div");
-    alignMenu.className = "tb-align-menu";
-    alignMenu.style.display = "none";
+    // 设置
+    config.push(
+        { id: "sep-settings", type: "separator" },
+        { id: "settings", type: "button", icon: IconSettings, title: t("Settings"), onClick: () => notifyOpenSettings() },
+    );
 
-    const alignDefs: [string, string, string][] = [
-        [IconAlignLeft, t("Align Left"), "left"],
-        [IconAlignCenter, t("Align Center"), "center"],
-        [IconAlignRight, t("Align Right"), "right"],
-    ];
-    alignDefs.forEach(([icon, title, value]) => {
-        const item = document.createElement("div");
-        item.className = "tb-align-item";
-        item.innerHTML = icon;
-        applyTooltip(item as HTMLElement, title, { placement: "right" });
-        item.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const editor = getEditor();
-            if (!editor) return;
-            const view = editor.ctx.get(editorViewCtx);
-            if (!view) return;
-            const { $from } = view.state.selection;
-            const pos = $from.before($from.depth);
-            const node = $from.node($from.depth);
-
-            if (node.type.name === "html") {
-                const text = node.textContent;
-                const paraType = view.state.schema.nodes["paragraph"];
-                if (!paraType) return;
-                const newPara = paraType.create({}, view.state.schema.text(text));
-                const tr = view.state.tr.replaceWith(pos, pos + node.nodeSize, newPara);
-                tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
-                view.dispatch(tr);
-            } else if (node.type.name === "paragraph") {
-                const tr = view.state.tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
-                view.dispatch(tr);
-            }
-            // 更新主按钮图标和tooltip
-            alignBtn.innerHTML = icon;
-            applyTooltip(alignBtn, title);
-            alignMenu.style.display = "none";
-        });
-        alignMenu.appendChild(item);
-    });
-
-    let alignHideTimer: ReturnType<typeof setTimeout> | null = null;
-    alignWrap.addEventListener("mouseenter", () => {
-        if (alignHideTimer) { clearTimeout(alignHideTimer); alignHideTimer = null; }
-        const rect = alignBtn.getBoundingClientRect();
-        const approxH = alignDefs.length * 34;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        if (spaceBelow < approxH + 8) {
-            alignMenu.style.top = "auto";
-            alignMenu.style.bottom = "calc(100% + 6px)";
-        } else {
-            alignMenu.style.bottom = "auto";
-            alignMenu.style.top = "calc(100% + 6px)";
-        }
-        alignMenu.style.display = "flex";
-    });
-    alignWrap.addEventListener("mouseleave", () => {
-        alignHideTimer = setTimeout(() => { alignMenu.style.display = "none"; }, 100);
-    });
-    alignMenu.addEventListener("mouseenter", () => {
-        if (alignHideTimer) { clearTimeout(alignHideTimer); alignHideTimer = null; }
-    });
-
-    alignWrap.appendChild(alignBtn);
-    alignWrap.appendChild(alignMenu);
-    toolbar.appendChild(alignWrap);
-
-    // ── 调试工具按钮（始终创建，由 setDebugMode 控制显隐）─────────────────
+    // ── 从配置构建 DOM ─────────────────────────────────────
+    const elements = new Map<string, HTMLElement>();
+    const fmtItems: HTMLElement[] = [];
+    let fmtBtn: HTMLButtonElement;
+    let fmtWrap: HTMLElement;
+    let alignWrap: HTMLElement;
     let dbgSep: HTMLElement | null = null;
     let dbgWrap: HTMLElement | null = null;
 
-    if (debugOpts) {
-        const { getLineMap, getMarkdownSource } = debugOpts;
-
-        dbgSep = sep();
-        dbgSep.style.display = "none";
-
-        dbgWrap = document.createElement("div");
-        dbgWrap.className = "tb-fmt-wrap";
-        dbgWrap.style.display = "none";
-
-        const dbgBtn = document.createElement("button");
-        dbgBtn.className = "tb-btn tb-fmt-btn";
-        dbgBtn.innerHTML = IconList + IconChevronDown;
-        applyTooltip(dbgBtn, t("Debug tools"));
-        dbgBtn.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-
-        const dbgMenu = document.createElement("div");
-        dbgMenu.className = "tb-fmt-menu";
-        dbgMenu.style.display = "none";
-
-        const testLineItem = document.createElement("button");
-        testLineItem.className = "tb-fmt-item";
-        testLineItem.textContent = t("Test get line number");
-        testLineItem.addEventListener("click", async () => {
-            dbgMenu.style.display = "none";
-            const editor = getEditor();
-            if (!editor) {
-                return;
-            }
-            const view: EditorView = editor.action((ctx) =>
-                ctx.get(editorViewCtx),
-            );
-            if (!view) {
-                return;
-            }
-
-            const nodeCount = view.state.doc.childCount;
-            const step = Math.max(1, Math.floor(nodeCount / 10));
-            const samples: object[] = [];
-            let offset = 0;
-
-            for (let idx = 0; idx < nodeCount; idx++) {
-                const node = view.state.doc.child(idx);
-                if (idx % step === 0 && samples.length < 10) {
-                    samples.push({
-                        n: samples.length + 1,
-                        ...sampleDocPosition(
-                            view,
-                            offset + 1,
-                            getLineMap,
-                            getMarkdownSource,
-                        ),
+    for (const item of config) {
+        if (item.type === "button") {
+            const el = btn(item.icon!, item.title!, item.onClick!);
+            if (item.id === "link") {
+                // 链接按钮需要特殊处理（捕获选区）
+                el.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const editor = getEditor();
+                    if (!editor) return;
+                    let capturedFrom = 0;
+                    let capturedTo = 0;
+                    let existingHref = "";
+                    let selectedText = "";
+                    editor.action((ctx) => {
+                        const view = ctx.get(editorViewCtx);
+                        const { state } = view;
+                        const linkType = state.schema.marks["link"];
+                        if (!linkType) return;
+                        capturedFrom = state.selection.from;
+                        capturedTo = state.selection.to;
+                        if (capturedFrom !== capturedTo) {
+                            selectedText = state.doc.textBetween(capturedFrom, capturedTo);
+                        }
+                        state.doc.nodesBetween(capturedFrom, capturedTo, (node) => {
+                            const mark = linkType.isInSet(node.marks);
+                            if (mark) existingHref = (mark.attrs as Record<string, string>)["href"] ?? "";
+                        });
                     });
+                    showInlineLinkPrompt(el, selectedText, existingHref, (text, href) => {
+                        editor.action((ctx) => {
+                            const view = ctx.get(editorViewCtx);
+                            const { state } = view;
+                            const lType = state.schema.marks["link"];
+                            if (!lType) return;
+                            let tr = state.tr;
+                            if (capturedFrom === capturedTo) {
+                                const insertText = text || href;
+                                if (!insertText) return;
+                                tr = tr.insertText(insertText, capturedFrom);
+                                if (href) tr = tr.addMark(capturedFrom, capturedFrom + insertText.length, lType.create({ href, title: null }));
+                            } else {
+                                const newText = text || selectedText;
+                                tr = tr.removeMark(capturedFrom, capturedTo, lType);
+                                tr = tr.insertText(newText, capturedFrom, capturedTo);
+                                if (href && newText) tr = tr.addMark(capturedFrom, capturedFrom + newText.length, lType.create({ href, title: null }));
+                            }
+                            view.dispatch(tr);
+                            view.focus();
+                        });
+                    });
+                });
+                // 覆盖 onClick，由上面的 mousedown 处理
+                (el as any).__linkHandled = true;
+            }
+            if (item.id === "image") {
+                el.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showImageInsertPanel(
+                        (alt, src) => {
+                            const editor = getEditor();
+                            if (!editor) return;
+                            editor.action((ctx) => {
+                                const view = ctx.get(editorViewCtx);
+                                const { state } = view;
+                                const imageType = state.schema.nodes["image"];
+                                if (!imageType) return;
+                                const node = imageType.create({ src, alt, title: "" });
+                                view.dispatch(state.tr.replaceSelectionWith(node));
+                                view.focus();
+                            });
+                        },
+                        onUploadImage,
+                        onGetProjectImages,
+                    );
+                });
+            }
+            toolbar.appendChild(el);
+            elements.set(item.id, el);
+        } else if (item.type === "separator") {
+            toolbar.appendChild(sep());
+        } else if (item.type === "group" && item.id === "format") {
+            // 块格式下拉
+            fmtWrap = document.createElement("div");
+            fmtWrap.className = "tb-fmt-wrap";
+            fmtBtn = document.createElement("button");
+            fmtBtn.className = "tb-btn tb-fmt-btn";
+            fmtBtn.innerHTML = `<span class="tb-fmt-label">P</span>${IconChevronDown}`;
+            fmtBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+
+            const fmtMenu = document.createElement("div");
+            fmtMenu.className = "tb-fmt-menu";
+            fmtMenu.style.display = "none";
+
+            const formats: [string, () => void][] = [
+                ["P", () => callCmd(getEditor, turnIntoTextCommand)],
+                ["H1", () => callCmd(getEditor, wrapInHeadingCommand, 1)],
+                ["H2", () => callCmd(getEditor, wrapInHeadingCommand, 2)],
+                ["H3", () => callCmd(getEditor, wrapInHeadingCommand, 3)],
+                ["H4", () => callCmd(getEditor, wrapInHeadingCommand, 4)],
+                ["H5", () => callCmd(getEditor, wrapInHeadingCommand, 5)],
+                ["H6", () => callCmd(getEditor, wrapInHeadingCommand, 6)],
+            ];
+
+            formats.forEach(([label, action]) => {
+                const item = document.createElement("div");
+                item.className = "tb-fmt-item";
+                item.textContent = label;
+                item.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    action();
+                    fmtMenu.style.display = "none";
+                });
+                fmtMenu.appendChild(item);
+                fmtItems.push(item);
+            });
+
+            let fmtHideTimer: ReturnType<typeof setTimeout> | null = null;
+            function positionFmtMenu(): void {
+                const rect = fmtBtn.getBoundingClientRect();
+                const approxMenuH = formats.length * 30;
+                const spaceBelow = window.innerHeight - rect.bottom;
+                if (spaceBelow < approxMenuH + 8) {
+                    fmtMenu.style.top = "auto";
+                    fmtMenu.style.bottom = "calc(100% + 6px)";
+                } else {
+                    fmtMenu.style.bottom = "auto";
+                    fmtMenu.style.top = "calc(100% + 6px)";
                 }
-                offset += node.nodeSize;
             }
+            fmtWrap.addEventListener("mouseenter", () => {
+                if (fmtHideTimer) { clearTimeout(fmtHideTimer); fmtHideTimer = null; }
+                positionFmtMenu();
+                fmtMenu.style.display = "flex";
+            });
+            fmtWrap.addEventListener("mouseleave", () => {
+                fmtHideTimer = setTimeout(() => { fmtMenu.style.display = "none"; }, 100);
+            });
+            fmtMenu.addEventListener("mouseenter", () => {
+                if (fmtHideTimer) { clearTimeout(fmtHideTimer); fmtHideTimer = null; }
+            });
 
-            const json = JSON.stringify(
-                {
-                    ts: new Date().toISOString(),
-                    docNodes: nodeCount,
-                    lineMapLen: getLineMap().length,
-                    srcLines: getMarkdownSource().split("\n").length,
-                    samples,
-                },
-                null,
-                2,
-            );
-
-            try {
-                await navigator.clipboard.writeText(json);
-            } catch {
-                console.log(
-                    "[Debug] 测试行号结果（剪切板写入失败，改用 console）:",
-                    json,
-                );
-            }
-        });
-
-        dbgMenu.appendChild(testLineItem);
-        dbgWrap.appendChild(dbgBtn);
-        dbgWrap.appendChild(dbgMenu);
-
-        dbgWrap.addEventListener("mouseenter", () => {
-            dbgMenu.style.display = "flex";
-        });
-        dbgWrap.addEventListener("mouseleave", () => {
+            fmtWrap.appendChild(fmtBtn);
+            fmtWrap.appendChild(fmtMenu);
+            toolbar.appendChild(fmtWrap);
+            elements.set("format", fmtWrap);
+        } else if (item.type === "group" && item.id === "table") {
+            // 表格按钮 + 网格选择器
+            const tableBtn = btn(IconTable, "", () => callCmd(getEditor, insertTableCommand, { row: 3, col: 3 }));
+            const tableGridSelector = new TableGridSelector();
+            tableGridSelector.attachTo(tableBtn);
+            tableGridSelector.onSelect((rows, cols) => {
+                const editor = getEditor();
+                if (!editor) return;
+                editor.action((ctx) => {
+                    const view = ctx.get(editorViewCtx);
+                    const { state } = view;
+                    ctx.get(commandsCtx).call(insertTableCommand.key as any, { row: rows, col: cols });
+                    const newState = view.state;
+                    const { $from } = newState.selection;
+                    for (let depth = $from.depth; depth >= 0; depth--) {
+                        const node = $from.node(depth);
+                        if (node.type.name === 'table') {
+                            const tableStart = $from.before(depth);
+                            let found = false;
+                            newState.doc.nodesBetween(tableStart, tableStart + node.nodeSize, (n, p) => {
+                                if (found) return false;
+                                if (n.type.name === 'paragraph' && p > tableStart) {
+                                    const tr = newState.tr;
+                                    tr.setSelection(TextSelection.create(tr.doc, p + 1));
+                                    view.dispatch(tr);
+                                    view.focus();
+                                    found = true;
+                                    return false;
+                                }
+                            });
+                            break;
+                        }
+                    }
+                });
+            });
+            toolbar.appendChild(tableBtn);
+            elements.set("table", tableBtn);
+        } else if (item.type === "hidden" && item.id === "align") {
+            // 对齐按钮组
+            alignWrap = document.createElement("div");
+            alignWrap.className = "tb-align-wrap";
+            alignWrap.style.display = "none";
+            const alignBtn = document.createElement("button");
+            alignBtn.className = "tb-btn";
+            alignBtn.innerHTML = IconAlignLeft;
+            applyTooltip(alignBtn, t("Align Left"));
+            alignBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+            const alignMenu = document.createElement("div");
+            alignMenu.className = "tb-align-menu";
+            alignMenu.style.display = "none";
+            const alignDefs: [string, string, string][] = [
+                [IconAlignLeft, t("Align Left"), "left"],
+                [IconAlignCenter, t("Align Center"), "center"],
+                [IconAlignRight, t("Align Right"), "right"],
+            ];
+            alignDefs.forEach(([icon, title, value]) => {
+                const item = document.createElement("div");
+                item.className = "tb-align-item";
+                item.innerHTML = icon;
+                applyTooltip(item as HTMLElement, title, { placement: "right" });
+                item.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const editor = getEditor();
+                    if (!editor) return;
+                    const view = editor.ctx.get(editorViewCtx);
+                    if (!view) return;
+                    const { $from } = view.state.selection;
+                    const pos = $from.before($from.depth);
+                    const node = $from.node($from.depth);
+                    if (node.type.name === "html") {
+                        const text = node.textContent;
+                        const paraType = view.state.schema.nodes["paragraph"];
+                        if (!paraType) return;
+                        const newPara = paraType.create({}, view.state.schema.text(text));
+                        const tr = view.state.tr.replaceWith(pos, pos + node.nodeSize, newPara);
+                        tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
+                        view.dispatch(tr);
+                    } else if (node.type.name === "paragraph") {
+                        const tr = view.state.tr.setMeta(alignmentPluginKey, { action: "set", pos, align: value });
+                        view.dispatch(tr);
+                    }
+                    alignBtn.innerHTML = icon;
+                    applyTooltip(alignBtn, title);
+                    alignMenu.style.display = "none";
+                });
+                alignMenu.appendChild(item);
+            });
+            let alignHideTimer: ReturnType<typeof setTimeout> | null = null;
+            alignWrap.addEventListener("mouseenter", () => {
+                if (alignHideTimer) { clearTimeout(alignHideTimer); alignHideTimer = null; }
+                const rect = alignBtn.getBoundingClientRect();
+                const approxH = alignDefs.length * 34;
+                const spaceBelow = window.innerHeight - rect.bottom;
+                if (spaceBelow < approxH + 8) {
+                    alignMenu.style.top = "auto";
+                    alignMenu.style.bottom = "calc(100% + 6px)";
+                } else {
+                    alignMenu.style.bottom = "auto";
+                    alignMenu.style.top = "calc(100% + 6px)";
+                }
+                alignMenu.style.display = "flex";
+            });
+            alignWrap.addEventListener("mouseleave", () => {
+                alignHideTimer = setTimeout(() => { alignMenu.style.display = "none"; }, 100);
+            });
+            alignMenu.addEventListener("mouseenter", () => {
+                if (alignHideTimer) { clearTimeout(alignHideTimer); alignHideTimer = null; }
+            });
+            alignWrap.appendChild(alignBtn);
+            alignWrap.appendChild(alignMenu);
+            toolbar.appendChild(alignWrap);
+            elements.set("align", alignWrap);
+        } else if (item.type === "hidden" && item.id === "debug" && debugOpts) {
+            // 调试按钮组
+            const { getLineMap, getMarkdownSource } = debugOpts;
+            dbgSep = sep();
+            dbgSep.style.display = "none";
+            dbgWrap = document.createElement("div");
+            dbgWrap.className = "tb-fmt-wrap";
+            dbgWrap.style.display = "none";
+            const dbgBtn = document.createElement("button");
+            dbgBtn.className = "tb-btn tb-fmt-btn";
+            dbgBtn.innerHTML = IconList + IconChevronDown;
+            applyTooltip(dbgBtn, t("Debug tools"));
+            dbgBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+            const dbgMenu = document.createElement("div");
+            dbgMenu.className = "tb-fmt-menu";
             dbgMenu.style.display = "none";
-        });
-
-        toolbar.appendChild(dbgSep);
-        toolbar.appendChild(dbgWrap);
+            const testLineItem = document.createElement("button");
+            testLineItem.className = "tb-fmt-item";
+            testLineItem.textContent = t("Test get line number");
+            testLineItem.addEventListener("click", async () => {
+                dbgMenu.style.display = "none";
+                const editor = getEditor();
+                if (!editor) return;
+                const view: EditorView = editor.action((ctx) => ctx.get(editorViewCtx));
+                if (!view) return;
+                const nodeCount = view.state.doc.childCount;
+                const step = Math.max(1, Math.floor(nodeCount / 10));
+                const samples: object[] = [];
+                let offset = 0;
+                for (let idx = 0; idx < nodeCount; idx++) {
+                    const node = view.state.doc.child(idx);
+                    if (idx % step === 0 && samples.length < 10) {
+                        samples.push({ n: samples.length + 1, ...sampleDocPosition(view, offset + 1, getLineMap, getMarkdownSource) });
+                    }
+                    offset += node.nodeSize;
+                }
+                const json = JSON.stringify({ ts: new Date().toISOString(), docNodes: nodeCount, lineMapLen: getLineMap().length, srcLines: getMarkdownSource().split("\n").length, samples }, null, 2);
+                try { await navigator.clipboard.writeText(json); } catch { console.log("[Debug] 测试行号结果:", json); }
+            });
+            dbgMenu.appendChild(testLineItem);
+            dbgWrap.appendChild(dbgBtn);
+            dbgWrap.appendChild(dbgMenu);
+            dbgWrap.addEventListener("mouseenter", () => { dbgMenu.style.display = "flex"; });
+            dbgWrap.addEventListener("mouseleave", () => { dbgMenu.style.display = "none"; });
+            toolbar.appendChild(dbgSep);
+            toolbar.appendChild(dbgWrap);
+            elements.set("debug", dbgWrap);
+        }
     }
-
-    // ── 设置按钮 ────────────────────────────────────────
-    toolbar.appendChild(
-        btn(IconSettings, t("Settings"), () => notifyOpenSettings()),
-    );
 
     topbar.appendChild(toolbar);
 
@@ -1326,10 +1154,199 @@ export function initToolbar(
         dbgWrap.style.display = "";
     }
 
+    // ── 溢出检测与下拉菜单 ─────────────────────────────────
+    const overflowMenu = document.createElement("div");
+    overflowMenu.className = "tb-overflow-menu";
+    document.body.appendChild(overflowMenu);
+
+    // 溢出按钮放回 toolbar 内部
+    const overflowBtn = document.createElement("button");
+    overflowBtn.className = "tb-overflow-btn";
+    overflowBtn.innerHTML = IconOverflow;
+    applyTooltip(overflowBtn, t("More tools"));
+    toolbar.appendChild(overflowBtn);
+
+    // wrapper 包裹 toolbar
+    const toolbarWrapper = document.createElement("div");
+    toolbarWrapper.className = "toolbar-wrapper";
+    toolbar.parentNode?.insertBefore(toolbarWrapper, toolbar);
+    toolbarWrapper.appendChild(toolbar);
+
+    let overflowOpen = false;
+
+    function closeOverflow(): void {
+        overflowOpen = false;
+        overflowMenu.classList.remove("tb-overflow-menu--visible");
+        document.removeEventListener("mousedown", onOverflowOutsideClick);
+    }
+
+    function onOverflowOutsideClick(e: MouseEvent): void {
+        if (!overflowMenu.contains(e.target as Node) && e.target !== overflowBtn) {
+            closeOverflow();
+        }
+    }
+
+    overflowBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (overflowOpen) {
+            closeOverflow();
+        } else {
+            overflowOpen = true;
+            hideTooltip();
+            overflowMenu.classList.add("tb-overflow-menu--visible");
+            const rect = overflowBtn.getBoundingClientRect();
+            const menuH = overflowMenu.offsetHeight;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if (spaceBelow < menuH + 8) {
+                overflowMenu.style.top = "auto";
+                overflowMenu.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+            } else {
+                overflowMenu.style.top = `${rect.bottom + 4}px`;
+                overflowMenu.style.bottom = "auto";
+            }
+            overflowMenu.style.left = `${Math.min(
+                rect.left + rect.width / 2 - overflowMenu.offsetWidth / 2,
+                window.innerWidth - overflowMenu.offsetWidth - 8,
+            )}px`;
+            setTimeout(() => {
+                document.addEventListener("mousedown", onOverflowOutsideClick);
+            }, 0);
+        }
+    });
+
+    // ── 溢出检测 ───────────────────────────────────────────
+    const hiddenByOverflow = new Set<HTMLElement>();
+    let checking = false;
+
+    function getAllVisibleChildren(): HTMLElement[] {
+        return Array.from(toolbar.children).filter((child) => {
+            if (hiddenByOverflow.has(child)) return false;
+            const style = window.getComputedStyle(child);
+            return style.display !== "none";
+        }) as HTMLElement[];
+    }
+
+    function isOverflowableButton(el: HTMLElement): boolean {
+        if (el.classList.contains("tb-sep")) return false;
+        for (const [id, el2] of elements) {
+            if (el2 === el) {
+                const cfg = config.find((c) => c.id === id);
+                return cfg ? cfg.overflowable !== false && cfg.type !== "hidden" : true;
+            }
+        }
+        return false;
+    }
+
+    function checkOverflow(): void {
+        if (checking) return;
+        checking = true;
+
+        closeOverflow();
+
+        // 恢复
+        for (const child of hiddenByOverflow) child.style.display = "";
+        hiddenByOverflow.clear();
+        overflowBtn.style.display = "none";
+
+        const children = getAllVisibleChildren();
+        const gap = 2;
+        const available = toolbarWrapper.clientWidth - 4;
+
+        // 测量所有子元素累计宽度（含 margin）
+        let totalWidth = 0;
+        let firstOverflowIdx = -1;
+        for (let i = 0; i < children.length; i++) {
+            const rect = children[i].getBoundingClientRect();
+            const style = window.getComputedStyle(children[i]);
+            const ml = parseFloat(style.marginLeft) || 0;
+            const mr = parseFloat(style.marginRight) || 0;
+            totalWidth += rect.width + ml + mr + gap;
+            if (totalWidth > available && firstOverflowIdx === -1) {
+                firstOverflowIdx = i;
+            }
+        }
+
+        if (firstOverflowIdx === -1) {
+            checking = false;
+            return;
+        }
+
+        overflowBtn.style.display = "flex";
+        overflowMenu.innerHTML = "";
+
+        // 从溢出点开始隐藏所有子元素
+        for (let i = firstOverflowIdx; i < children.length; i++) {
+            children[i].style.display = "none";
+            hiddenByOverflow.add(children[i]);
+        }
+
+        // 二次检查：逐个隐藏被裁切的末尾按钮（跳过分隔符）
+        for (;;) {
+            const remaining = getAllVisibleChildren();
+            // 找最后一个按钮（非分隔符）
+            let lastBtn: HTMLElement | null = null;
+            for (let i = remaining.length - 1; i >= 0; i--) {
+                if (isOverflowableButton(remaining[i])) {
+                    lastBtn = remaining[i];
+                    break;
+                }
+            }
+            if (!lastBtn) break;
+            const lastRect = lastBtn.getBoundingClientRect();
+            const toolbarRect = toolbar.getBoundingClientRect();
+            if (lastRect.right <= toolbarRect.right + 1) break;
+            lastBtn.style.display = "none";
+            hiddenByOverflow.add(lastBtn);
+        }
+
+        // 构建溢出菜单（按 DOM 顺序排列）
+        const sortedHidden = Array.from(hiddenByOverflow).sort((a, b) => {
+            const children = Array.from(toolbar.children);
+            return children.indexOf(a) - children.indexOf(b);
+        });
+        for (const child of sortedHidden) {
+            if (!isOverflowableButton(child)) continue;
+            const svgEl = child.querySelector("svg");
+            if (!svgEl) continue;
+
+            const clonedBtn = document.createElement("button");
+            clonedBtn.className = "tb-overflow-item";
+            clonedBtn.innerHTML = svgEl.outerHTML;
+            const tooltipText = child.dataset.tooltip || "";
+            if (tooltipText) applyTooltip(clonedBtn, tooltipText);
+
+            const capturedChild = child;
+            clonedBtn.addEventListener("mousedown", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const target = capturedChild.querySelector("button") as HTMLElement | null;
+                if (target) target.click();
+                else capturedChild.click();
+                closeOverflow();
+            });
+
+            overflowMenu.appendChild(clonedBtn);
+        }
+
+        if (overflowMenu.children.length === 0) {
+            overflowBtn.style.display = "none";
+        }
+
+        checking = false;
+    }
+
+    window.addEventListener("resize", () => {
+        if (overflowOpen) closeOverflow();
+        requestAnimationFrame(checkOverflow);
+    });
+
+    requestAnimationFrame(checkOverflow);
+
     return {
         onSelectionChange(view: EditorView): void {
             const { $from } = view.state.selection;
-            let activeLevel = 0; // 0 = paragraph
+            let activeLevel = 0;
             for (let d = $from.depth; d >= 0; d--) {
                 const n = $from.node(d);
                 if (n.type.name === "heading") {
@@ -1341,14 +1358,12 @@ export function initToolbar(
                     break;
                 }
             }
-            // 更新按钮显示的格式标签
-            const labelEl = fmtBtn.querySelector(".tb-fmt-label");
+            const labelEl = fmtBtn?.querySelector(".tb-fmt-label");
             if (labelEl) {
-                const labels = ["P","H1","H2","H3","H4","H5","H6"];
+                const labels = ["P", "H1", "H2", "H3", "H4", "H5", "H6"];
                 labelEl.textContent = activeLevel === -1 ? "—" : (labels[activeLevel] ?? "P");
             }
             fmtItems.forEach((item, i) => {
-                // i=0 → P (activeLevel===0), i=1..6 → H1..H6 (activeLevel===i)
                 item.classList.toggle(
                     "tb-fmt-item--active",
                     i === 0 ? activeLevel === 0 : i === activeLevel,
@@ -1356,11 +1371,10 @@ export function initToolbar(
             });
         },
         setDebugMode(enabled: boolean): void {
-            if (!dbgSep || !dbgWrap) {
-                return;
-            }
+            if (!dbgSep || !dbgWrap) return;
             dbgSep.style.display = enabled ? "" : "none";
             dbgWrap.style.display = enabled ? "" : "none";
+            requestAnimationFrame(checkOverflow);
         },
     };
 }

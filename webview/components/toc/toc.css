@@ -108,20 +108,14 @@
     border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
     border-left: none;
     border-radius: 0 4px 4px 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: var(--vscode-foreground);
     font-size: 12px;
-    user-select: none;
     z-index: 100;
-    padding: 0;
     transition: left 0.2s ease; /* 与 panel transform 动画同步 */
-}
 
-.toc-toggle-tab:hover {
-    background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+    &:hover {
+        background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+    }
 }
 
 body.toc-overlay-open .toc-toggle-tab {

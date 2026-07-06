@@ -17,8 +17,8 @@
  * - messageHandlers: 消息分发
  * - scrollPersistence: 滚动位置持久化
  */
-
 import "./style.css";
+import "./icon/codicon.css";
 import {
     createEditor,
     getEditorView,
@@ -199,6 +199,7 @@ async function initEditor(
         (updated) => {
             notifyUpdate(updated);
             toc.refresh();
+            findBar.refresh();
         },
         handleRenameImage,
     );
@@ -212,7 +213,7 @@ const eventManager = createEventManager();
 const toc = initToc(eventManager, () => getEditorView());
 document.body.appendChild(toc.panel);
 
-const findBar = initFindBar(() => document.getElementById("editor"));
+const findBar = initFindBar(() => document.getElementById("editor"), getEditorView);
 
 const topbar = document.querySelector<HTMLElement>(".editor-topbar");
 const topbarTb = topbar

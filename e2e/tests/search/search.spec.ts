@@ -15,8 +15,8 @@ test.describe('Search Feature (Command+F)', () => {
     test('快捷键打开搜索框', async ({ contentFrame, vsCodeWin }) => {
         // 初始状态：搜索框不应该可见
         const initialVisible = await contentFrame.evaluate(() => {
-            const bar = document.querySelector('.find-bar');
-            return bar ? bar.classList.contains('find-bar--visible') : false;
+            const bar = document.querySelector('.find-widget');
+            return bar ? bar.classList.contains('find-widget--visible') : false;
         });
         expect(initialVisible).toBe(false);
 
@@ -25,8 +25,8 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 搜索框应该出现
         const isVisible = await contentFrame.evaluate(() => {
-            const bar = document.querySelector('.find-bar');
-            return bar ? bar.classList.contains('find-bar--visible') : false;
+            const bar = document.querySelector('.find-widget');
+            return bar ? bar.classList.contains('find-widget--visible') : false;
         });
         expect(isVisible).toBe(true);
     });
@@ -36,11 +36,11 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 检查搜索框结构
         const searchStructure = await contentFrame.evaluate(() => {
-            const input = document.querySelector('.find-bar__input');
-            const btnPrev = document.querySelector('.find-bar__btn[aria-label*="Previous"]');
-            const btnNext = document.querySelector('.find-bar__btn[aria-label*="Next"]');
-            const btnClose = document.querySelector('.find-bar__btn[aria-label="Close"]');
-            const btnCase = document.querySelector('.find-bar__btn[aria-label*="Case"]');
+            const input = document.querySelector('.find-widget__input');
+            const btnPrev = document.querySelector('.find-widget__btn[aria-label*="Previous"]');
+            const btnNext = document.querySelector('.find-widget__btn[aria-label*="Next"]');
+            const btnClose = document.querySelector('.find-widget__btn[aria-label="Close"]');
+            const btnCase = document.querySelector('.find-widget__btn[aria-label*="Case"]');
             return {
                 hasInput: !!input,
                 hasPrevBtn: !!btnPrev,
@@ -64,8 +64,8 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 确认搜索框已打开
         const isVisibleBefore = await contentFrame.evaluate(() => {
-            const bar = document.querySelector('.find-bar');
-            return bar ? bar.classList.contains('find-bar--visible') : false;
+            const bar = document.querySelector('.find-widget');
+            return bar ? bar.classList.contains('find-widget--visible') : false;
         });
         expect(isVisibleBefore).toBe(true);
 
@@ -74,8 +74,8 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 搜索框应该关闭
         const isVisibleAfter = await contentFrame.evaluate(() => {
-            const bar = document.querySelector('.find-bar');
-            return bar ? bar.classList.contains('find-bar--visible') : false;
+            const bar = document.querySelector('.find-widget');
+            return bar ? bar.classList.contains('find-widget--visible') : false;
         });
         expect(isVisibleAfter).toBe(false);
     });
@@ -84,13 +84,13 @@ test.describe('Search Feature (Command+F)', () => {
         await openSearch(contentFrame, vsCodeWin);
 
         // 输入搜索关键词（使用文件中实际存在的内容）
-        const searchInput = contentFrame.locator('.find-bar__input');
+        const searchInput = contentFrame.locator('.find-widget__input');
         await searchInput.fill('标题');
         await vsCodeWin.waitForTimeout(500);
 
         // 检查搜索结果计数
         const resultCount = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
 
@@ -105,32 +105,32 @@ test.describe('Search Feature (Command+F)', () => {
         await openSearch(contentFrame, vsCodeWin);
 
         // 输入小写关键词搜索（TypeScriptjava 包含 typescript）
-        const searchInput = contentFrame.locator('.find-bar__input');
+        const searchInput = contentFrame.locator('.find-widget__input');
         await searchInput.fill('typescript');
         await vsCodeWin.waitForTimeout(500);
 
         // 记录不区分大小写的结果数
         const countBefore = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(countBefore).toContain('/');
 
         // 开启区分大小写
-        const caseBtn = contentFrame.locator('.find-bar__btn[aria-label*="Case"]');
+        const caseBtn = contentFrame.locator('.find-widget__btn[aria-label*="Case"]');
         await caseBtn.click();
         await vsCodeWin.waitForTimeout(500);
 
         // 验证按钮状态
         const isCaseActive = await contentFrame.evaluate(() => {
-            const btn = document.querySelector('.find-bar__btn[aria-label*="Case"]');
+            const btn = document.querySelector('.find-widget__btn[aria-label*="Case"]');
             return btn ? btn.getAttribute('aria-pressed') === 'true' : false;
         });
         expect(isCaseActive).toBe(true);
 
         // 记录区分大小写后的结果数
         const countAfter = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
 
@@ -144,13 +144,13 @@ test.describe('Search Feature (Command+F)', () => {
         await openSearch(contentFrame, vsCodeWin);
 
         // 输入有多个匹配的关键词
-        const searchInput = contentFrame.locator('.find-bar__input');
+        const searchInput = contentFrame.locator('.find-widget__input');
         await searchInput.fill('标题');
         await vsCodeWin.waitForTimeout(500);
 
         // 获取初始结果位置
         const initialCount = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(initialCount).toContain('1/');
@@ -161,7 +161,7 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 验证结果位置变化
         const afterNextCount = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(afterNextCount).toContain('2/');
@@ -173,7 +173,7 @@ test.describe('Search Feature (Command+F)', () => {
         await openSearch(contentFrame, vsCodeWin);
 
         // 输入有多个匹配的关键词
-        const searchInput = contentFrame.locator('.find-bar__input');
+        const searchInput = contentFrame.locator('.find-widget__input');
         await searchInput.fill('标题');
         await vsCodeWin.waitForTimeout(500);
 
@@ -182,7 +182,7 @@ test.describe('Search Feature (Command+F)', () => {
         await vsCodeWin.waitForTimeout(300);
 
         const countAt2 = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(countAt2).toContain('2/');
@@ -193,7 +193,7 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 验证回到第1个
         const countAt1 = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(countAt1).toContain('1/');
@@ -205,7 +205,7 @@ test.describe('Search Feature (Command+F)', () => {
         await openSearch(contentFrame, vsCodeWin);
 
         // 输入有多个匹配的关键词
-        const searchInput = contentFrame.locator('.find-bar__input');
+        const searchInput = contentFrame.locator('.find-widget__input');
         await searchInput.fill('标题');
         await vsCodeWin.waitForTimeout(500);
 
@@ -214,7 +214,7 @@ test.describe('Search Feature (Command+F)', () => {
         await vsCodeWin.waitForTimeout(300);
 
         const countAfterEnter = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(countAfterEnter).toContain('2/');
@@ -224,7 +224,7 @@ test.describe('Search Feature (Command+F)', () => {
         await vsCodeWin.waitForTimeout(300);
 
         const countAfterShiftEnter = await contentFrame.evaluate(() => {
-            const count = document.querySelector('.find-bar__count');
+            const count = document.querySelector('.find-widget__count');
             return count ? count.textContent : '';
         });
         expect(countAfterShiftEnter).toContain('1/');
@@ -237,20 +237,20 @@ test.describe('Search Feature (Command+F)', () => {
 
         // 确认搜索框已打开
         const isVisibleBefore = await contentFrame.evaluate(() => {
-            const bar = document.querySelector('.find-bar');
-            return bar ? bar.classList.contains('find-bar--visible') : false;
+            const bar = document.querySelector('.find-widget');
+            return bar ? bar.classList.contains('find-widget--visible') : false;
         });
         expect(isVisibleBefore).toBe(true);
 
         // 点击关闭按钮
-        const closeBtn = contentFrame.locator('.find-bar__btn[aria-label="Close"]');
+        const closeBtn = contentFrame.locator('.find-widget__btn[aria-label="Close"]');
         await closeBtn.click();
         await vsCodeWin.waitForTimeout(500);
 
         // 搜索框应该关闭
         const isVisibleAfter = await contentFrame.evaluate(() => {
-            const bar = document.querySelector('.find-bar');
-            return bar ? bar.classList.contains('find-bar--visible') : false;
+            const bar = document.querySelector('.find-widget');
+            return bar ? bar.classList.contains('find-widget--visible') : false;
         });
         expect(isVisibleAfter).toBe(false);
     });

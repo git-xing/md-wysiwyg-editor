@@ -92,4 +92,12 @@ export const ZH_CN_WEBVIEW: Record<string, string> = {
     'Next Match': '下一个匹配项',
     'Match Case': '区分大小写',
     'No results': '无结果',
+    'Use Regular Expression': '使用正则表达式',
+    'Replace': '替换',
+    'Replace All': '全部替换',
+    'Toggle Replace': '切换替换',
+    'Invalid regular expression': '无效的正则表达式',
+    'Click to select entire row · Drag to reorder': '点击选中整行 · 拖拽重排',
+    'Click to select entire column · Drag to reorder': '点击选中整列 · 拖拽重排',
+    'More tools': '更多工具',
 };

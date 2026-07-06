@@ -671,10 +671,12 @@ export function setupSelectionToolbar(
     tableSep.style.display = "none";
     toolbar.appendChild(tableSep);
 
+    // TODO: 对齐功能待后续版本完善，暂时隐藏入口
     // 对齐下拉（单图标 hover 展开）
     const alignWrap = document.createElement("div");
     alignWrap.className = "sel-tb-fmt-wrap";
     alignWrap.style.display = "none";
+    alignWrap.dataset.disabled = "true";
 
     const alignBtn = document.createElement("button");
     alignBtn.className = "sel-tb-btn sel-tb-fmt-btn";
@@ -962,7 +964,9 @@ export function setupSelectionToolbar(
                 selection as CellSelection,
             );
             tableSep.style.display = "none";
-            alignWrap.style.display = isCol && !isEntireTable ? "" : "none";
+            // TODO: 对齐功能待后续版本完善，暂时隐藏入口
+            // alignWrap.style.display = isCol && !isEntireTable ? "" : "none";
+            alignWrap.style.display = "none";
 
             // 删除按钮显示逻辑
             const headerRow = isRow && isFirstRow(selection as CellSelection);
@@ -1013,7 +1017,8 @@ export function setupSelectionToolbar(
 
         // 对齐方式：文字模式下也显示
         tableSep.style.display = "";
-        alignWrap.style.display = "";
+        // TODO: 对齐功能待后续版本完善，暂时隐藏入口
+        // alignWrap.style.display = "";
         deleteRowBtn.style.display = "none";
         clearHeaderBtn.style.display = "none";
         deleteTableBtn.style.display = "none";

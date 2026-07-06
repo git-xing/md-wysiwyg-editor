@@ -117,7 +117,7 @@ function showEditPanel(
     title.textContent = t("Edit Picture");
 
     const closeBtn = document.createElement("button");
-    closeBtn.className = "picture-edit-close";
+    closeBtn.className = "icon-btn picture-edit-close";
     closeBtn.textContent = "×";
     closeBtn.addEventListener("click", () => panel.remove());
     title.appendChild(closeBtn);
@@ -146,7 +146,7 @@ function showEditPanel(
         typeInput.value = source?.type || "";
 
         const removeBtn = document.createElement("button");
-        removeBtn.className = "picture-edit-remove-btn";
+        removeBtn.className = "icon-btn picture-edit-remove-btn";
         removeBtn.innerHTML = IconTrash2;
         removeBtn.addEventListener("click", () => row.remove());
 

@@ -77,10 +77,6 @@
 }
 
 .picture-edit-close {
-    background: transparent;
-    border: none;
-    color: var(--vscode-editor-foreground);
-    cursor: pointer;
     font-size: 16px;
     padding: 0 4px;
 }
@@ -127,28 +123,11 @@
 }
 
 .picture-edit-remove-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    background: transparent;
-    border: none;
     color: var(--vscode-descriptionForeground);
-    cursor: pointer;
-    border-radius: 3px;
-    flex-shrink: 0;
 }
 
 .picture-edit-remove-btn:hover {
     color: var(--vscode-errorForeground, #f44);
-    background: var(--vscode-toolbar-hoverBackground);
-}
-
-.picture-edit-remove-btn svg {
-    width: 12px;
-    height: 12px;
 }
 
 .picture-edit-add-btn {

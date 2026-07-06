@@ -399,7 +399,7 @@ export function createCodeBlockView(
 
     function makeMermaidBtn(icon: string, tipText: string, extraClass = ""): HTMLButtonElement {
         return createButton({
-            className: "mermaid-zoom-btn" + (extraClass ? ` ${extraClass}` : ""),
+            className: "icon-btn mermaid-zoom-btn" + (extraClass ? ` ${extraClass}` : ""),
             icon,
             tabIndex: -1,
             title: tipText,
@@ -413,7 +413,7 @@ export function createCodeBlockView(
 
     // 代码/预览切换按钮（仅 mermaid 时显示）
     const toggleBtn = document.createElement("button");
-    toggleBtn.className = "code-view-toggle-btn";
+    toggleBtn.className = "icon-btn code-view-toggle-btn";
     toggleBtn.tabIndex = -1;
     toggleBtn.innerHTML = IconEye;
     toggleBtn.style.display = isMermaid ? "inline-flex" : "none";
@@ -421,21 +421,21 @@ export function createCodeBlockView(
 
     // 当前代码块自动换行开关（局部覆盖，不写入 Markdown）
     const wordWrapBtn = document.createElement("button");
-    wordWrapBtn.className = "code-wrap-toggle-btn";
+    wordWrapBtn.className = "icon-btn code-wrap-toggle-btn";
     wordWrapBtn.tabIndex = -1;
     wordWrapBtn.innerHTML = IconWrapText;
     const wordWrapTooltip = applyTooltip(wordWrapBtn, t("Toggle Word Wrap"), { placement: "above" });
 
     // 全屏按钮（常驻）
     const fullscreenBtn = document.createElement("button");
-    fullscreenBtn.className = "mermaid-zoom-btn code-block-fullscreen-btn";
+    fullscreenBtn.className = "icon-btn mermaid-zoom-btn code-block-fullscreen-btn";
     fullscreenBtn.tabIndex = -1;
     fullscreenBtn.innerHTML = IconMaximize2;
     applyTooltip(fullscreenBtn, t("View Fullscreen"), { placement: "above" });
 
     // 复制按钮
     const copyBtn = document.createElement("button");
-    copyBtn.className = "copy-btn";
+    copyBtn.className = "icon-btn copy-btn";
     copyBtn.tabIndex = -1;
     copyBtn.innerHTML = IconCopy;
     const copyTooltip = applyTooltip(copyBtn, t("Copy Code"), { placement: "above" });
@@ -542,7 +542,7 @@ export function createCodeBlockView(
 
     const overlayZoomOut = makeMermaidBtn(IconZoomOut, t("Zoom Out"), "mermaid-overlay-btn");
     const overlayZoomVal = document.createElement("button");
-    overlayZoomVal.className = "mermaid-zoom-btn mermaid-overlay-btn mermaid-overlay-val";
+    overlayZoomVal.className = "icon-btn mermaid-zoom-btn mermaid-overlay-btn mermaid-overlay-val";
     overlayZoomVal.tabIndex = -1;
     overlayZoomVal.textContent = "100%";
     applyTooltip(overlayZoomVal, t("Reset Zoom"), { placement: "above" });
@@ -559,7 +559,7 @@ export function createCodeBlockView(
 
     // 中间 reset 按钮（fit-to-view）
     const panResetBtn = document.createElement("button");
-    panResetBtn.className = "mermaid-pan-btn mermaid-pan-reset";
+    panResetBtn.className = "icon-btn mermaid-pan-btn mermaid-pan-reset";
     panResetBtn.tabIndex = -1;
     panResetBtn.innerHTML = IconResetZoom;
     applyTooltip(panResetBtn, t("Reset Zoom"), { placement: "above" });
@@ -593,7 +593,7 @@ export function createCodeBlockView(
 
     function makePanBtn(icon: string, dir: string): HTMLButtonElement {
         const btn = document.createElement("button");
-        btn.className = "mermaid-pan-btn";
+        btn.className = "icon-btn mermaid-pan-btn";
         btn.tabIndex = -1;
         btn.innerHTML = icon;
         btn.addEventListener("mousedown", (e) => {
@@ -1055,13 +1055,13 @@ export function createCodeBlockView(
         lbTitle.textContent = "Mermaid";
 
         const lbToggleBtn = document.createElement("button");
-        lbToggleBtn.className = "mermaid-zoom-btn";
+        lbToggleBtn.className = "icon-btn mermaid-zoom-btn";
         lbToggleBtn.tabIndex = -1;
         lbToggleBtn.innerHTML = IconCode;
         const lbToggleTip = applyTooltip(lbToggleBtn, t("Edit Code"), { placement: "above" });
         const lbZoomOutBtn  = makeMermaidBtn(IconZoomOut, t("Zoom Out"));
         const lbZoomResetBtn = document.createElement("button");
-        lbZoomResetBtn.className = "mermaid-zoom-btn";
+        lbZoomResetBtn.className = "icon-btn mermaid-zoom-btn";
         lbZoomResetBtn.tabIndex = -1;
         lbZoomResetBtn.textContent = "100%";
         applyTooltip(lbZoomResetBtn, t("Reset Zoom"), { placement: "above" });

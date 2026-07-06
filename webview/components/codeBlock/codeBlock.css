@@ -128,30 +128,14 @@
 /* 复制按钮（SVG 图标） */
 .copy-btn,
 .code-wrap-toggle-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 26px;
     height: 22px;
-    background: transparent;
-    color: var(--vscode-editor-foreground);
-    border: 1px solid transparent;
-    border-radius: 3px;
-    cursor: pointer;
     opacity: 0.6;
-    transition:
-        opacity 0.1s,
-        background 0.1s,
-        color 0.15s;
-    flex-shrink: 0;
-    padding: 0;
 }
 
 .copy-btn:hover,
 .code-wrap-toggle-btn:hover {
     opacity: 1;
-    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
-    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
 }
 
 .code-wrap-toggle-btn--active {
@@ -391,27 +375,14 @@ body.code-block-word-wrap .milkdown .editor .code-block-wrapper.code-block-wrapp
 /* ─── Header 通用按钮（zoom overlay / lightbox / toggle / fullscreen）─── */
 .mermaid-zoom-btn,
 .code-view-toggle-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 26px;
     height: 22px;
-    background: transparent;
-    color: var(--vscode-editor-foreground);
-    border: 1px solid transparent;
-    border-radius: 3px;
-    cursor: pointer;
     opacity: 0.65;
-    transition: opacity 0.1s, background 0.1s;
-    flex-shrink: 0;
-    padding: 0;
 }
 
 .mermaid-zoom-btn:hover,
 .code-view-toggle-btn:hover {
     opacity: 1;
-    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
-    border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
 }
 
 /* 激活态：用背景色指示，保持前景色一致（避免 focusBorder 蓝色让图标显暗）*/
@@ -556,19 +527,9 @@ body.code-block-word-wrap .milkdown .editor .code-block-wrapper.code-block-wrapp
 
 .mermaid-pan-btn {
     pointer-events: all;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
     background: var(--vscode-editorHoverWidget-background, rgba(30, 30, 30, 0.85));
-    color: var(--vscode-editor-foreground);
     border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
-    border-radius: 3px;
-    cursor: pointer;
     opacity: 0.55;
-    transition: opacity 0.1s, background 0.1s;
-    padding: 0;
 }
 
 .mermaid-pan-btn:hover {

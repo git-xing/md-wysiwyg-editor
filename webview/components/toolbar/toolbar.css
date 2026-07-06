@@ -1,11 +1,90 @@
 /* ─── 工具栏扩展 ─── */
+.toolbar-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
 .toolbar {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 2px;
     flex-wrap: nowrap;
     flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
+/* ─── 溢出菜单 ─── */
+.tb-overflow-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 4px;
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.1s;
+
+    &:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+        border-color: var(--vscode-toolbar-hoverOutline, transparent);
+    }
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.tb-overflow-menu {
+    position: fixed;
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    padding: 4px;
+    min-width: 44px;
+    max-height: 420px;
+    overflow-y: auto;
+
+    &.tb-overflow-menu--visible {
+        display: flex;
+    }
+
+    .tb-overflow-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 28px;
+        padding: 0;
+        background: transparent;
+        color: var(--vscode-editor-foreground);
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        flex-shrink: 0;
+
+        &:hover {
+            background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
+        }
+
+        svg {
+            width: 16px;
+            height: 16px;
+        }
+    }
 }
 
 .tb-sep {
@@ -182,18 +261,7 @@
 
 .tb-prompt-ok,
 .tb-prompt-cancel {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    cursor: pointer;
-    background: transparent;
     color: var(--vscode-editor-foreground);
-    flex-shrink: 0;
-    transition: background 0.1s;
 }
 
 .tb-prompt-ok:hover {
@@ -242,17 +310,6 @@
 }
 
 .img-insert-close-btn {
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--vscode-editor-foreground);
-    cursor: pointer;
-    border-radius: 3px;
     opacity: 0.7;
 }
 .img-insert-close-btn:hover {
@@ -529,20 +586,75 @@
     right: 16px;
     width: 32px;
     height: 32px;
-    padding: 0;
     background: rgba(0, 0, 0, 0.5);
     color: #fff;
     border: none;
     border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     font-size: 16px;
     transition: background 0.12s;
 }
 .img-lightbox-close:hover {
     background: rgba(0, 0, 0, 0.8);
+}
+
+/* ─── 表格网格选择器 ─── */
+.table-grid-selector {
+    position: fixed;
+    z-index: 10000;
+    padding: 5px 10px;
+    background: var(--vscode-editorWidget-background, #252526);
+    border: 1px solid var(--vscode-editorWidget-border, #454545);
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.table-grid-selector--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.table-grid-selector__title {
+    padding: 4px 8px 6px;
+    font-size: 12px;
+    color: var(--vscode-editorHoverWidget-foreground, #ccc);
+    user-select: none;
+}
+
+.table-grid-selector__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 18px);
+    grid-template-rows: repeat(4, 18px);
+    gap: 2px;
+}
+
+.table-grid-selector__cell {
+    width: 18px;
+    height: 18px;
+    background: var(--vscode-editorWidget-background, #252526);
+    border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
+    /* border-radius: 2px; */
+    cursor: pointer;
+    transition: background 0.05s, border-color 0.05s;
+}
+
+.table-grid-selector__cell:hover {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.table-grid-selector__cell--selected {
+    background: var(--vscode-button-background, #007acc);
+    border-color: var(--vscode-button-background, #007acc);
+}
+
+.table-grid-selector__size-label {
+    padding: 4px 8px 2px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.8));
+    text-align: center;
+    user-select: none;
 }
 
 /* ─── 对齐方式菜单 ─── */

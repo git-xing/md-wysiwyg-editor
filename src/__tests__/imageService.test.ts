@@ -418,7 +418,7 @@ describe("uploadImageToServer", () => {
         const cfg = makeCfg({ imageServerUrl: "" });
         await expect(
             uploadImageToServer(cfg as never, imageData, "image/png", "photo"),
-        ).rejects.toThrow("请先在设置中配置");
+        ).rejects.toThrow("Please configure markdownWysiwyg.imageServerUrl in settings first");
     });
 
     it("HTTPS 上传成功，返回响应中的 URL", async () => {

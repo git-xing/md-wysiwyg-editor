@@ -88,7 +88,7 @@ function createHeadingFoldGutter(
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "heading-fold-toggle";
+    button.className = "icon-btn heading-fold-toggle";
     button.innerHTML = collapsed ? IconChevronRight : IconChevronDown;
     const tipText = collapsed ? t("Expand content") : t("Collapse content");
     button.setAttribute("aria-label", tipText);

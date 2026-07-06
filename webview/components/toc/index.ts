@@ -48,7 +48,7 @@ export function initToc(eventManager: EventManager, getEditorView: () => EditorV
 
     // ── 右侧收起/展开 Tab（独立 fixed 元素，不受 panel overflow:hidden 影响）──
     const tabEl = document.createElement("button");
-    tabEl.className = "toc-toggle-tab";
+    tabEl.className = "icon-btn toc-toggle-tab";
     tabEl.tabIndex = -1;
     document.body.appendChild(tabEl);
 

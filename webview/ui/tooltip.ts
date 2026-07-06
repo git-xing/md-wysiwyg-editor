@@ -89,6 +89,7 @@ export function applyTooltip(
     let currentText = text;
 
     el.removeAttribute("title");
+    el.dataset.tooltip = text;
 
     el.addEventListener("mouseenter", () => {
         if (!currentText) {

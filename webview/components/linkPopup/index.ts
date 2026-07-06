@@ -148,12 +148,12 @@ export function setupLinkPopup(
     headerActions.className = "lp-header-actions";
 
     const btnOpen = document.createElement("button");
-    btnOpen.className = "lp-btn lp-btn-open";
+    btnOpen.className = "icon-btn lp-btn lp-btn-open";
     btnOpen.innerHTML = IconExternalLink;
     const btnOpenTooltip = applyTooltip(btnOpen, openHint, { placement: "above" });
 
     const btnEdit = document.createElement("button");
-    btnEdit.className = "lp-btn lp-btn-edit";
+    btnEdit.className = "icon-btn lp-btn lp-btn-edit";
     btnEdit.innerHTML = IconPencil;
     applyTooltip(btnEdit, t("Edit link"), { placement: "above" });
 
@@ -189,12 +189,12 @@ export function setupLinkPopup(
     bodyActions.className = "lp-body-actions";
 
     const btnConfirm = document.createElement("button");
-    btnConfirm.className = "lp-btn lp-btn-confirm";
+    btnConfirm.className = "icon-btn lp-btn lp-btn-confirm";
     btnConfirm.title = t("Confirm");
     btnConfirm.innerHTML = IconCheck;
 
     const btnRemove = document.createElement("button");
-    btnRemove.className = "lp-btn lp-btn-remove";
+    btnRemove.className = "icon-btn lp-btn lp-btn-remove";
     btnRemove.title = t("Remove Link");
     btnRemove.innerHTML = IconTrash2;
 
