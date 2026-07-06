@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.0] - 2026-07-06
+
+### Added
+
+- **Toolbar overflow menu**: when the viewport is too narrow to fit all toolbar icons, excess items automatically collapse into a dropdown menu accessible via the `⋮` button. The menu stays aligned and items appear in their original order.
+- **Table grid selector**: hovering the table icon now shows a grid picker — drag to select rows × columns before inserting, instead of always inserting a fixed 3×3 table.
+- **FindBar redesign**: drag-to-resize handle, replace input toggle (chevron button), regex and match-case toggle buttons. Search highlight colors now follow the active VS Code theme instead of a hardcoded green.
+- **Unified `icon-btn` style**: all icon buttons across the editor (toolbar, code block, link popup, find bar) share a consistent base style via the `.icon-btn` CSS class.
+- **Codicon font**: bundled the VS Code codicon font for consistent icon rendering across components.
+- **Remote development support**: changed `extensionKind` to `["workspace", "ui"]` so the extension works correctly in Dev Containers, Remote-SSH, and WSL environments.
+- **Table grid selector tests**: added Vitest unit tests for the new grid selector component.
+
+### Fixed
+
+- **i18n gaps**: replaced hardcoded Chinese strings in table handle tooltips and the image upload error message with proper `t()` / `vscode.l10n.t()` calls. Added missing translation keys for English and Simplified Chinese.
+- **Search highlight colors**: replaced custom CSS variables with VS Code's built-in `--vscode-editor-findMatch*` variables, so highlights adapt to any color theme.
+
+### Changed
+
+- **Toolbar architecture**: refactored from monolithic button creation to a config-driven `ToolbarItemConfig[]` array. Each item declares its type, overflow behavior, and visibility, making it straightforward to add, reorder, or hide toolbar items.
+- **FindBar CSS**: converted to CSS nesting syntax for better maintainability.
+- **Toolbar CSS**: converted to CSS nesting syntax.
+- **Code block buttons**: added `icon-btn` class to mermaid zoom, word-wrap, fullscreen, and code/preview toggle buttons.
+- **Link popup buttons**: added `icon-btn` class to open, edit, confirm, and remove buttons.
+- **Selection toolbar**: alignment feature temporarily hidden (marked TODO) pending further design.
+
+---
+
 ## [0.1.6] - 2026-04-27
 
 ### Fixed

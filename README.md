@@ -18,6 +18,7 @@ A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdow
 ### Tables
 
 - Full GFM table support
+- **Grid selector**: hover the table icon to pick rows × columns before inserting
 - Hover row/column borders to show **+ insert lines** — click to insert a row or column anywhere
 - **Drag handles** on rows/columns: click to select, drag to reorder
 - Insert lines and handles update in real time as the table grows
@@ -58,21 +59,24 @@ A VSCode WYSIWYG Markdown editor extension powered by [Milkdown](https://milkdow
 
 ### Toolbars
 
-- **Top toolbar**: heading level, bold, italic, strikethrough, ordered/unordered list, task list, blockquote, code block, table
+- **Top toolbar**: heading level, bold, italic, strikethrough, ordered/unordered list, task list, blockquote, code block, table — automatically collapses into an overflow dropdown menu on narrow viewports
 - **Floating selection toolbar**: appears on text selection; supports quick formatting and Send to Claude
 - **Table toolbar**: appears on row/column selection; supports alignment and delete operations
+
+### Search & Replace
+
+- **`Cmd+F`** (macOS) / **`Ctrl+F`** (Windows): opens the FindBar to search within the document
+- **Drag-to-resize**: drag the handle to make the search bar taller for replace mode
+- **Replace toggle**: click the chevron to expand the replace input
+- **Regex** and **Match Case** toggle buttons
+- Matches highlighted in real time using the CSS Custom Highlight API; colors follow your VS Code theme
+- Navigate matches with `Enter` / `Shift+Enter`, dismiss with `Esc`
 
 ### Claude Integration
 
 - **`Option+K`** (macOS) / **`Alt+K`** (Windows): sends the paragraph under the cursor to Claude with precise file line numbers
 - Select text and click "Send to Claude" in the toolbar — also attaches line range
 - Automatically detects Claude terminal / Claude VSCode extension / VS Code built-in Chat with three-level fallback
-
-### In-Editor Search
-
-- **`Cmd+F`** (macOS) / **`Ctrl+F`** (Windows): opens the FindBar to search within the document
-- Matches highlighted in real time using the CSS Custom Highlight API
-- Navigate matches with `Enter` / `Shift+Enter`, dismiss with `Esc`
 
 ### Auto Save
 
@@ -90,6 +94,7 @@ After installing the extension, open any `.md` / `.markdown` file in VS Code —
 | ------------------------ | -------------------------------------------------------------- |
 | Switch to text editor    | Click the 👁 icon in the title bar, or right-click → Open With |
 | Switch back to WYSIWYG   | Click the 👁 icon in the title bar                             |
+| Insert table (grid)      | Hover the table icon, then drag to select rows × columns       |
 | Insert row/column        | Hover a table row/column border, click **+**                   |
 | Reorder rows/columns     | Hover the **⠿** handle, then drag                              |
 | Select entire row/column | Click the **⠿** handle                                         |
