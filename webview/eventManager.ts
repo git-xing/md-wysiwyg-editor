@@ -116,7 +116,7 @@ export class EventManager {
     }
 
     /**
-     * 绑定键盘快捷键
+     * 绑定键盘快捷键（window 级别）
      * @param options - 快捷键配置
      * @param handler - 事件处理函数
      * @returns 解绑函数
@@ -174,6 +174,78 @@ export class EventManager {
 
             handler(e);
         });
+    }
+
+    /**
+     * 绑定元素级键盘快捷键
+     * @param target - 目标元素
+     * @param options - 快捷键配置
+     * @param handler - 事件处理函数
+     * @returns 解绑函数
+     * 
+     * @example
+     * // 在 contenteditable 元素上处理 Enter/Escape/Tab
+     * eventManager.onElementShortcut(td, 
+     *     { code: "Enter" },
+     *     () => td.blur()
+     * );
+     */
+    onElementShortcut(
+        target: HTMLElement,
+        options: ShortcutOptions,
+        handler: (e: KeyboardEvent) => void,
+    ): () => void {
+        const {
+            code,
+            meta = false,
+            ctrl = false,
+            metaOrCtrl = false,
+            shift = false,
+            alt = false,
+            preventDefault = true,
+            stopPropagation = false,
+        } = options;
+
+        return this.onElement(target, "keydown", (e) => {
+            // 检查组合键
+            if (metaOrCtrl && !e.metaKey && !e.ctrlKey) { return; }
+            if (meta && !metaOrCtrl && !e.metaKey) { return; }
+            if (ctrl && !metaOrCtrl && !e.ctrlKey) { return; }
+            if (shift && !e.shiftKey) { return; }
+            if (alt && !e.altKey) { return; }
+            
+            // 检查按键码
+            if (e.code !== code) { return; }
+
+            // 阻止默认行为和冒泡
+            if (preventDefault) { e.preventDefault(); }
+            if (stopPropagation) { e.stopPropagation(); }
+
+            handler(e);
+        });
+    }
+
+    /**
+     * 批量绑定元素级键盘快捷键
+     * @param target - 目标元素
+     * @param shortcuts - 快捷键配置数组 [options, handler][]
+     * @returns 解绑函数（解绑所有绑定）
+     * 
+     * @example
+     * eventManager.onElementShortcuts(td, [
+     *     [{ code: "Enter" }, () => td.blur()],
+     *     [{ code: "Escape" }, () => { td.textContent = orig; td.blur(); }],
+     *     [{ code: "Tab" }, () => nextTd.focus()],
+     * ]);
+     */
+    onElementShortcuts(
+        target: HTMLElement,
+        shortcuts: [ShortcutOptions, (e: KeyboardEvent) => void][],
+    ): () => void {
+        const unsubscribers = shortcuts.map(([options, handler]) =>
+            this.onElementShortcut(target, options, handler),
+        );
+        return () => unsubscribers.forEach((unsub) => unsub());
     }
 
     /**

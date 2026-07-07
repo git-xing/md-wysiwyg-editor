@@ -18,6 +18,7 @@ import { setDebugMode } from "./components/table/addButtons";
 import { setLogTableSel } from "./editor";
 import { notifySwitchToTextEditor, getWebviewState } from "./messaging";
 import { renderFrontmatterPanel } from "./components/frontmatter";
+import type { EventManager } from "./eventManager";
 import {
     handleImageUploaded,
     handleImageUploadError,
@@ -87,6 +88,7 @@ export interface MessageHandlerDeps {
     actions: EditorActions;
     topbarTb: ToolbarController | null;
     themeOverrides: Set<string>;
+    eventManager: EventManager;
 }
 
 // ── 消息处理器工厂 ────────────────────────────────────────
@@ -95,7 +97,7 @@ export interface MessageHandlerDeps {
 export function createMessageHandlers(
     deps: MessageHandlerDeps,
 ): { [K in ToWebviewMessage["type"]]?: Handler<K> } {
-    const { state, actions, topbarTb, themeOverrides } = deps;
+    const { state, actions, topbarTb, themeOverrides, eventManager } = deps;
     const { getEditor, setEditor, getLineMap, setLineMap, getMarkdownSource, setMarkdownSource } = state;
     const { scrollToSourceLine, getFirstVisibleSourceLine, initEditor, retryScroll, getEditorView } = actions;
     
@@ -103,7 +105,7 @@ export function createMessageHandlers(
         async init(msg, container) {
             setMarkdownSource(msg.content);
             setLineMap(msg.lineMap ?? []);
-            renderFrontmatterPanel(msg.frontmatter);
+            renderFrontmatterPanel(msg.frontmatter, eventManager);
             if (msg.imageUriMap) {
                 setImageUriMap(msg.imageUriMap);
             }
@@ -132,7 +134,7 @@ export function createMessageHandlers(
         async revert(msg, container) {
             setMarkdownSource(msg.content);
             setLineMap(msg.lineMap ?? []);
-            renderFrontmatterPanel(msg.frontmatter);
+            renderFrontmatterPanel(msg.frontmatter, eventManager);
             if (msg.imageUriMap) {
                 setImageUriMap(msg.imageUriMap);
             }

@@ -431,6 +431,7 @@ const handlers = createMessageHandlers({
     },
     topbarTb,
     themeOverrides: _themeOverrides,
+    eventManager,
 });
 
 onMessage(async (msg) => {

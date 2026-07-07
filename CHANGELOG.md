@@ -6,35 +6,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.0] - 2026-07-06
+
+### Added
+
+- **Enhanced heading折叠**: Improved heading collapse/expand interaction
+- **Image editor component**: New dedicated image editor with richer editing capabilities
+- **Text alignment**: Support for left, center, and right paragraph alignment
+- **TOC width resize**: Drag the directory panel edge to freely adjust width
+- **Toolbar overflow menu**: Toolbar items automatically collapse into a dropdown when space is insufficient
+- **FindBar redesign**: Drag-to-resize, regex toggle, and case-sensitive match toggle
+- **Table grid selector**: Hover the table icon to show a grid picker for selecting rows × columns
+- **Remote development support**: Compatible with Dev Containers, Remote-SSH, and WSL
+- **E2E test framework**: End-to-end testing based on Playwright Electron
+
+### Fixed
+
+- **Line break空行丢失**: Fixed empty lines disappearing when line breaking in the WYSIWYG editor
+- **Command+F shortcut**: Fixed the search keyboard shortcut not working
+
+### Changed
+
+- **Search highlight theme adaptation**: Switched to VS Code theme variables for automatic light/dark theme support
+- **API module extraction**: Refactored content change and save event handling logic
+
+---
+
+## [0.2.2] - 2026-07-06
+
+### Fixed
+
+- **Heading sticky position**: Reverted the heading-sticky-title position changes that caused layout issues, kept only the TOC z-index fix from v0.2.1
+
+---
+
+## [0.2.1] - 2026-07-06
+
+### Fixed
+
+- **TOC z-index**: Increased TOC panel z-index to 1200 to prevent it from being covered by heading-sticky-title on narrow screens
+- **Sticky heading position**: Added 220px offset when TOC is open to avoid overlap
+
+---
+
 ## [0.2.0] - 2026-07-06
 
 ### Added
 
-- **Toolbar overflow menu**: when the viewport is too narrow to fit all toolbar icons, excess items automatically collapse into a dropdown menu accessible via the `⋮` button. The menu stays aligned and items appear in their original order.
-- **Table grid selector**: hovering the table icon now shows a grid picker — drag to select rows × columns before inserting, instead of always inserting a fixed 3×3 table.
-- **FindBar redesign**: drag-to-resize handle, replace input toggle (chevron button), regex and match-case toggle buttons. Search highlight colors now follow the active VS Code theme instead of a hardcoded green.
-- **Unified `icon-btn` style**: all icon buttons across the editor (toolbar, code block, link popup, find bar) share a consistent base style via the `.icon-btn` CSS class.
-- **Codicon font**: bundled the VS Code codicon font for consistent icon rendering across components.
-- **Remote development support**: changed `extensionKind` to `["workspace", "ui"]` so the extension works correctly in Dev Containers, Remote-SSH, and WSL environments.
-- **Table grid selector tests**: added Vitest unit tests for the new grid selector component.
+- **Color theme switching**: New `markdownWysiwyg.colorTheme` setting with `selectTheme` command to choose themes; Mermaid diagrams auto-render on theme change
+- **Custom theme support**: Load themes from installed extensions
+- **Frontmatter panel**: Editable frontmatter panel for quick metadata editing
+- **Editor plugin architecture**: Refactored to plugin-based system with heading sticky/collapse, code block enhancements, and TOC optimization
+- **Table row break mode**: New setting for table line break behavior
 
 ### Fixed
 
-- **i18n gaps**: replaced hardcoded Chinese strings in table handle tooltips and the image upload error message with proper `t()` / `vscode.l10n.t()` calls. Added missing translation keys for English and Simplified Chinese.
-- **Search highlight colors**: replaced custom CSS variables with VS Code's built-in `--vscode-editor-findMatch*` variables, so highlights adapt to any color theme.
-
-### Changed
-
-- **Toolbar architecture**: refactored from monolithic button creation to a config-driven `ToolbarItemConfig[]` array. Each item declares its type, overflow behavior, and visibility, making it straightforward to add, reorder, or hide toolbar items.
-- **FindBar CSS**: converted to CSS nesting syntax for better maintainability.
-- **Toolbar CSS**: converted to CSS nesting syntax.
-- **Code block buttons**: added `icon-btn` class to mermaid zoom, word-wrap, fullscreen, and code/preview toggle buttons.
-- **Link popup buttons**: added `icon-btn` class to open, edit, confirm, and remove buttons.
-- **Selection toolbar**: alignment feature temporarily hidden (marked TODO) pending further design.
+- **Tab key in lists**: Fixed Tab key not continuing indentation in nested lists
+- **Tab key in code blocks**: Fixed Tab key behavior in code blocks and body text
 
 ---
 
-## [0.1.6] - 2026-04-27
+## [0.1.6] - 2026-04-28
 
 ### Fixed
 
@@ -53,15 +85,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Image path autocomplete**: type `./`, `../`, or `@/` in the image URL input to get smart path suggestions; image files show a 32 px thumbnail preview in the dropdown.
 - **`@/` alias for image paths**: images referenced as `@/images/foo.png` (workspace root) are now correctly displayed in the editor.
-
----
-
-## [0.1.4] - 2026-04-08
-
-### Fixed
-
-- Fixed the "简体中文" link in the Marketplace README pointing to a non-existent URL (corrected `--baseContentUrl` to include `/blob/main`)
-- Fixed incorrect release dates in CHANGELOG for versions 0.1.0–0.1.2
 
 ---
 

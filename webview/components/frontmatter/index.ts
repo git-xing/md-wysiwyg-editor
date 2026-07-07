@@ -2,18 +2,12 @@
  * components/frontmatter/index.ts
  * 
  * 职责：渲染和管理 YAML Frontmatter 可编辑面板
- * 
- * 本模块提供以下功能：
- * - 解析 YAML frontmatter 字符串为 key-value 数组
- * - 将 key-value 数组序列化回 YAML 格式
- * - 渲染可编辑的表格 UI（contenteditable td）
- * - 支持 Tab 键导航、Enter 提交、Escape 取消
- * - 实时同步编辑结果到 Extension
  */
 
 import { IconPlus, IconX } from "../../ui/icons";
 import { t } from "../../i18n";
 import { notifyFrontmatterUpdate } from "../../messaging";
+import type { EventManager } from "../../eventManager";
 
 export type FmEntry = { key: string; value: string };
 
@@ -42,71 +36,46 @@ export function serializeFrontmatter(entries: FmEntry[]): string {
     return `---\n${lines.join("\n")}\n---\n`;
 }
 
-/** 当前面板数据（模块级状态） */
+// ── undo/redo ────────────────────────────────────────────────────
 let currentFmEntries: FmEntry[] = [];
 
-/** 将编辑结果同步到 Extension */
+// ── table ref ────────────────────────────────────────────────────
+let _tbody: HTMLTableSectionElement;
+let _panel: HTMLElement;
+let _eventManager: EventManager;
+
+function refreshTable(): void {
+    _tbody.innerHTML = '';
+    currentFmEntries.forEach((entry, i) => {
+        _tbody.appendChild(createFmRow(entry, i));
+    });
+}
+
+// ── commit ───────────────────────────────────────────────────────
 function commitFrontmatterChange(): void {
     const raw = serializeFrontmatter(currentFmEntries);
     notifyFrontmatterUpdate(raw);
-    // 若全部删除，移除面板
     if (currentFmEntries.length === 0) {
-        const existing = document.getElementById('frontmatter-panel');
-        existing?.remove();
-        const editorEl = document.getElementById('editor');
-        if (editorEl) { editorEl.style.paddingTop = ''; }
+        document.getElementById('frontmatter-panel')?.remove();
+        const ed = document.getElementById('editor');
+        if (ed) { ed.style.paddingTop = ''; }
     }
 }
 
-/** 为 contenteditable td 绑定编辑行为 */
+// ── cell binding ─────────────────────────────────────────────────
 function bindFmCell(
     td: HTMLElement,
     entry: FmEntry,
     field: 'key' | 'value',
-    tbody: HTMLElement,
-    panel: HTMLElement,
 ): void {
     td.contentEditable = 'true';
     td.textContent = entry[field];
     td.dataset['orig'] = entry[field];
     td.dataset['placeholder'] = field === 'key' ? 'key' : 'value';
 
-    // Enter 提交（Shift+Enter 允许换行）
-    td.addEventListener('keydown', (e) => {
-        if (e.isComposing) { return; }
-        e.stopPropagation();
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            td.blur();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            td.textContent = td.dataset['orig'] ?? '';
-            td.blur();
-        } else if (e.key === 'Tab') {
-            e.preventDefault();
-            td.blur();
-            const idx = currentFmEntries.indexOf(entry);
-            if (field === 'key') {
-                // 切换到同行 value
-                const valTd = td.nextElementSibling as HTMLElement | null;
-                if (valTd?.contentEditable === 'true') { valTd.focus(); }
-            } else {
-                // 切换到下一行 key 或新增行
-                const nextRow = tbody.children[idx + 1] as HTMLElement | undefined;
-                if (nextRow) {
-                    const nextKeyTd = nextRow.querySelector('.fm-key') as HTMLElement | null;
-                    nextKeyTd?.focus();
-                } else {
-                    addNewRow(tbody, panel);
-                }
-            }
-        }
-    });
-
     td.addEventListener('blur', () => {
         const newVal = (td.textContent ?? '').trim();
         if (field === 'key' && newVal.length === 0) {
-            // key 不能为空，恢复原值
             td.textContent = td.dataset['orig'] ?? '';
             return;
         }
@@ -118,21 +87,18 @@ function bindFmCell(
     });
 }
 
-/** 创建单行可编辑表格行（contenteditable td，直接输入） */
-function createFmRow(entry: FmEntry, index: number, tbody: HTMLElement, panel: HTMLElement): HTMLTableRowElement {
+// ── row ──────────────────────────────────────────────────────────
+function createFmRow(entry: FmEntry, index: number): HTMLTableRowElement {
     const tr = document.createElement('tr');
 
-    // key 单元格
     const tdKey = document.createElement('td');
     tdKey.className = 'fm-key';
-    bindFmCell(tdKey, entry, 'key', tbody, panel);
+    bindFmCell(tdKey, entry, 'key');
 
-    // value 单元格
     const tdVal = document.createElement('td');
     tdVal.className = 'fm-val';
-    bindFmCell(tdVal, entry, 'value', tbody, panel);
+    bindFmCell(tdVal, entry, 'value');
 
-    // 删除按钮
     const tdDel = document.createElement('td');
     tdDel.className = 'fm-action';
     const delBtn = document.createElement('button');
@@ -144,7 +110,7 @@ function createFmRow(entry: FmEntry, index: number, tbody: HTMLElement, panel: H
         e.stopPropagation();
         currentFmEntries.splice(index, 1);
         commitFrontmatterChange();
-        rebuildFmTable(tbody, panel);
+        refreshTable();
     });
     tdDel.appendChild(delBtn);
 
@@ -154,31 +120,57 @@ function createFmRow(entry: FmEntry, index: number, tbody: HTMLElement, panel: H
     return tr;
 }
 
-/** 重建表格 tbody 内容 */
-function rebuildFmTable(tbody: HTMLElement, panel: HTMLElement): void {
-    tbody.innerHTML = '';
-    currentFmEntries.forEach((entry, i) => {
-        tbody.appendChild(createFmRow(entry, i, tbody, panel));
-    });
-}
-
-/** 新增一行 */
-function addNewRow(tbody: HTMLElement, panel: HTMLElement): void {
+// ── add row ──────────────────────────────────────────────────────
+function addNewRow(): void {
     const newEntry: FmEntry = { key: '', value: '' };
     currentFmEntries.push(newEntry);
-    const tr = createFmRow(newEntry, currentFmEntries.length - 1, tbody, panel);
-    tbody.appendChild(tr);
-    // 自动聚焦 key 单元格
-    const keyTd = tr.querySelector('.fm-key') as HTMLElement | null;
-    keyTd?.focus();
+    const tr = createFmRow(newEntry, currentFmEntries.length - 1);
+    _tbody.appendChild(tr);
+    tr.querySelector<HTMLElement>('.fm-key')?.focus();
 }
 
-/** 在 #editor 前渲染 frontmatter 表格面板；无 frontmatter 时移除面板 */
-export function renderFrontmatterPanel(frontmatter: string | undefined): void {
+// ── undo / redo ──────────────────────────────────────────────────
+function handleUndo(): void {
+    interface ExecDoc { execCommand(cmd: string): boolean }
+    (document as ExecDoc).execCommand("undo");
+}
+
+function handleRedo(): void {
+    interface ExecDoc { execCommand(cmd: string): boolean }
+    (document as ExecDoc).execCommand("redo");
+}
+
+function isInFmPanel(): boolean {
+    const el = document.activeElement;
+    return !!el && !!document.getElementById('frontmatter-panel')?.contains(el);
+}
+
+// ── keyboard shortcuts on document ───────────────────────────────
+function bindPanelShortcuts(eventManager: EventManager): void {
+    eventManager.onDocument('keydown', (e) => {
+        if (!isInFmPanel()) { return; }
+        const mod = e.metaKey || e.ctrlKey;
+        if (mod && e.code === 'KeyZ' && !e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleUndo();
+        } else if (mod && e.code === 'KeyZ' && e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleRedo();
+        } else if (mod && e.code === 'KeyY') {
+            e.preventDefault();
+            e.stopPropagation();
+            handleRedo();
+        }
+    }, true);
+}
+
+// ── render ───────────────────────────────────────────────────────
+export function renderFrontmatterPanel(frontmatter: string | undefined, eventManager: EventManager): void {
     const existing = document.getElementById('frontmatter-panel');
     const editorEl = document.getElementById('editor');
 
-    // 无 frontmatter → 清空状态、移除面板
     if (!frontmatter) {
         currentFmEntries = [];
         existing?.remove();
@@ -186,26 +178,26 @@ export function renderFrontmatterPanel(frontmatter: string | undefined): void {
         return;
     }
 
-    const entries = parseFrontmatter(frontmatter);
-    // 即使 entries 为空也保留面板（允许用户后续添加行）
-    currentFmEntries = entries;
+    currentFmEntries = parseFrontmatter(frontmatter);
 
     const panel = existing ?? document.createElement('div');
     panel.id = 'frontmatter-panel';
     panel.className = 'frontmatter-panel';
+    _panel = panel;
+    _eventManager = eventManager;
 
-    // 构建表格
     const table = document.createElement('table');
     table.className = 'frontmatter-table';
     const tbody = document.createElement('tbody');
-    entries.forEach((entry, i) => {
-        tbody.appendChild(createFmRow(entry, i, tbody, panel));
+    _tbody = tbody;
+
+    currentFmEntries.forEach((entry, i) => {
+        tbody.appendChild(createFmRow(entry, i));
     });
     table.appendChild(tbody);
     panel.innerHTML = '';
     panel.appendChild(table);
 
-    // 底部添加按钮
     const addRow = document.createElement('div');
     addRow.className = 'fm-add-row';
     const addBtn = document.createElement('button');
@@ -214,7 +206,7 @@ export function renderFrontmatterPanel(frontmatter: string | undefined): void {
     addBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        addNewRow(tbody, panel);
+        addNewRow();
     });
     addRow.appendChild(addBtn);
     panel.appendChild(addRow);
@@ -223,4 +215,6 @@ export function renderFrontmatterPanel(frontmatter: string | undefined): void {
         editorEl?.parentNode?.insertBefore(panel, editorEl);
     }
     if (editorEl) { editorEl.style.paddingTop = '16px'; }
+
+    bindPanelShortcuts(eventManager);
 }
