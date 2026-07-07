@@ -6,11 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.1] - 2026-07-07
+
+### Added
+
+- **Multi-language configuration system**: Refactored i18n to support multi-language extensions
+
+### Fixed
+
+- **Frontmatter panel shortcuts**: Fixed copy/paste/undo keyboard shortcuts not working in the frontmatter panel
+
+---
+
 ## [0.3.0] - 2026-07-06
 
 ### Added
 
-- **Enhanced heading折叠**: Improved heading collapse/expand interaction
+- **Enhanced heading fold**: Improved heading collapse/expand interaction
 - **Image editor component**: New dedicated image editor with richer editing capabilities
 - **Text alignment**: Support for left, center, and right paragraph alignment
 - **TOC width resize**: Drag the directory panel edge to freely adjust width
@@ -22,7 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **Line break空行丢失**: Fixed empty lines disappearing when line breaking in the WYSIWYG editor
+- **Line break empty lines**: Fixed empty lines disappearing when line breaking in the WYSIWYG editor
 - **Command+F shortcut**: Fixed the search keyboard shortcut not working
 
 ### Changed
@@ -32,37 +44,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.2.2] - 2026-07-06
+## [0.2.2] - 2026-06-22
 
 ### Fixed
 
-- **Heading sticky position**: Reverted the heading-sticky-title position changes that caused layout issues, kept only the TOC z-index fix from v0.2.1
+- **Heading sticky position**: Reverted the position adjustment that caused incorrect left offset. Heading sticky title now uses the original positioning logic.
 
 ---
 
-## [0.2.1] - 2026-07-06
+## [0.2.1] - 2026-06-21
 
 ### Fixed
 
-- **TOC z-index**: Increased TOC panel z-index to 1200 to prevent it from being covered by heading-sticky-title on narrow screens
-- **Sticky heading position**: Added 220px offset when TOC is open to avoid overlap
+- **TOC z-index**: Increased TOC panel z-index to 1200 to prevent heading-sticky-title from covering it on narrow screens.
 
 ---
 
-## [0.2.0] - 2026-07-06
+## [0.2.0] - 2026-06-21
 
 ### Added
 
-- **Color theme switching**: New `markdownWysiwyg.colorTheme` setting with `selectTheme` command to choose themes; Mermaid diagrams auto-render on theme change
-- **Custom theme support**: Load themes from installed extensions
-- **Frontmatter panel**: Editable frontmatter panel for quick metadata editing
-- **Editor plugin architecture**: Refactored to plugin-based system with heading sticky/collapse, code block enhancements, and TOC optimization
-- **Table row break mode**: New setting for table line break behavior
+- **Editor plugin architecture**: Complete refactoring with heading fold/collapse, heading sticky, code block enhancement, and TOC optimization.
+- **Frontmatter panel**: Editable frontmatter panel with inline editing support.
+- **Color theme support**: New `markdownWysiwyg.colorTheme` setting to override VS Code's default theme. Use Command Palette "Select Color Theme" to browse and select from installed themes.
+- **Custom theme support**: Define custom color themes via `markdownWysiwyg.customThemes` configuration in `.vscode/settings.json`. Select themes from Command Palette with "Select Color Theme".
+- **Table wrap mode**: New `markdownWysiwyg.tableWrap` setting with three modes: `normal` (default, avoid word breaks), `aggressive` (break long words), `none` (disable wrapping).
+- **Tab key optimization**: Code blocks insert 4 spaces, list items support indentation to next level, normal text inserts 2 spaces.
+- **Custom theme documentation**: Added comprehensive documentation in `docs/custom-themes.md` (Chinese) and `docs/en/custom-themes.md` (English).
 
 ### Fixed
 
-- **Tab key in lists**: Fixed Tab key not continuing indentation in nested lists
-- **Tab key in code blocks**: Fixed Tab key behavior in code blocks and body text
+- **Tab key in lists**: Pressing Tab in a list now correctly indents to the next level instead of scrolling to the top.
+- **Tab key in code blocks and text**: Fixed Tab key behavior to insert spaces instead of triggering browser default action.
+- **Table word break**: Added `word-break: keep-all` to table cells to prevent mid-character line breaks in CJK text.
+- **List Tab at deepest level**: Fixed issue where pressing Tab at the deepest list indentation level would scroll to the top.
 
 ---
 
