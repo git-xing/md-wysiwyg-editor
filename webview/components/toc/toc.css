@@ -11,7 +11,7 @@
     );
     border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
     border-width: 0 1px;
-    z-index: 99;
+    z-index: 1500;
     display: flex;
     flex-direction: column;
     transform: translateX(-100%);

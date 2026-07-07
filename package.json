@@ -36,7 +36,7 @@
         "onStartupFinished"
     ],
     "main": "./dist/extension.js",
-    "l10n": "./l10n",
+    "l10n": "./i18n/l10n",
     "contributes": {
         "customEditors": [
             {

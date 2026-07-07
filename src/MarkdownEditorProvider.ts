@@ -3,7 +3,7 @@ import * as os from "os";
 import * as vscode from "vscode";
 import { MarkdownDocument } from "./MarkdownDocument";
 import { getNonce } from "./utils/getNonce";
-import { ZH_CN_WEBVIEW } from "./i18n/webviewTranslations";
+import { getTranslations } from "./i18n/loader";
 import { saveImageLocally, uploadImageToServer } from "./utils/imageService";
 import { computeLineMap } from "./utils/lineMap";
 import {
@@ -1070,7 +1070,7 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
 
         const lang = vscode.env.language.toLowerCase();
         const isMac = process.platform === "darwin";
-        const translations = lang.startsWith("zh") ? ZH_CN_WEBVIEW : {};
+        const translations = getTranslations(lang);
         const debugMode = cfg.get<boolean>("debugMode", false);
         const codeBlockAutoConvert = cfg.get<boolean>(
             "codeBlockAutoConvert",

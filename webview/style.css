@@ -262,10 +262,12 @@ body.editor-width-auto {
     }
 }
 
-@media (max-width: 720px) {
-    #editor {
-        padding-left: 60px;
-        --editor-content-left-padding: 60px;
+@media (max-width: 650px) {
+    #editor,
+    .frontmatter-panel {
+        padding-left: 16px;
+        margin-left: 0;
+        width: 100%;
     }
 }
 
@@ -422,11 +424,9 @@ body.editor-width-auto {
             display: none !important;
         }
 
-        @media (max-width: 720px) {
+        @media (max-width: 650px) {
             .heading-fold-gutter {
-                left: -6px;
-                width: 46px;
-                gap: 2px;
+                display: none !important;
             }
         }
 
@@ -774,10 +774,9 @@ body.editor-width-auto {
     white-space: nowrap;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 650px) {
     .heading-sticky-gutter {
-        left: -6px;
-        width: 46px;
+        display: none !important;
     }
 }
 
