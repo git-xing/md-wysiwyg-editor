@@ -54,9 +54,7 @@ docs/roadmap.md                          — 项目路线图
 - CSS 必须使用 `--vscode-*` 变量以适配亮/暗主题
 - 不在模块外部维护全局状态（单例除外，如 editor view）
 
-## 开发留痕规范
 
-**已知 bug 和功能需求不再记录到本地文件，改用** **`/devlog`** **skill 直接提交为 GitHub Issue。**
 
 ### /devlog Skill 说明
 
@@ -123,7 +121,7 @@ __mocks__/vscode.ts      — vscode API 统一 mock
 2. 运行 `pnpm test` 确认全部通过
 3. 运行 `pnpm build` 确认编译无误
 4. 方可 `git commit`
-<<<<<<< HEAD
+   <<<<<<< HEAD
 
 #### Bug 修复后
 1. 先补充**能复现该 bug 的测试用例**（写在修复同一 commit 内）

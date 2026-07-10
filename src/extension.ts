@@ -190,14 +190,14 @@ export function activate(context: vscode.ExtensionContext) {
         ),
     );
 
-    // 选择颜色主题命令
+    // 选择 Markdown 主题命令（带实时预览）
     context.subscriptions.push(
         vscode.commands.registerCommand(
             "markdownWysiwyg.selectTheme",
             async () => {
                 const themes = getAllThemes();
                 const customThemes = getCustomThemes();
-                const currentTheme = vscode.workspace
+                const originalTheme = vscode.workspace
                     .getConfiguration("markdownWysiwyg")
                     .get<string>("colorTheme", "auto");
 
@@ -210,39 +210,58 @@ export function activate(context: vscode.ExtensionContext) {
                     .sort((a, b) => a.label.localeCompare(b.label));
 
                 const items: (vscode.QuickPickItem & { value: string })[] = [
-                    { label: "$(color-mode) Auto", description: "Follow VS Code Theme", value: "auto" },
-                    // 自定义主题
+                    { label: "$(color-mode) Auto", description: vscode.l10n.t("Follow VS Code Theme"), value: "auto" },
+                    // 自定义主题（使用 emoji 图标）
                     ...customThemes.map(t => ({
-                        label: `$(paintbrush) ${t.name}`,
-                        description: "Custom",
+                        label: `🎨 ${t.name}`,
+                        description: vscode.l10n.t("Custom"),
                         value: `custom:${t.name}`,
                     })),
                     // 深色主题
                     ...darkThemes.map(t => ({
                         label: t.label,
-                        description: "Dark",
+                        description: vscode.l10n.t("Dark"),
                         value: t.id,
                     })),
                     // 浅色主题
                     ...lightThemes.map(t => ({
                         label: t.label,
-                        description: "Light",
+                        description: vscode.l10n.t("Light"),
                         value: t.id,
                     })),
                 ];
 
                 // 找到当前选中主题的索引，用于定位
-                const activeIndex = items.findIndex((item: any) => item.value === currentTheme);
+                const activeIndex = items.findIndex((item: any) => item.value === originalTheme);
+
+                let accepted = false;
+                let previewTimer: ReturnType<typeof setTimeout> | undefined;
 
                 const quickPick = vscode.window.createQuickPick();
-                quickPick.title = "Markdown Editor Color Theme";
-                quickPick.placeholder = "Select a color theme for Markdown editor";
+                quickPick.title = vscode.l10n.t("Select Markdown Editor Theme");
+                quickPick.placeholder = vscode.l10n.t("Type to search, use arrow keys to preview themes");
                 quickPick.items = items;
                 if (activeIndex >= 0) {
                     quickPick.activeItems = [items[activeIndex]];
                 }
 
+                // 实时预览：切换选中项时临时应用主题
+                quickPick.onDidChangeActive(async (activeItems) => {
+                    if (previewTimer) clearTimeout(previewTimer);
+                    const item = activeItems[0] as (typeof items)[number] | undefined;
+                    if (!item) return;
+                    if (item.value === originalTheme) return;
+                    previewTimer = setTimeout(async () => {
+                        await vscode.workspace
+                            .getConfiguration("markdownWysiwyg")
+                            .update("colorTheme", item.value, vscode.ConfigurationTarget.Global);
+                    }, 300);
+                });
+
+                // 确认选择
                 quickPick.onDidAccept(async () => {
+                    if (previewTimer) clearTimeout(previewTimer);
+                    accepted = true;
                     const selected = quickPick.selectedItems[0];
                     if (selected) {
                         const themeId = (selected as any).value;
@@ -251,6 +270,16 @@ export function activate(context: vscode.ExtensionContext) {
                             .update("colorTheme", themeId, vscode.ConfigurationTarget.Global);
                     }
                     quickPick.dispose();
+                });
+
+                // 取消时恢复原主题
+                quickPick.onDidHide(async () => {
+                    if (previewTimer) clearTimeout(previewTimer);
+                    if (!accepted) {
+                        await vscode.workspace
+                            .getConfiguration("markdownWysiwyg")
+                            .update("colorTheme", originalTheme, vscode.ConfigurationTarget.Global);
+                    }
                 });
 
                 quickPick.show();

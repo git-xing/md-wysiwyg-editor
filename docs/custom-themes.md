@@ -271,7 +271,7 @@ Markdown WYSIWYG Editor 支持自定义主题颜色，可以在 `.vscode/setting
 
 1. 在 `.vscode/settings.json` 中配置自定义主题
 2. 按 `Cmd+Shift+P`（macOS）或 `Ctrl+Shift+P`（Windows）
-3. 输入 "Select Color Theme"
+3. 输入 "Select Markdown Theme"
 4. 在主题列表中找到带 🎨 图标的自定义主题
 5. 选择该主题
 

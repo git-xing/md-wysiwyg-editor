@@ -1,4 +1,10 @@
 {
   "Cannot open chat: please install Claude extension or GitHub Copilot": "Cannot open chat: please install Claude extension or GitHub Copilot",
-  "Please configure markdownWysiwyg.imageServerUrl in settings first": "Please configure markdownWysiwyg.imageServerUrl in settings first"
+  "Please configure markdownWysiwyg.imageServerUrl in settings first": "Please configure markdownWysiwyg.imageServerUrl in settings first",
+  "Follow VS Code Theme": "Follow VS Code Theme",
+  "Custom": "Custom",
+  "Dark": "Dark",
+  "Light": "Light",
+  "Select Markdown Editor Theme": "Select Markdown Editor Theme",
+  "Type to search, use arrow keys to preview themes": "Type to search, use arrow keys to preview themes"
 }

@@ -57,28 +57,34 @@
             {
                 "command": "markdownWysiwyg.switchToTextEditor",
                 "title": "%command.switchToTextEditor.title%",
+                "category": "Markdown WYSIWYG",
                 "icon": "$(eye-closed)"
             },
             {
                 "command": "markdownWysiwyg.switchToPreview",
                 "title": "%command.switchToPreview.title%",
+                "category": "Markdown WYSIWYG",
                 "icon": "$(eye)"
             },
             {
                 "command": "markdownWysiwyg.debugModeEnable",
-                "title": "%command.debugModeEnable.title%"
+                "title": "%command.debugModeEnable.title%",
+                "category": "Markdown WYSIWYG"
             },
             {
                 "command": "markdownWysiwyg.debugModeDisable",
-                "title": "%command.debugModeDisable.title%"
+                "title": "%command.debugModeDisable.title%",
+                "category": "Markdown WYSIWYG"
             },
             {
                 "command": "markdownWysiwyg.selectTheme",
-                "title": "%command.selectTheme.title%"
+                "title": "%command.selectTheme.title%",
+                "category": "Markdown WYSIWYG"
             },
             {
                 "command": "markdownWysiwyg.showCurrentTheme",
-                "title": "%command.showCurrentTheme.title%"
+                "title": "%command.showCurrentTheme.title%",
+                "category": "Markdown WYSIWYG"
             }
         ],
         "keybindings": [

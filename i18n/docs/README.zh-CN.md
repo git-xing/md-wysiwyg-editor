@@ -48,7 +48,7 @@
 
 - 支持通过 `markdownWysiwyg.customThemes` 配置项自定义主题颜色
 - 在 `.vscode/settings.json` 中定义自定义主题名称和 VS Code 颜色 ID
-- 通过命令面板选择自定义主题："选择颜色主题"
+- 通过命令面板选择自定义主题："选择 Markdown 主题"
 - 详见 [自定义主题配置](docs/custom-themes.md)
 
 ### 目录（TOC）

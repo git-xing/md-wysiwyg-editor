@@ -271,7 +271,7 @@ Supported color formats:
 
 1. Add the custom theme configuration to `.vscode/settings.json`
 2. Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows)
-3. Type "Select Color Theme"
+3. Type "Select Markdown Theme"
 4. Find the custom theme with 🎨 icon in the theme list
 5. Select the theme
 
