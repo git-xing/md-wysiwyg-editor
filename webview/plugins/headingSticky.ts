@@ -69,6 +69,13 @@ function setStickyContent(
     sticky.className = "heading-sticky-title";
     sticky.innerHTML = "";
 
+    sticky.addEventListener("click", (event) => {
+        if ((event.target as HTMLElement).closest(".heading-sticky-toggle")) {
+            return;
+        }
+        scrollHeadingIntoStickyPosition(view, headingPos);
+    });
+
     const gutter = document.createElement("span");
     gutter.className = "heading-sticky-gutter";
 

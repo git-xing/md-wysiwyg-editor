@@ -87,6 +87,34 @@ describe('TableGridSelector', () => {
         expect(selector.isVisible).toBe(false);
     });
 
+    it('should have minimum table size of 2x2', async () => {
+        const callback = vi.fn();
+        selector.onSelect(callback);
+        selector.attachTo(anchor);
+        selector.show();
+
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        const container = document.querySelector('.table-grid-selector')!;
+        const grid = container.querySelector('.table-grid-selector__grid')!;
+        const gridRect = grid.getBoundingClientRect();
+
+        // Calculate position for cell at (1,1) - minimum 2x2
+        const targetX = gridRect.left + 1 * 20 + 9; // col=1
+        const targetY = gridRect.top + 1 * 20 + 9;  // row=1
+
+        const event = new MouseEvent('click', {
+            bubbles: true,
+            clientX: targetX,
+            clientY: targetY
+        });
+        grid.dispatchEvent(event);
+
+        expect(callback).toHaveBeenCalledWith(2, 2);
+        expect(selector.isVisible).toBe(false);
+    });
+
     it('should hide after delay when mouse leaves container', async () => {
         selector.attachTo(anchor);
         selector.show();

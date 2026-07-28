@@ -14,8 +14,8 @@ export class TableGridSelector {
     private hideTimer: ReturnType<typeof setTimeout> | null = null;
     private anchor: HTMLElement | null = null;
     private _isVisible = false;
-    private currentRows = 4;
-    private currentCols = 4;
+    private currentRows = 2;
+    private currentCols = 2;
     private static readonly MAX_ROWS = 8;
     private static readonly MAX_COLS = 8;
     private static readonly CELL_SIZE = 18;
@@ -97,7 +97,10 @@ export class TableGridSelector {
             if (row >= 0 && col >= 0) {
                 this.expandGrid(row, col);
                 this.highlightCells(row, col);
-                this.updateSizeLabel(row + 1, col + 1);
+                // 确保最小显示 2 x 2
+                const displayRows = Math.max(2, row + 1);
+                const displayCols = Math.max(2, col + 1);
+                this.updateSizeLabel(displayRows, displayCols);
             }
         });
 
@@ -136,9 +139,9 @@ export class TableGridSelector {
     }
 
     private highlightCells(targetRow: number, targetCol: number): void {
-        // 确保高亮区域不超过当前网格大小
-        const maxRow = Math.min(targetRow, this.currentRows - 1);
-        const maxCol = Math.min(targetCol, this.currentCols - 1);
+        // 确保高亮区域至少2x2，且不超过当前网格大小
+        const maxRow = Math.max(1, Math.min(targetRow, this.currentRows - 1));
+        const maxCol = Math.max(1, Math.min(targetCol, this.currentCols - 1));
         
         this.gridCells.forEach((cell) => {
             const row = parseInt(cell.dataset.row || '0', 10);
@@ -181,7 +184,10 @@ export class TableGridSelector {
 
     private selectCell(row: number, col: number): void {
         if (this.onSelectCallback) {
-            this.onSelectCallback(row + 1, col + 1);
+            // 确保最小插入2x2表格
+            const rows = Math.max(2, row + 1);
+            const cols = Math.max(2, col + 1);
+            this.onSelectCallback(rows, cols);
         }
         this.hide();
     }
