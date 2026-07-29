@@ -96,6 +96,95 @@ body {
     margin: 0 auto;
     padding: 56px 48px 0;
     --editor-content-left-padding: 48px;
+
+    .fm-list-value {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .fm-list-item {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+        border-radius: 4px;
+        background: var(--vscode-badge-background, rgba(128, 128, 128, 0.12));
+        color: var(--vscode-badge-foreground, var(--vscode-editor-foreground));
+    }
+
+    .fm-list-item-text {
+        min-width: 24px;
+        padding: 2px 6px;
+        outline: none;
+
+        &:empty::before {
+            content: attr(data-placeholder);
+            color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+            opacity: 0.55;
+            pointer-events: none;
+        }
+    }
+
+    .fm-list-delete-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 0;
+        border-left: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.18));
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        opacity: 0.72;
+
+        svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        &:hover {
+            color: var(--vscode-errorForeground, #f44747);
+            background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+        }
+    }
+
+    .fm-list-add-btn,
+    .fm-add-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border: 1px dashed var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+        border-radius: 4px;
+        background: transparent;
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: color 0.1s, border-color 0.1s, background 0.1s;
+
+        svg {
+            width: 13px;
+            height: 13px;
+        }
+
+        &:hover {
+            color: var(--vscode-editor-foreground);
+            border-color: var(--vscode-focusBorder, #007acc);
+            background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.1));
+        }
+    }
+
+    .fm-add-btn {
+        padding: 3px 10px;
+    }
+
+    .fm-add-row {
+        margin-top: 4px;
+    }
 }
 
 .frontmatter-table {
@@ -105,6 +194,20 @@ body {
     border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
     border-radius: 4px;
     overflow: hidden;
+
+    tr {
+        &:last-child td {
+            border-bottom: none;
+        }
+
+        &:hover,
+        &:focus-within {
+            .fm-delete-btn,
+            .fm-kind-toggle-btn {
+                opacity: 1;
+            }
+        }
+    }
 
     td {
         padding: 5px 10px;
@@ -125,10 +228,6 @@ body {
         }
     }
 
-    tr:last-child td {
-        border-bottom: none;
-    }
-
     .fm-key {
         white-space: nowrap;
         width: 1%;
@@ -147,67 +246,44 @@ body {
         padding: 4px 4px;
         text-align: center;
         vertical-align: middle;
-    }
-}
-
-/* 行删除按钮 */
-.fm-delete-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--vscode-descriptionForeground);
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.1s, color 0.1s, background 0.1s;
-
-    svg {
-        width: 14px;
-        height: 14px;
+        white-space: nowrap;
     }
 
-    &:hover {
+    .fm-kind-toggle-btn,
+    .fm-delete-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--vscode-descriptionForeground);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.1s, color 0.1s, background 0.1s;
+
+        svg {
+            width: 14px;
+            height: 14px;
+        }
+    }
+
+    .fm-kind-toggle-btn {
+        margin-right: 4px;
+
+        &:hover,
+        &.is-list {
+            color: var(--vscode-editor-foreground);
+            background: var(--vscode-button-secondaryHoverBackground, rgba(128, 128, 128, 0.22));
+            box-shadow: inset 0 0 0 1px var(--vscode-focusBorder, #007acc);
+        }
+    }
+
+    .fm-delete-btn:hover {
         color: var(--vscode-errorForeground, #f44747);
         background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
-    }
-}
-
-/* hover 行时显示删除按钮 */
-.frontmatter-table tr:hover .fm-delete-btn {
-    opacity: 1;
-}
-
-/* 底部添加行 */
-.fm-add-row {
-    margin-top: 4px;
-}
-
-.fm-add-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 10px;
-    border: 1px dashed var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
-    border-radius: 4px;
-    background: transparent;
-    color: var(--vscode-descriptionForeground);
-    font-size: 0.85em;
-    cursor: pointer;
-    transition: color 0.1s, border-color 0.1s, background 0.1s;
-
-    svg {
-        width: 13px;
-        height: 13px;
-    }
-
-    &:hover {
-        color: var(--vscode-editor-foreground);
-        border-color: var(--vscode-focusBorder, #007acc);
-        background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.1));
     }
 }
 

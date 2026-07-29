@@ -46,6 +46,8 @@ import {
     IconEraser,
     IconSettings,
     IconOverflow,
+    IconFileText,
+    IconPlus,
 } from "@/ui/icons";
 import { applyTooltip, hideTooltip } from "@/ui/tooltip";
 import { t, kbd } from "@/i18n";
@@ -56,6 +58,7 @@ import { attachImgPathComplete } from '../imageView/imgPathComplete';
 import './toolbar.css';
 import { alignmentPluginKey } from '../../plugins/alignment';
 import { TableGridSelector } from './tableGridSelector';
+import { addFrontmatterHeader, addSkillFrontmatterHeader } from "../frontmatter";
 
 type GetEditor = () => Editor | null;
 
@@ -1174,6 +1177,32 @@ export function initToolbar(
 
     let overflowOpen = false;
 
+    function appendPersistentOverflowItems(): void {
+        const frontmatterBtn = document.createElement("button");
+        frontmatterBtn.className = "tb-overflow-item";
+        frontmatterBtn.innerHTML = IconPlus;
+        applyTooltip(frontmatterBtn, "添加 Frontmatter");
+        frontmatterBtn.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            addFrontmatterHeader();
+            closeOverflow();
+        });
+
+        const skillBtn = document.createElement("button");
+        skillBtn.className = "tb-overflow-item";
+        skillBtn.innerHTML = IconFileText;
+        applyTooltip(skillBtn, "添加 Skill 头部");
+        skillBtn.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            addSkillFrontmatterHeader();
+            closeOverflow();
+        });
+        overflowMenu.appendChild(frontmatterBtn);
+        overflowMenu.appendChild(skillBtn);
+    }
+
     function closeOverflow(): void {
         overflowOpen = false;
         overflowMenu.classList.remove("tb-overflow-menu--visible");
@@ -1194,6 +1223,9 @@ export function initToolbar(
         } else {
             overflowOpen = true;
             hideTooltip();
+            if (overflowMenu.children.length === 0) {
+                appendPersistentOverflowItems();
+            }
             overflowMenu.classList.add("tb-overflow-menu--visible");
             const rect = overflowBtn.getBoundingClientRect();
             const menuH = overflowMenu.offsetHeight;
@@ -1222,6 +1254,7 @@ export function initToolbar(
     function getAllVisibleChildren(): HTMLElement[] {
         return Array.from(toolbar.children).filter((child) => {
             if (hiddenByOverflow.has(child)) return false;
+            if (child === overflowBtn) return false;
             const style = window.getComputedStyle(child);
             return style.display !== "none";
         }) as HTMLElement[];
@@ -1247,11 +1280,12 @@ export function initToolbar(
         // 恢复
         for (const child of hiddenByOverflow) child.style.display = "";
         hiddenByOverflow.clear();
-        overflowBtn.style.display = "none";
+        overflowBtn.style.display = "flex";
 
         const children = getAllVisibleChildren();
         const gap = 2;
-        const available = toolbarWrapper.clientWidth - 4;
+        const overflowRect = overflowBtn.getBoundingClientRect();
+        const available = toolbarWrapper.clientWidth - overflowRect.width - 4;
 
         // 测量所有子元素累计宽度（含 margin）
         let totalWidth = 0;
@@ -1268,12 +1302,15 @@ export function initToolbar(
         }
 
         if (firstOverflowIdx === -1) {
+            overflowMenu.innerHTML = "";
+            appendPersistentOverflowItems();
             checking = false;
             return;
         }
 
         overflowBtn.style.display = "flex";
         overflowMenu.innerHTML = "";
+        appendPersistentOverflowItems();
 
         // 从溢出点开始隐藏所有子元素
         for (let i = firstOverflowIdx; i < children.length; i++) {
@@ -1327,10 +1364,6 @@ export function initToolbar(
             });
 
             overflowMenu.appendChild(clonedBtn);
-        }
-
-        if (overflowMenu.children.length === 0) {
-            overflowBtn.style.display = "none";
         }
 
         checking = false;
