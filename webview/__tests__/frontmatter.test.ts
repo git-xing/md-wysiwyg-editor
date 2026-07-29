@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { mockVscodeApi } from "./setup";
 import {
     addFrontmatterHeader,
@@ -12,53 +14,11 @@ const eventManager = {
     onDocument: vi.fn(),
 };
 
-const blockListMarkdown = `---
-name: mcp-browser-helper
-description: Browser helper for MCP workflows
-allowed-tools:
-  - Bash
-  - Read
-  - "mcp__browser__navigate"
----
+const FIXTURE_DIR = path.resolve(process.cwd(), "webview/__tests__/fixtures/frontmatter");
 
-# MCP Browser Helper
-
----
-
-This horizontal rule belongs to the Markdown body.
-`;
-
-const inlineListMarkdown = `---
-name: inline-tools
-description: Inline list syntax should be accepted
-allowed-tools: [Bash, Read, "mcp__foo__bar"]
----
-
-# Inline Tools
-`;
-
-const emptyListMarkdown = `---
-name: empty-tools
-description: Empty tools should remain editable as a list
-allowed-tools: []
----
-
-# Empty Tools
-`;
-
-const quotedScalarsMarkdown = `---
-name: "quoted-skill"
-description: "Use when values contain: colon and # marker"
-version: "1.0"
----
-
-# Quoted Scalars
-`;
-
-const noFrontmatterMarkdown = `# No Frontmatter
-
-This Markdown file starts directly with content.
-`;
+function readFixture(name: string): string {
+    return readFileSync(path.join(FIXTURE_DIR, name), "utf8");
+}
 
 describe("frontmatter panel", () => {
     beforeEach(() => {
@@ -67,7 +27,7 @@ describe("frontmatter panel", () => {
     });
 
     it("parses block list frontmatter", () => {
-        const entries = parseFrontmatter(blockListMarkdown);
+        const entries = parseFrontmatter(readFixture("skill-block-list.md"));
 
         expect(entries).toEqual([
             { kind: "scalar", key: "name", value: "mcp-browser-helper" },
@@ -77,7 +37,7 @@ describe("frontmatter panel", () => {
     });
 
     it("parses inline list frontmatter and serializes to block list", () => {
-        const entries = parseFrontmatter(inlineListMarkdown);
+        const entries = parseFrontmatter(readFixture("skill-inline-list.md"));
 
         expect(entries).toEqual([
             { kind: "scalar", key: "name", value: "inline-tools" },
@@ -94,13 +54,13 @@ allowed-tools:
     });
 
     it("parses empty list frontmatter as an editable list", () => {
-        const entries = parseFrontmatter(emptyListMarkdown);
+        const entries = parseFrontmatter(readFixture("skill-empty-list.md"));
 
         expect(entries).toContainEqual({ kind: "list", key: "allowed-tools", items: [] });
     });
 
     it("parses quoted scalar values used by skill definitions", () => {
-        const entries = parseFrontmatter(quotedScalarsMarkdown);
+        const entries = parseFrontmatter(readFixture("skill-quoted-scalars.md"));
 
         expect(entries).toEqual([
             { kind: "scalar", key: "name", value: "quoted-skill" },
@@ -110,11 +70,11 @@ allowed-tools:
     });
 
     it("returns no entries for Markdown without frontmatter", () => {
-        expect(parseFrontmatter(noFrontmatterMarkdown)).toEqual([]);
+        expect(parseFrontmatter(readFixture("no-frontmatter.md"))).toEqual([]);
     });
 
     it("does not render inline create actions when frontmatter is missing", () => {
-        const entries = parseFrontmatter(noFrontmatterMarkdown);
+        const entries = parseFrontmatter(readFixture("no-frontmatter.md"));
         renderFrontmatterPanel(serializeFrontmatter(entries), eventManager as any);
 
         expect(document.querySelector("#frontmatter-panel")).toBeNull();
