@@ -69,6 +69,33 @@ allowed-tools:
         ]);
     });
 
+    it("parses nested object frontmatter", () => {
+        const entries = parseFrontmatter(readFixture("skill-metadata-object.md"));
+
+        expect(entries).toEqual([
+            { kind: "scalar", key: "name", value: "glab" },
+            { kind: "scalar", key: "description", value: "Expert guidance for using the GitLab CLI (glab)" },
+            {
+                kind: "object",
+                key: "metadata",
+                fields: [
+                    { kind: "scalar", key: "version", value: "1.0.1" },
+                    { kind: "scalar", key: "platform", value: "macos/linux" },
+                    { kind: "scalar", key: "category", value: "cli-tool" },
+                ],
+            },
+        ]);
+        expect(serializeFrontmatter(entries)).toBe(`---
+name: glab
+description: Expert guidance for using the GitLab CLI (glab)
+metadata:
+  version: "1.0.1"
+  platform: macos/linux
+  category: cli-tool
+---
+`);
+    });
+
     it("returns no entries for Markdown without frontmatter", () => {
         expect(parseFrontmatter(readFixture("no-frontmatter.md"))).toEqual([]);
     });
@@ -150,15 +177,18 @@ allowed-tools:
         });
     });
 
-    it("converts scalar value rows to list rows", () => {
+    it("turns a scalar row into list chips by adding a value", () => {
         renderFrontmatterPanel(`---
-custom: Bash, Read
+custom: Bash
 ---
 `, eventManager as any);
 
-        document.querySelector<HTMLElement>(".fm-kind-toggle-btn")?.dispatchEvent(new MouseEvent("mousedown", {
+        document.querySelector<HTMLElement>(".fm-list-add-btn")?.dispatchEvent(new MouseEvent("mousedown", {
             bubbles: true,
         }));
+        const items = document.querySelectorAll<HTMLElement>(".fm-list-item-text");
+        items[1].textContent = "Read";
+        items[1].dispatchEvent(new FocusEvent("blur", { bubbles: true }));
 
         expect(document.querySelectorAll(".fm-list-item-text")).toHaveLength(2);
         expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
@@ -178,8 +208,234 @@ allowed-tools: []
 ---
 `, eventManager as any);
 
-        expect(document.querySelector<HTMLButtonElement>(".fm-kind-toggle-btn")?.tabIndex).toBe(-1);
+        const addValueBtn = document.querySelector<HTMLButtonElement>(".fm-list-add-btn");
+        expect(addValueBtn?.tabIndex).toBe(-1);
+        expect(addValueBtn?.textContent?.trim()).toBe("");
+        expect(addValueBtn?.dataset.tooltip).toBe("Add field");
         expect(document.querySelector<HTMLButtonElement>(".fm-delete-btn")?.tabIndex).toBe(-1);
+    });
+
+    it("turns list chips back into a scalar row when one value remains", () => {
+        renderFrontmatterPanel(`---
+allowed-tools:
+  - Bash
+  - Read
+---
+`, eventManager as any);
+
+        document.querySelector<HTMLElement>(".fm-list-delete-btn")?.dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+        }));
+
+        expect(document.querySelector(".fm-list-value")).toBeNull();
+        expect(document.querySelector(".fm-scalar-input")?.textContent).toBe("Read");
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+allowed-tools: Read
+---
+`,
+        });
+    });
+
+    it("hides delete tooltip when deleting a list item", () => {
+        renderFrontmatterPanel(`---
+allowed-tools:
+  - Bash
+  - Read
+---
+`, eventManager as any);
+
+        const deleteBtn = document.querySelector<HTMLElement>(".fm-list-delete-btn")!;
+        deleteBtn.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+        expect(document.querySelector<HTMLElement>(".custom-tooltip")?.style.display).toBe("block");
+
+        deleteBtn.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+        expect(document.querySelector<HTMLElement>(".custom-tooltip")?.style.display).toBe("none");
+    });
+
+    it("turns a blank added list chip back into a scalar row on blur", () => {
+        renderFrontmatterPanel(`---
+custom: Bash
+---
+`, eventManager as any);
+
+        document.querySelector<HTMLElement>(".fm-list-add-btn")?.dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+        }));
+        const items = document.querySelectorAll<HTMLElement>(".fm-list-item-text");
+        items[1].dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+
+        expect(document.querySelector(".fm-list-value")).toBeNull();
+        expect(document.querySelector(".fm-scalar-input")?.textContent).toBe("Bash");
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+custom: Bash
+---
+`,
+        });
+    });
+
+    it("treats a lone br in scalar value as empty for placeholder display", () => {
+        renderFrontmatterPanel(`---
+title: ""
+---
+`, eventManager as any);
+
+        const input = document.querySelector<HTMLElement>(".fm-scalar-input")!;
+        input.innerHTML = "<br>";
+        input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+
+        expect(input.classList.contains("fm-editable-empty")).toBe(true);
+
+        input.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+
+        expect(input.innerHTML).toBe("");
+        expect(input.classList.contains("fm-editable-empty")).toBe(true);
+    });
+
+    it("removes a row when its key is empty after blur", () => {
+        renderFrontmatterPanel(`---
+title: Demo
+description: Text
+---
+`, eventManager as any);
+
+        const key = document.querySelector<HTMLElement>(".fm-key")!;
+        key.textContent = "";
+        key.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        key.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+
+        expect(document.querySelectorAll(".frontmatter-table tr")).toHaveLength(1);
+        expect(document.querySelector<HTMLElement>(".fm-key")?.textContent).toBe("description");
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+description: Text
+---
+`,
+        });
+    });
+
+    it("creates a single editable list item when adding a field from an empty scalar value", () => {
+        renderFrontmatterPanel(`---
+custom: ""
+---
+`, eventManager as any);
+
+        document.querySelector<HTMLElement>(".fm-list-add-btn")?.dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+        }));
+
+        const items = document.querySelectorAll<HTMLElement>(".fm-list-item-text");
+        expect(items).toHaveLength(1);
+        expect(items[0].classList.contains("fm-editable-empty")).toBe(true);
+    });
+
+    it("edits nested object scalar fields", () => {
+        renderFrontmatterPanel(readFixture("skill-metadata-object.md"), eventManager as any);
+
+        const values = document.querySelectorAll<HTMLElement>(".fm-object-val");
+        values[1].textContent = "linux";
+        values[1].dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+name: glab
+description: Expert guidance for using the GitLab CLI (glab)
+metadata:
+  version: "1.0.1"
+  platform: linux
+  category: cli-tool
+---
+`,
+        });
+    });
+
+    it("converts a scalar row to an object row from the UI", () => {
+        renderFrontmatterPanel(`---
+metadata: version
+---
+`, eventManager as any);
+
+        document.querySelector<HTMLElement>(".fm-object-toggle-btn")?.dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+        }));
+
+        expect(document.querySelector(".fm-object-value")).not.toBeNull();
+        expect(document.querySelector(".fm-object-children")).not.toBeNull();
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+metadata:
+  value: version
+---
+`,
+        });
+    });
+
+    it("adds an object row from the UI", () => {
+        renderFrontmatterPanel(`---
+title: Demo
+---
+`, eventManager as any);
+
+        document.querySelectorAll<HTMLElement>(".fm-add-btn")[1].dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+        }));
+
+        expect(document.querySelectorAll(".frontmatter-table tr")).toHaveLength(2);
+        expect(document.querySelector(".fm-object-value")).not.toBeNull();
+        expect(document.querySelector(".fm-object-children")).not.toBeNull();
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+title: Demo
+metadata: {}
+---
+`,
+        });
+    });
+
+    it("adds nested object fields from the UI", () => {
+        renderFrontmatterPanel(`---
+metadata: {}
+---
+`, eventManager as any);
+
+        document.querySelector<HTMLElement>(".fm-object-add-btn")?.dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+        }));
+        const key = document.querySelector<HTMLElement>(".fm-object-key")!;
+        const value = document.querySelector<HTMLElement>(".fm-object-val")!;
+        key.textContent = "version";
+        key.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+        value.textContent = "1.0.1";
+        value.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+
+        expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
+            type: "frontmatterUpdate",
+            frontmatter: `---
+metadata:
+  version: "1.0.1"
+---
+`,
+        });
+    });
+
+    it("renders nested object rows expanded by default", () => {
+        renderFrontmatterPanel(readFixture("skill-metadata-object.md"), eventManager as any);
+
+        expect(document.querySelector(".fm-object-children")).not.toBeNull();
+        expect(Array.from(document.querySelectorAll<HTMLElement>(".fm-object-key")).map(el => el.textContent)).toEqual([
+            "version",
+            "platform",
+            "category",
+        ]);
+        expect(mockVscodeApi.postMessage).not.toHaveBeenCalled();
     });
 
     it("removes the panel after deleting the last frontmatter row", () => {
@@ -216,7 +472,7 @@ allowed-tools:
         expect(mockVscodeApi.postMessage).toHaveBeenLastCalledWith({
             type: "frontmatterUpdate",
             frontmatter: `---
-allowed-tools: []
+allowed-tools: ""
 ---
 `,
         });

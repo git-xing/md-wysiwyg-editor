@@ -94,5 +94,8 @@
   "Invalid regular expression": "잘못된 정규식",
   "Click to select entire row · Drag to reorder": "클릭하여 행 전체 선택 · 드래그하여 재정렬",
   "Click to select entire column · Drag to reorder": "클릭하여 열 전체 선택 · 드래그하여 재정렬",
-  "More tools": "추가 도구"
+  "More tools": "추가 도구",
+  "Convert to scalar": "단일 값으로 변환",
+  "Convert to object": "객체로 변환",
+  "Add object": "객체 추가"
 }

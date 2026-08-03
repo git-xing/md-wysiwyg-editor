@@ -4,13 +4,19 @@
  * 职责：渲染和管理 YAML Frontmatter 可编辑面板
  */
 
-import { IconList, IconPlus, IconX } from "../../ui/icons";
+import { IconPlus, IconSettings, IconX } from "../../ui/icons";
 import { t } from "../../i18n";
 import { notifyFrontmatterUpdate } from "../../messaging";
-import { applyTooltip } from "../../ui/tooltip";
+import { applyTooltip, hideTooltip } from "../../ui/tooltip";
 import type { EventManager } from "../../eventManager";
 
 export type FmEntry =
+    | { kind: "scalar"; key: string; value: string }
+    | { kind: "list"; key: string; items: string[] }
+    | { kind: "object"; key: string; fields: FmObjectField[] }
+    | { kind: "raw"; key: string; lines: string[] };
+
+type FmObjectField =
     | { kind: "scalar"; key: string; value: string }
     | { kind: "list"; key: string; items: string[] }
     | { kind: "raw"; key: string; lines: string[] };
@@ -82,7 +88,7 @@ function shouldQuoteYaml(value: string): boolean {
         value.length === 0 ||
         /^[\s]|[\s]$/.test(value) ||
         /[:#,[\]{}]/.test(value) ||
-        /^(true|false|null|yes|no|on|off|\d+(\.\d+)?)$/i.test(value)
+        /^(true|false|null|yes|no|on|off|\d+(\.\d+)*)$/i.test(value)
     );
 }
 
@@ -107,6 +113,63 @@ function getFrontmatterLines(raw: string): string[] {
         return [];
     }
     return lines.slice(start + 1, end);
+}
+
+function parseObjectFields(lines: string[]): FmObjectField[] | null {
+    const fields: FmObjectField[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) {
+            continue;
+        }
+        if (!/^\s{2}\S/.test(line)) {
+            return null;
+        }
+
+        const match = line.match(/^\s{2}([^:#][^:]*):(?:\s*(.*))?$/);
+        if (!match) {
+            fields.push({ kind: "raw", key: "", lines: [line] });
+            continue;
+        }
+
+        const key = match[1].trim();
+        const rest = (match[2] ?? "").trim();
+        if (!key) {
+            continue;
+        }
+
+        if (rest.startsWith("[") && rest.endsWith("]")) {
+            fields.push({ kind: "list", key, items: splitInlineList(rest) });
+            continue;
+        }
+
+        const childLines: string[] = [];
+        let j = i + 1;
+        while (j < lines.length && (/^\s{4}/.test(lines[j]) || !lines[j].trim())) {
+            childLines.push(lines[j]);
+            j++;
+        }
+
+        if (rest === "" && childLines.length > 0) {
+            const meaningful = childLines.filter(child => child.trim());
+            if (meaningful.every(child => /^\s{4}-\s+/.test(child))) {
+                fields.push({
+                    kind: "list",
+                    key,
+                    items: meaningful.map(child => stripQuotes(child.replace(/^\s{4}-\s+/, ""))),
+                });
+            } else {
+                fields.push({ kind: "raw", key, lines: [line, ...childLines] });
+            }
+            i = j - 1;
+            continue;
+        }
+
+        fields.push({ kind: "scalar", key, value: stripQuotes(rest) });
+    }
+
+    return fields;
 }
 
 /** 解析 YAML frontmatter 字符串为 key-value 数组 */
@@ -141,6 +204,11 @@ export function parseFrontmatter(raw: string): FmEntry[] {
             continue;
         }
 
+        if (rest === "{}") {
+            entries.push({ kind: "object", key, fields: [] });
+            continue;
+        }
+
         const childLines: string[] = [];
         let j = i + 1;
         while (j < lines.length && (/^\s/.test(lines[j]) || !lines[j].trim())) {
@@ -157,7 +225,10 @@ export function parseFrontmatter(raw: string): FmEntry[] {
                     items: meaningful.map(child => stripQuotes(child.replace(/^\s*-\s+/, ""))),
                 });
             } else {
-                entries.push({ kind: "raw", key, lines: [line, ...childLines] });
+                const objectFields = parseObjectFields(childLines);
+                entries.push(objectFields
+                    ? { kind: "object", key, fields: objectFields }
+                    : { kind: "raw", key, lines: [line, ...childLines] });
             }
             i = j - 1;
             continue;
@@ -191,6 +262,25 @@ export function serializeFrontmatter(entries: FmEntry[]): string {
             }
             return [`${entry.key}:`, ...items.map(item => `  - ${formatYamlScalar(item)}`)];
         }
+        if (entry.kind === "object") {
+            const childLines = entry.fields.flatMap(field => {
+                if (field.kind === "raw") {
+                    return field.lines;
+                }
+                if (field.key.trim().length === 0) {
+                    return [];
+                }
+                if (field.kind === "list") {
+                    const items = field.items.map(item => item.trim()).filter(Boolean);
+                    if (items.length === 0) {
+                        return [`  ${field.key}: []`];
+                    }
+                    return [`  ${field.key}:`, ...items.map(item => `    - ${formatYamlScalar(item)}`)];
+                }
+                return [`  ${field.key}: ${formatYamlScalar(field.value)}`];
+            });
+            return childLines.length > 0 ? [`${entry.key}:`, ...childLines] : [`${entry.key}: {}`];
+        }
         return [`${entry.key}: ${formatYamlScalar(entry.value)}`];
     });
     if (lines.length === 0) { return ""; }
@@ -215,6 +305,15 @@ function refreshTable(): void {
         if (entry.kind !== "raw") {
             _tbody.appendChild(createFmRow(entry, i));
         }
+    });
+}
+
+function normalizeEntriesForEditing(entries: FmEntry[]): FmEntry[] {
+    return entries.map(entry => {
+        if (entry.kind === "list" && entry.items.length <= 1) {
+            return { kind: "scalar", key: entry.key, value: entry.items[0] ?? "" };
+        }
+        return entry;
     });
 }
 
@@ -247,25 +346,49 @@ function getVisibleEntryIndex(entry: FmEntry): number {
     return -1;
 }
 
-function scalarValueToListItems(value: string): string[] {
-    const trimmed = value.trim();
-    if (!trimmed) {
-        return [];
+function normalizeListEntryAfterEdit(entry: Extract<FmEntry, { kind: "list" }>, index: number): void {
+    entry.items = entry.items.map(item => item.trim()).filter(Boolean);
+    if (entry.items.length <= 1) {
+        currentFmEntries[index] = { kind: "scalar", key: entry.key, value: entry.items[0] ?? "" };
     }
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-        return splitInlineList(trimmed);
-    }
-    return trimmed.split(",").map(item => item.trim()).filter(Boolean);
 }
 
-function toggleEntryKind(index: number): void {
+function getEditableText(el: HTMLElement): string {
+    return (el.textContent ?? "").trim();
+}
+
+function updateEditablePlaceholder(el: HTMLElement): void {
+    el.classList.toggle("fm-editable-empty", getEditableText(el).length === 0);
+}
+
+function bindEditablePlaceholder(el: HTMLElement): void {
+    updateEditablePlaceholder(el);
+    el.addEventListener("input", () => updateEditablePlaceholder(el));
+    el.addEventListener("blur", () => {
+        if (getEditableText(el).length === 0) {
+            el.textContent = "";
+        }
+        updateEditablePlaceholder(el);
+    });
+}
+
+function entryValueToObjectFields(entry: Extract<FmEntry, { kind: "scalar" } | { kind: "list" }>): FmObjectField[] {
+    if (entry.kind === "list") {
+        return entry.items.length > 0 ? [{ kind: "list", key: "items", items: [...entry.items] }] : [];
+    }
+    return entry.value ? [{ kind: "scalar", key: "value", value: entry.value }] : [];
+}
+
+function toggleEntryObject(index: number): void {
     const entry = currentFmEntries[index];
     if (!entry || entry.kind === "raw") {
         return;
     }
-    currentFmEntries[index] = entry.kind === "list"
-        ? { kind: "scalar", key: entry.key, value: entry.items.join(", ") }
-        : { kind: "list", key: entry.key, items: scalarValueToListItems(entry.value) };
+    if (entry.kind === "object") {
+        currentFmEntries[index] = { kind: "scalar", key: entry.key, value: "" };
+    } else {
+        currentFmEntries[index] = { kind: "object", key: entry.key, fields: entryValueToObjectFields(entry) };
+    }
     commitFrontmatterChange();
     refreshTable();
 }
@@ -273,19 +396,25 @@ function toggleEntryKind(index: number): void {
 // ── cell binding ─────────────────────────────────────────────────
 function bindFmCell(
     td: HTMLElement,
-    entry: Extract<FmEntry, { kind: "scalar" } | { kind: "list" }>,
+    entry: Extract<FmEntry, { kind: "scalar" } | { kind: "list" } | { kind: "object" }>,
     field: EditableField,
+    index: number,
 ): void {
     td.contentEditable = 'true';
-    const value = field === "key" ? entry.key : entry.kind === "scalar" ? entry.value : entry.items.join(", ");
+    const value = field === "key" ? entry.key : entry.kind === "scalar" ? entry.value : entry.kind === "list" ? entry.items.join(", ") : "";
     td.textContent = value;
     td.dataset['orig'] = value;
     td.dataset['placeholder'] = field === 'key' ? 'key' : 'value';
+    bindEditablePlaceholder(td);
 
     td.addEventListener('blur', () => {
-        const newVal = (td.textContent ?? '').trim();
+        const newVal = getEditableText(td);
         if (field === 'key' && newVal.length === 0) {
-            td.textContent = td.dataset['orig'] ?? '';
+            currentFmEntries.splice(index, 1);
+            commitFrontmatterChange();
+            if (serializeFrontmatter(currentFmEntries)) {
+                refreshTable();
+            }
             return;
         }
         if (newVal !== td.dataset['orig']) {
@@ -293,17 +422,170 @@ function bindFmCell(
                 entry.key = newVal;
             } else if (entry.kind === "scalar") {
                 entry.value = newVal;
-            } else {
+            } else if (entry.kind === "list") {
                 entry.items = newVal.split(",").map(item => item.trim()).filter(Boolean);
                 refreshTable();
             }
             commitFrontmatterChange();
         }
-        td.dataset['orig'] = field === "key" ? entry.key : entry.kind === "scalar" ? entry.value : entry.items.join(", ");
+        td.dataset['orig'] = field === "key" ? entry.key : entry.kind === "scalar" ? entry.value : entry.kind === "list" ? entry.items.join(", ") : "";
     });
 }
 
-function createListValue(entry: Extract<FmEntry, { kind: "list" }>): HTMLElement {
+function createObjectValue(entry: Extract<FmEntry, { kind: "object" }>): HTMLElement {
+    const wrapper = document.createElement("div");
+    wrapper.className = "fm-object-value";
+    const children = document.createElement("div");
+    children.className = "fm-object-children";
+
+    const refreshObject = (): void => {
+        refreshTable();
+        commitFrontmatterChange();
+        const rowIndex = getVisibleEntryIndex(entry);
+        const rows = _tbody.querySelectorAll("tr");
+        const row = rows[rowIndex];
+        row?.querySelector<HTMLElement>(".fm-object-row:last-of-type .fm-object-key")?.focus();
+    };
+
+    entry.fields.forEach((field, fieldIndex) => {
+        if (field.kind === "raw") {
+            return;
+        }
+
+        const row = document.createElement("div");
+        row.className = "fm-object-row";
+
+        const key = document.createElement("span");
+        key.className = "fm-object-key";
+        key.contentEditable = "true";
+        key.dataset["placeholder"] = "key";
+        key.textContent = field.key;
+        bindEditablePlaceholder(key);
+        key.addEventListener("blur", () => {
+            const next = getEditableText(key);
+            if (!next) {
+                entry.fields.splice(fieldIndex, 1);
+                refreshTable();
+                commitFrontmatterChange();
+                return;
+            }
+            if (next !== field.key) {
+                field.key = next;
+                commitFrontmatterChange();
+            }
+        });
+
+        const value = document.createElement("span");
+        value.className = "fm-object-val";
+        value.contentEditable = "true";
+        value.dataset["placeholder"] = "value";
+        bindEditablePlaceholder(value);
+        if (field.kind === "list") {
+            value.textContent = field.items.join(", ");
+            updateEditablePlaceholder(value);
+            value.addEventListener("blur", () => {
+                const next = getEditableText(value);
+                const items = next ? next.split(",").map(item => item.trim()).filter(Boolean) : [];
+                if (items.join(", ") !== field.items.join(", ")) {
+                    field.items = items;
+                    commitFrontmatterChange();
+                }
+            });
+        } else {
+            value.textContent = field.value;
+            updateEditablePlaceholder(value);
+            value.addEventListener("blur", () => {
+                const next = getEditableText(value);
+                if (next !== field.value) {
+                    field.value = next;
+                    commitFrontmatterChange();
+                }
+            });
+        }
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "fm-object-delete-btn";
+        delBtn.innerHTML = IconX;
+        delBtn.tabIndex = -1;
+        applyTooltip(delBtn, t("Delete"), { placement: "above" });
+        delBtn.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            hideTooltip();
+            entry.fields.splice(fieldIndex, 1);
+            refreshTable();
+            commitFrontmatterChange();
+        });
+
+        row.appendChild(key);
+        row.appendChild(value);
+        row.appendChild(delBtn);
+        children.appendChild(row);
+    });
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "fm-object-add-btn";
+    addBtn.innerHTML = `${IconPlus} <span>${t("Add field")}</span>`;
+    addBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        entry.fields.push({ kind: "scalar", key: "", value: "" });
+        refreshObject();
+    });
+    children.appendChild(addBtn);
+    wrapper.appendChild(children);
+
+    return wrapper;
+}
+
+function createScalarValue(entry: Extract<FmEntry, { kind: "scalar" }>, index: number): HTMLElement {
+    const wrapper = document.createElement("div");
+    wrapper.className = "fm-scalar-value";
+
+    const value = document.createElement("span");
+    value.className = "fm-scalar-input";
+    value.contentEditable = "true";
+    value.dataset["placeholder"] = "value";
+    value.textContent = entry.value;
+    value.dataset["orig"] = entry.value;
+    bindEditablePlaceholder(value);
+    value.addEventListener("blur", () => {
+        const next = getEditableText(value);
+        if (next !== entry.value) {
+            entry.value = next;
+            commitFrontmatterChange();
+        }
+        value.dataset["orig"] = entry.value;
+    });
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "fm-list-add-btn";
+    addBtn.innerHTML = IconPlus;
+    addBtn.tabIndex = -1;
+    applyTooltip(addBtn, t("Add field"), { placement: "above" });
+    addBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        hideTooltip();
+        const current = getEditableText(value);
+        currentFmEntries[index] = {
+            kind: "list",
+            key: entry.key,
+            items: current ? [current, ""] : [""],
+        };
+        commitFrontmatterChange();
+        refreshTable();
+        const rows = _tbody.querySelectorAll("tr");
+        const row = rows[getVisibleEntryIndex(currentFmEntries[index])];
+        row?.querySelector<HTMLElement>(".fm-list-item:last-of-type .fm-list-item-text")?.focus();
+    });
+
+    wrapper.appendChild(value);
+    wrapper.appendChild(addBtn);
+    return wrapper;
+}
+
+function createListValue(entry: Extract<FmEntry, { kind: "list" }>, index: number): HTMLElement {
     const wrapper = document.createElement("div");
     wrapper.className = "fm-list-value";
 
@@ -321,13 +603,15 @@ function createListValue(entry: Extract<FmEntry, { kind: "list" }>): HTMLElement
         text.contentEditable = "true";
         text.dataset["placeholder"] = "value";
         text.textContent = item;
+        bindEditablePlaceholder(text);
         text.addEventListener("blur", () => {
             if (suppressListItemBlur) {
                 return;
             }
-            const next = (text.textContent ?? "").trim();
+            const next = getEditableText(text);
             if (!next) {
                 entry.items.splice(itemIndex, 1);
+                normalizeListEntryAfterEdit(entry, index);
                 refreshTable();
                 commitFrontmatterChange();
                 return;
@@ -345,10 +629,11 @@ function createListValue(entry: Extract<FmEntry, { kind: "list" }>): HTMLElement
         delBtn.addEventListener("mousedown", (e) => {
             e.preventDefault();
             e.stopPropagation();
+            hideTooltip();
             suppressListItemBlur = true;
             syncItemsFromDom();
             entry.items.splice(itemIndex, 1);
-            entry.items = entry.items.filter(Boolean);
+            normalizeListEntryAfterEdit(entry, index);
             refreshTable();
             commitFrontmatterChange();
             setTimeout(() => {
@@ -363,10 +648,13 @@ function createListValue(entry: Extract<FmEntry, { kind: "list" }>): HTMLElement
 
     const addBtn = document.createElement("button");
     addBtn.className = "fm-list-add-btn";
-    addBtn.innerHTML = `${IconPlus} <span>${t("Add field")}</span>`;
+    addBtn.innerHTML = IconPlus;
+    addBtn.tabIndex = -1;
+    applyTooltip(addBtn, t("Add field"), { placement: "above" });
     addBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        hideTooltip();
         entry.items.push("");
         refreshTable();
         const rows = _tbody.querySelectorAll("tr");
@@ -387,28 +675,32 @@ function createFmRow(entry: FmEntry, index: number): HTMLTableRowElement {
 
     const tdKey = document.createElement('td');
     tdKey.className = 'fm-key';
-    bindFmCell(tdKey, entry, 'key');
+    bindFmCell(tdKey, entry, 'key', index);
 
     const tdVal = document.createElement('td');
     tdVal.className = 'fm-val';
     if (entry.kind === "list") {
-        tdVal.appendChild(createListValue(entry));
+        tdVal.appendChild(createListValue(entry, index));
+    } else if (entry.kind === "object") {
+        tdVal.appendChild(createObjectValue(entry));
     } else {
-        bindFmCell(tdVal, entry, 'value');
+        tdVal.appendChild(createScalarValue(entry, index));
     }
 
     const tdDel = document.createElement('td');
     tdDel.className = 'fm-action';
-    const kindBtn = document.createElement('button');
-    kindBtn.className = `fm-kind-toggle-btn${entry.kind === "list" ? " is-list" : ""}`;
-    kindBtn.innerHTML = IconList;
-    kindBtn.tabIndex = -1;
-    applyTooltip(kindBtn, entry.kind === "list" ? "转为单值" : "转为多值", { placement: "above" });
-    kindBtn.addEventListener('mousedown', (e) => {
+    const objectBtn = document.createElement('button');
+    objectBtn.className = `fm-object-toggle-btn${entry.kind === "object" ? " is-object" : ""}`;
+    objectBtn.innerHTML = IconSettings;
+    objectBtn.tabIndex = -1;
+    applyTooltip(objectBtn, entry.kind === "object" ? t("Convert to scalar") : t("Convert to object"), { placement: "above" });
+    objectBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggleEntryKind(index);
+        hideTooltip();
+        toggleEntryObject(index);
     });
+    tdDel.appendChild(objectBtn);
 
     const delBtn = document.createElement('button');
     delBtn.className = 'fm-delete-btn';
@@ -418,13 +710,13 @@ function createFmRow(entry: FmEntry, index: number): HTMLTableRowElement {
     delBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        hideTooltip();
         currentFmEntries.splice(index, 1);
         commitFrontmatterChange();
         if (serializeFrontmatter(currentFmEntries)) {
             refreshTable();
         }
     });
-    tdDel.appendChild(kindBtn);
     tdDel.appendChild(delBtn);
 
     tr.appendChild(tdKey);
@@ -440,6 +732,15 @@ function addNewRow(): void {
     const tr = createFmRow(newEntry, currentFmEntries.length - 1);
     _tbody.appendChild(tr);
     tr.querySelector<HTMLElement>('.fm-key')?.focus();
+}
+
+function addObjectRow(): void {
+    const newEntry: FmEntry = { kind: "object", key: "metadata", fields: [{ kind: "scalar", key: "", value: "" }] };
+    currentFmEntries.push(newEntry);
+    const tr = createFmRow(newEntry, currentFmEntries.length - 1);
+    _tbody.appendChild(tr);
+    tr.querySelector<HTMLElement>('.fm-key')?.focus();
+    commitFrontmatterChange();
 }
 
 // ── undo / redo ──────────────────────────────────────────────────
@@ -486,6 +787,20 @@ function cloneEntries(entries: FmEntry[]): FmEntry[] {
         }
         if (entry.kind === "raw") {
             return { ...entry, lines: [...entry.lines] };
+        }
+        if (entry.kind === "object") {
+            return {
+                ...entry,
+                fields: entry.fields.map(field => {
+                    if (field.kind === "list") {
+                        return { ...field, items: [...field.items] };
+                    }
+                    if (field.kind === "raw") {
+                        return { ...field, lines: [...field.lines] };
+                    }
+                    return { ...field };
+                }),
+            };
         }
         return { ...entry };
     });
@@ -546,6 +861,7 @@ export function addFrontmatterHeader(): void {
 
 // ── render ───────────────────────────────────────────────────────
 export function renderFrontmatterPanel(frontmatter: string | undefined, eventManager: EventManager): void {
+    suppressListItemBlur = false;
     const existing = document.getElementById('frontmatter-panel');
     const editorEl = document.getElementById('editor');
     const panel = existing ?? document.createElement('div');
@@ -562,7 +878,7 @@ export function renderFrontmatterPanel(frontmatter: string | undefined, eventMan
         return;
     }
 
-    currentFmEntries = parseFrontmatter(frontmatter);
+    currentFmEntries = normalizeEntriesForEditing(parseFrontmatter(frontmatter));
 
     const table = document.createElement('table');
     table.className = 'frontmatter-table';
@@ -588,7 +904,16 @@ export function renderFrontmatterPanel(frontmatter: string | undefined, eventMan
         e.stopPropagation();
         addNewRow();
     });
+    const addObjectBtn = document.createElement('button');
+    addObjectBtn.className = 'fm-add-btn';
+    addObjectBtn.innerHTML = `${IconSettings} <span>${t("Add object")}</span>`;
+    addObjectBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addObjectRow();
+    });
     addRow.appendChild(addBtn);
+    addRow.appendChild(addObjectBtn);
     panel.appendChild(addRow);
 
     if (!existing) {

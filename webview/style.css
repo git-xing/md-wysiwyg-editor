@@ -104,6 +104,27 @@ body {
         align-items: center;
     }
 
+    .fm-scalar-value {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .fm-scalar-input {
+        position: relative;
+        display: inline-block;
+        min-width: 100px;
+        outline: none;
+        padding-right: 40px;
+
+        &.fm-editable-empty::before {
+            content: attr(data-placeholder);
+            color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    }
+
     .fm-list-item {
         display: inline-flex;
         align-items: center;
@@ -115,16 +136,22 @@ body {
     }
 
     .fm-list-item-text {
+        position: relative;
+        display: inline-block;
         min-width: 24px;
         padding: 2px 6px;
         outline: none;
 
-        &:empty::before {
+        &.fm-editable-empty::before {
             content: attr(data-placeholder);
             color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
             opacity: 0.55;
             pointer-events: none;
         }
+    }
+
+    .fm-list-item-text.fm-editable-empty {
+        min-width: 12em;
     }
 
     .fm-list-delete-btn {
@@ -164,6 +191,7 @@ body {
         color: var(--vscode-descriptionForeground);
         font-size: 0.85em;
         cursor: pointer;
+        white-space: nowrap;
         transition: color 0.1s, border-color 0.1s, background 0.1s;
 
         svg {
@@ -182,8 +210,124 @@ body {
         padding: 3px 10px;
     }
 
+    .fm-list-add-btn {
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+    }
+
     .fm-add-row {
+        display: flex;
+        gap: 6px;
         margin-top: 4px;
+    }
+
+    .fm-object-value {
+        display: grid;
+        gap: 3px;
+        min-width: 180px;
+    }
+
+    .fm-object-children {
+        display: grid;
+        gap: 3px;
+        padding: 4px 0 2px 14px;
+        border-left: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+    }
+
+    .fm-object-row {
+        display: grid;
+        grid-template-columns: minmax(72px, max-content) minmax(120px, 1fr) 22px;
+        gap: 10px;
+        align-items: start;
+    }
+
+    .fm-object-key {
+        position: relative;
+        display: inline-block;
+        color: var(--vscode-symbolIcon-keywordForeground, var(--vscode-descriptionForeground));
+        font-family: var(--vscode-editor-font-family, monospace);
+        font-weight: 600;
+        outline: none;
+
+        &.fm-editable-empty::before {
+            content: attr(data-placeholder);
+            color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    }
+
+    .fm-object-val {
+        position: relative;
+        display: inline-block;
+        min-width: 24px;
+        outline: none;
+
+        &.fm-editable-empty::before {
+            content: attr(data-placeholder);
+            color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    }
+
+    .fm-object-delete-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--vscode-descriptionForeground);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.1s, color 0.1s, background 0.1s;
+
+        svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        &:hover {
+            color: var(--vscode-errorForeground, #f44747);
+            background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+        }
+    }
+
+    .fm-object-row:hover .fm-object-delete-btn,
+    .fm-object-row:focus-within .fm-object-delete-btn {
+        opacity: 1;
+    }
+
+    .fm-object-add-btn {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border: 1px dashed var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+        border-radius: 4px;
+        background: transparent;
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: color 0.1s, border-color 0.1s, background 0.1s;
+
+        svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        &:hover {
+            color: var(--vscode-editor-foreground);
+            border-color: var(--vscode-focusBorder, #007acc);
+            background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.1));
+        }
     }
 }
 
@@ -203,7 +347,7 @@ body {
         &:hover,
         &:focus-within {
             .fm-delete-btn,
-            .fm-kind-toggle-btn {
+            .fm-object-toggle-btn {
                 opacity: 1;
             }
         }
@@ -218,9 +362,10 @@ body {
         word-break: break-word;
         white-space: pre-wrap;
         min-width: 30px;
+        position: relative;
 
         /* 空单元格占位符 */
-        &:empty::before {
+        &.fm-editable-empty::before {
             content: attr(data-placeholder);
             color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
             opacity: 0.5;
@@ -228,7 +373,18 @@ body {
         }
     }
 
+    .fm-editable-empty::before {
+        position: absolute;
+        inset-inline-start: var(--fm-placeholder-left, 0);
+        white-space: nowrap;
+    }
+
+    .fm-list-item-text.fm-editable-empty::before {
+        --fm-placeholder-left: 6px;
+    }
+
     .fm-key {
+        --fm-placeholder-left: 10px;
         white-space: nowrap;
         width: 1%;
         padding-right: 16px;
@@ -249,7 +405,7 @@ body {
         white-space: nowrap;
     }
 
-    .fm-kind-toggle-btn,
+    .fm-object-toggle-btn,
     .fm-delete-btn {
         display: inline-flex;
         align-items: center;
@@ -270,11 +426,11 @@ body {
         }
     }
 
-    .fm-kind-toggle-btn {
+    .fm-object-toggle-btn {
         margin-right: 4px;
 
         &:hover,
-        &.is-list {
+        &.is-object {
             color: var(--vscode-editor-foreground);
             background: var(--vscode-button-secondaryHoverBackground, rgba(128, 128, 128, 0.22));
             box-shadow: inset 0 0 0 1px var(--vscode-focusBorder, #007acc);

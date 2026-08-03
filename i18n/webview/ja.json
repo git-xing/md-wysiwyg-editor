@@ -94,5 +94,8 @@
   "Invalid regular expression": "無効な正規表現",
   "Click to select entire row · Drag to reorder": "クリックで行全体を選択 · ドラッグで並べ替え",
   "Click to select entire column · Drag to reorder": "クリックで列全体を選択 · ドラッグで並べ替え",
-  "More tools": "その他のツール"
+  "More tools": "その他のツール",
+  "Convert to scalar": "単一値に変換",
+  "Convert to object": "オブジェクトに変換",
+  "Add object": "オブジェクトを追加"
 }

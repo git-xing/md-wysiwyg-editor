@@ -1166,7 +1166,7 @@ export function initToolbar(
     const overflowBtn = document.createElement("button");
     overflowBtn.className = "tb-overflow-btn";
     overflowBtn.innerHTML = IconOverflow;
-    applyTooltip(overflowBtn, t("More tools"));
+    overflowBtn.setAttribute("aria-label", t("More tools"));
     toolbar.appendChild(overflowBtn);
 
     // wrapper 包裹 toolbar
@@ -1176,12 +1176,54 @@ export function initToolbar(
     toolbarWrapper.appendChild(toolbar);
 
     let overflowOpen = false;
+    let overflowCloseTimer: number | undefined;
+
+    function getOverflowLabel(child: HTMLElement): string {
+        const button = child.matches("button") ? child : child.querySelector<HTMLElement>("button");
+        return button?.dataset.tooltip || child.dataset.tooltip || "";
+    }
+
+    function renderOverflowItem(icon: string, label: string): string {
+        return `${icon}<span>${label}</span>`;
+    }
+
+    function positionOverflowMenu(): void {
+        const rect = overflowBtn.getBoundingClientRect();
+        const menuH = overflowMenu.offsetHeight;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < menuH + 8) {
+            overflowMenu.style.top = "auto";
+            overflowMenu.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+        } else {
+            overflowMenu.style.top = `${rect.bottom + 4}px`;
+            overflowMenu.style.bottom = "auto";
+        }
+        overflowMenu.style.left = `${Math.max(8, Math.min(
+            rect.left + rect.width / 2 - overflowMenu.offsetWidth / 2,
+            window.innerWidth - overflowMenu.offsetWidth - 8,
+        ))}px`;
+    }
+
+    function openOverflow(): void {
+        window.clearTimeout(overflowCloseTimer);
+        if (overflowMenu.children.length === 0) {
+            appendPersistentOverflowItems();
+        }
+        overflowOpen = true;
+        hideTooltip();
+        overflowMenu.classList.add("tb-overflow-menu--visible");
+        positionOverflowMenu();
+    }
+
+    function scheduleCloseOverflow(): void {
+        window.clearTimeout(overflowCloseTimer);
+        overflowCloseTimer = window.setTimeout(() => closeOverflow(), 120);
+    }
 
     function appendPersistentOverflowItems(): void {
         const frontmatterBtn = document.createElement("button");
         frontmatterBtn.className = "tb-overflow-item";
-        frontmatterBtn.innerHTML = IconPlus;
-        applyTooltip(frontmatterBtn, "添加 Frontmatter");
+        frontmatterBtn.innerHTML = renderOverflowItem(IconPlus, "添加 Frontmatter");
         frontmatterBtn.addEventListener("mousedown", (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1191,8 +1233,7 @@ export function initToolbar(
 
         const skillBtn = document.createElement("button");
         skillBtn.className = "tb-overflow-item";
-        skillBtn.innerHTML = IconFileText;
-        applyTooltip(skillBtn, "添加 Skill 头部");
+        skillBtn.innerHTML = renderOverflowItem(IconFileText, "添加 Skill 头部");
         skillBtn.addEventListener("mousedown", (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1204,47 +1245,21 @@ export function initToolbar(
     }
 
     function closeOverflow(): void {
+        window.clearTimeout(overflowCloseTimer);
         overflowOpen = false;
         overflowMenu.classList.remove("tb-overflow-menu--visible");
-        document.removeEventListener("mousedown", onOverflowOutsideClick);
     }
 
-    function onOverflowOutsideClick(e: MouseEvent): void {
-        if (!overflowMenu.contains(e.target as Node) && e.target !== overflowBtn) {
-            closeOverflow();
-        }
-    }
-
+    overflowBtn.addEventListener("mouseenter", openOverflow);
+    overflowBtn.addEventListener("mouseleave", scheduleCloseOverflow);
+    overflowMenu.addEventListener("mouseenter", () => {
+        window.clearTimeout(overflowCloseTimer);
+    });
+    overflowMenu.addEventListener("mouseleave", scheduleCloseOverflow);
     overflowBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (overflowOpen) {
-            closeOverflow();
-        } else {
-            overflowOpen = true;
-            hideTooltip();
-            if (overflowMenu.children.length === 0) {
-                appendPersistentOverflowItems();
-            }
-            overflowMenu.classList.add("tb-overflow-menu--visible");
-            const rect = overflowBtn.getBoundingClientRect();
-            const menuH = overflowMenu.offsetHeight;
-            const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < menuH + 8) {
-                overflowMenu.style.top = "auto";
-                overflowMenu.style.bottom = `${window.innerHeight - rect.top + 4}px`;
-            } else {
-                overflowMenu.style.top = `${rect.bottom + 4}px`;
-                overflowMenu.style.bottom = "auto";
-            }
-            overflowMenu.style.left = `${Math.min(
-                rect.left + rect.width / 2 - overflowMenu.offsetWidth / 2,
-                window.innerWidth - overflowMenu.offsetWidth - 8,
-            )}px`;
-            setTimeout(() => {
-                document.addEventListener("mousedown", onOverflowOutsideClick);
-            }, 0);
-        }
+        openOverflow();
     });
 
     // ── 溢出检测 ───────────────────────────────────────────
@@ -1349,17 +1364,17 @@ export function initToolbar(
 
             const clonedBtn = document.createElement("button");
             clonedBtn.className = "tb-overflow-item";
-            clonedBtn.innerHTML = svgEl.outerHTML;
-            const tooltipText = child.dataset.tooltip || "";
-            if (tooltipText) applyTooltip(clonedBtn, tooltipText);
+            clonedBtn.innerHTML = renderOverflowItem(svgEl.outerHTML, getOverflowLabel(child));
 
             const capturedChild = child;
             clonedBtn.addEventListener("mousedown", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const target = capturedChild.querySelector("button") as HTMLElement | null;
-                if (target) target.click();
-                else capturedChild.click();
+                (target ?? capturedChild).dispatchEvent(new MouseEvent("mousedown", {
+                    bubbles: true,
+                    cancelable: true,
+                }));
                 closeOverflow();
             });
 

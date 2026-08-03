@@ -94,5 +94,8 @@
   "Invalid regular expression": "无效的正则表达式",
   "Click to select entire row · Drag to reorder": "点击选中整行 · 拖拽重排",
   "Click to select entire column · Drag to reorder": "点击选中整列 · 拖拽重排",
-  "More tools": "更多工具"
+  "More tools": "更多工具",
+  "Convert to scalar": "转为单值",
+  "Convert to object": "转为对象",
+  "Add object": "添加对象"
 }

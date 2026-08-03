@@ -94,5 +94,8 @@
   "Invalid regular expression": "Invalid regular expression",
   "Click to select entire row · Drag to reorder": "Click to select entire row · Drag to reorder",
   "Click to select entire column · Drag to reorder": "Click to select entire column · Drag to reorder",
-  "More tools": "More tools"
+  "More tools": "More tools",
+  "Convert to scalar": "Convert to scalar",
+  "Convert to object": "Convert to object",
+  "Add object": "Add object"
 }
