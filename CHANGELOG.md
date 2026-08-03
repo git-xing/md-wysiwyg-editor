@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.2] - 2026-08-03
+
+### Added
+
+- **Frontmatter list editing**: Added support for editing list fields directly in the frontmatter panel.
+- **Structured frontmatter editing**: Improved editing for nested object metadata and richer structured frontmatter values.
+- **Theme selection experience**: Improved the Markdown theme selection command with clearer localized labels.
+
+### Fixed
+
+- **Table grid selector**: Improved table grid picker interaction when inserting tables from the toolbar.
+- **Heading sticky title**: Fixed sticky heading layout behavior in the editor.
+
+### Changed
+
+- **Documentation refresh**: Updated English and Simplified Chinese README content with current feature descriptions and screenshots.
+
+---
+
 ## [0.3.1] - 2026-07-07
 
 ### Added
