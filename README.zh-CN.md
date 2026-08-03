@@ -7,14 +7,14 @@
     &nbsp;·&nbsp;
     <strong>简体中文</strong>
     &nbsp;·&nbsp;
-    <a href="./docs/custom-themes.md">自定义主题配置</a>
+    <a href="./i18n/docs/zh-cn/custom-themes.md">自定义主题配置</a>
 </p>
 
 <p align="center">
     <a href="https://github.com/git-xing/md-wysiwyg-editor"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Visual Studio Marketplace Version"/></a>
     <a href="https://marketplace.visualstudio.com/items?itemName=chance-liu.md-wysiwyg-editor"><img src="https://img.shields.io/visual-studio-marketplace/v/chance-liu.md-wysiwyg-editor?color=blue&label=VS%20Code%20Marketplace&logo=visual-studio-code" alt="Visual Studio Marketplace Version"/></a>
     <a href="./LICENSE"><img src="https://img.shields.io/npm/l/reasonix.svg?style=flat-square&color=8b949e&labelColor=161b22" alt="license"/></a>
-    <a href="[https://www.npmjs.com/package/reasonix](https://marketplace.visualstudio.com/items?itemName=chance-liu.md-wysiwyg-editor)"><img src="https://badgen.net/vs-marketplace/d/chance-liu.md-wysiwyg-editor?color=blue" alt="downloads"/></a>
+    <a href="https://marketplace.visualstudio.com/items?itemName=chance-liu.md-wysiwyg-editor"><img src="https://badgen.net/vs-marketplace/d/chance-liu.md-wysiwyg-editor?color=blue" alt="downloads"/></a>
     <a href="https://github.com/git-xing/md-wysiwyg-editor"><img src="https://img.shields.io/github/stars/git-xing/md-wysiwyg-editor?style=social" alt="GitHub stars"/></a>
 </p>
 

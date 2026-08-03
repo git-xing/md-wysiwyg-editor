@@ -7,7 +7,7 @@
     &nbsp;·&nbsp;
     <a href="./README.zh-CN.md">简体中文</a>
     &nbsp;·&nbsp;
-    <a href="./docs/custom-themes.md">Custom Theme Configuration</a>
+    <a href="./i18n/docs/en/custom-themes.md">Custom Theme Configuration</a>
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@
 - Support for custom color themes via `markdownWysiwyg.customThemes` configuration
 - Define themes in `.vscode/settings.json` with custom name and VS Code color IDs
 - Select custom themes from the Command Palette: "Select Markdown Theme"
-- See [Custom Theme Configuration](docs/custom-themes.md) for details
+- See [Custom Theme Configuration](i18n/docs/en/custom-themes.md) for details
 
 ![](./images/mdTheme.gif)
 
@@ -144,7 +144,7 @@ After installing the extension, open any `.md` / `.markdown` file in VS Code —
 | `markdownWysiwyg.imageLocalPath`     | string  | `""`        | Relative path (from workspace root) for local image storage   |
 | `markdownWysiwyg.colorTheme`         | string  | `"auto"`    | Color theme: `auto` follows VS Code, or set a theme ID        |
 | `markdownWysiwyg.tableWrap`          | string  | `"normal"`  | Table cell text wrapping: `normal`, `aggressive`, or `none`   |
-| `markdownWysiwyg.customThemes`       | array   | `[]`        | Custom color themes array. See [Custom Theme Configuration](docs/custom-themes.md) |
+| `markdownWysiwyg.customThemes`       | array   | `[]`        | Custom color themes array. See [Custom Theme Configuration](i18n/docs/en/custom-themes.md) |
 
 ---
 
