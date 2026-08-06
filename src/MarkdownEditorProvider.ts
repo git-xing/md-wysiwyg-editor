@@ -203,6 +203,10 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
     private async _getThemeColors(
         themeId: string,
     ): Promise<Record<string, string>> {
+        if (themeId === "auto") {
+            return getAutoThemeColors();
+        }
+
         // 检查是否是自定义主题（格式：custom:主题名称）
         if (themeId.startsWith("custom:")) {
             const customThemeName = themeId.slice(7);
@@ -220,17 +224,8 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
             }
         }
 
-        // 原有逻辑：查找 VSCode 内置主题
-        let currentThemeLabel: string | undefined;
-        if (themeId === "auto") {
-            const config = vscode.workspace.getConfiguration();
-            currentThemeLabel = config.get<string>("workbench.colorTheme");
-        }
-
         const themes = getAllThemes();
-        const theme = themes.find(
-            (t) => t.id === themeId || currentThemeLabel === t.label,
-        );
+        const theme = themes.find((t) => t.id === themeId);
         if (theme) {
             return await getThemeColors(theme.path);
         }

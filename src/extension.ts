@@ -354,15 +354,10 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
-    // 监听 VSCode 主题变化（auto 模式下自动更新）
+    // 监听 VSCode 主题变化：auto 清除覆盖，显式主题重新应用覆盖
     context.subscriptions.push(
         vscode.window.onDidChangeActiveColorTheme(() => {
-            const themeId = vscode.workspace
-                .getConfiguration("markdownWysiwyg")
-                .get<string>("colorTheme", "auto");
-            if (themeId === "auto") {
-                MarkdownEditorProvider.current?.applyThemeToAll();
-            }
+            MarkdownEditorProvider.current?.applyThemeToAll();
         }),
     );
 
