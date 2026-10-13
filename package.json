@@ -85,6 +85,12 @@
                 "command": "markdownWysiwyg.showCurrentTheme",
                 "title": "%command.showCurrentTheme.title%",
                 "category": "Markdown WYSIWYG"
+            },
+            {
+                "command": "markdownWysiwyg.toggleLightTheme",
+                "title": "%command.toggleLightTheme.title%",
+                "category": "Markdown WYSIWYG",
+                "icon": "$(color-mode)"
             }
         ],
         "keybindings": [
@@ -103,6 +109,11 @@
         ],
         "menus": {
             "editor/title": [
+                {
+                    "command": "markdownWysiwyg.toggleLightTheme",
+                    "group": "navigation",
+                    "when": "activeCustomEditorId == 'markdownWysiwyg.editor'"
+                },
                 {
                     "command": "markdownWysiwyg.switchToTextEditor",
                     "group": "navigation",

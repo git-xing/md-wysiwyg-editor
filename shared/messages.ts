@@ -49,7 +49,7 @@ export type ToWebviewMessage =
     | { type: "init"; content: string; lineMap?: number[]; scrollToLine?: number; frontmatter?: string; imageUriMap?: Record<string, string>; tableWrap?: TableWrapMode }
     | { type: "revert"; content: string; lineMap?: number[]; frontmatter?: string; imageUriMap?: Record<string, string>; tableWrap?: TableWrapMode }
     | { type: "scrollToLine"; line: number }
-    | { type: "lineMapUpdate"; lineMap: number[] }
+    | { type: "lineMapUpdate"; lineMap: number[]; content: string }
     | { type: "setDebugMode"; enabled: boolean }
     | { type: "imageUploaded"; id: string; url: string }
     | { type: "imageUploadError"; id: string; error: string }

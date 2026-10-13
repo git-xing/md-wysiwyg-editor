@@ -190,6 +190,28 @@ export function activate(context: vscode.ExtensionContext) {
         ),
     );
 
+    // 切换浅色主题：在浅色主题与 auto（跟随 VS Code）之间切换
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            "markdownWysiwyg.toggleLightTheme",
+            async () => {
+                const config = vscode.workspace.getConfiguration("markdownWysiwyg");
+                const current = config.get<string>("colorTheme", "auto");
+                const lightThemes = getAllThemes().filter(
+                    (t) => t.uiTheme === "vs" || t.uiTheme === "hc-light",
+                );
+                const next = lightThemes.some((t) => t.id === current)
+                    ? "auto"
+                    : (["Light Modern", "Light 2026", "Light+"]
+                          .map((id) => lightThemes.find((t) => t.id === id))
+                          .find(Boolean) ?? lightThemes[0])?.id;
+                if (next) {
+                    await config.update("colorTheme", next, vscode.ConfigurationTarget.Global);
+                }
+            },
+        ),
+    );
+
     // 选择 Markdown 主题命令（带实时预览）
     context.subscriptions.push(
         vscode.commands.registerCommand(

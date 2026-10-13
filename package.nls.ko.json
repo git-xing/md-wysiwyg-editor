@@ -38,6 +38,7 @@
   "config.tableWrap.aggressive": "열이 너무 좁아지는 것을 방지하기 위해 단어 중간 줄 바꿈을 허용합니다.",
   "command.selectTheme.title": "Markdown 테마 선택",
   "command.showCurrentTheme.title": "현재 테마 표시",
+  "command.toggleLightTheme.title": "밝은 테마 전환",
   "Expand content": "콘텐츠 펼치기",
   "Collapse content": "콘텐츠 접기",
   "Debug tools": "디버그 도구",

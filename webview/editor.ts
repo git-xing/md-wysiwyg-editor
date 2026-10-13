@@ -3,6 +3,7 @@ import {
     Editor,
     editorViewCtx,
     nodeViewCtx,
+    parserCtx,
     remarkStringifyOptionsCtx,
     rootCtx,
 } from "@milkdown/core";
@@ -10,6 +11,7 @@ import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { prism, prismConfig } from "@milkdown/plugin-prism";
 import { commonmark } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
+import { Slice, type Node as ProseNode } from "@milkdown/prose/model";
 import type { EditorView } from "@milkdown/prose/view";
 import DOMPurify from "dompurify";
 import { createCodeBlockView } from "./components/codeBlock";
@@ -269,6 +271,12 @@ let _savedMarkdown = '';
 let _hasUserInteracted = false;
 let _interactionListenerAdded = false;
 
+// Document produced by the last replaceContent() call. markdownUpdated events
+// delivered while the editor still holds exactly this document come from the
+// external change (or transactions plugins appended to it) and must not be
+// saved back, or they would rewrite the file the external tool has just written
+let _externalDoc: ProseNode | null = null;
+
 function setupInteractionTracking(): void {
     if (_interactionListenerAdded) return;
     _interactionListenerAdded = true;
@@ -285,6 +293,27 @@ export function getEditorView(): EditorView | null {
         return null;
     }
     return _editor.action((ctx) => ctx.get(editorViewCtx));
+}
+
+/**
+ * Apply content changed on disk by another tool as a single undoable
+ * transaction, so the history survives and the change can be undone.
+ */
+export function replaceContent(markdown: string): void {
+    _editor?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const doc = ctx.get(parserCtx)(markdown);
+        if (!doc || doc.eq(view.state.doc)) return;
+        view.dispatch(
+            view.state.tr.replace(
+                0,
+                view.state.doc.content.size,
+                new Slice(doc.content, 0, 0),
+            ),
+        );
+        _externalDoc = view.state.doc;
+    });
+    _savedMarkdown = markdown;
 }
 
 export async function createEditor(
@@ -353,7 +382,11 @@ export async function createEditor(
                 },
             }));
             _savedMarkdown = initialMarkdown;
-            ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
+            ctx.get(listenerCtx).markdownUpdated((ctx, markdown) => {
+                if (_externalDoc) {
+                    if (ctx.get(editorViewCtx).state.doc === _externalDoc) return; // 外部写入的内容已在磁盘上，不回写
+                    _externalDoc = null;
+                }
                 if (!isSettled) return;          // 跳过初始化同步触发
                 if (!_hasUserInteracted) return; // 跳过初始化异步触发（RAF/microtask 延迟交付）
                 const toSave = applyMinimalChanges(_savedMarkdown, markdown);

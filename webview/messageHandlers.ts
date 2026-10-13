@@ -78,6 +78,7 @@ export interface EditorActions {
     scrollToSourceLine: (view: EditorView, lineMap: number[], targetLine: number) => void;
     getFirstVisibleSourceLine: (view: EditorView, lineMap: number[]) => number;
     initEditor: (container: HTMLElement, markdown: string) => Promise<void>;
+    applyExternalContent: (markdown: string) => void;
     retryScroll: (fn: () => void) => void;
     getEditorView: () => EditorView | null;
 }
@@ -99,7 +100,7 @@ export function createMessageHandlers(
 ): { [K in ToWebviewMessage["type"]]?: Handler<K> } {
     const { state, actions, topbarTb, themeOverrides, eventManager } = deps;
     const { getEditor, setEditor, getLineMap, setLineMap, getMarkdownSource, setMarkdownSource } = state;
-    const { scrollToSourceLine, getFirstVisibleSourceLine, initEditor, retryScroll, getEditorView } = actions;
+    const { scrollToSourceLine, getFirstVisibleSourceLine, initEditor, applyExternalContent, retryScroll, getEditorView } = actions;
     
     return {
         async init(msg, container) {
@@ -141,7 +142,12 @@ export function createMessageHandlers(
             if (msg.tableWrap) {
                 applyTableWrap(msg.tableWrap);
             }
-            await initEditor(container, msg.content);
+            // 已有编辑器时原地替换内容，保留 undo/redo 历史
+            if (getEditor()) {
+                applyExternalContent(msg.content);
+            } else {
+                await initEditor(container, msg.content);
+            }
         },
         requestSwitchToTextEditor() {
             const view = getEditorView();
@@ -166,6 +172,7 @@ export function createMessageHandlers(
         },
         lineMapUpdate(msg) {
             setLineMap(msg.lineMap);
+            setMarkdownSource(msg.content);
         },
         setDebugMode(msg) {
             setDebugMode(msg.enabled);

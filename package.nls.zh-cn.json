@@ -38,6 +38,7 @@
   "config.tableWrap.aggressive": "允许在单词中间断行，防止列变得过窄。",
   "command.selectTheme.title": "选择 Markdown 主题",
   "command.showCurrentTheme.title": "显示当前主题",
+  "command.toggleLightTheme.title": "切换浅色主题",
   "Expand content": "展开内容",
   "Collapse content": "折叠内容",
   "Debug tools": "调试工具",

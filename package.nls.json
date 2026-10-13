@@ -38,6 +38,7 @@
   "config.tableWrap.aggressive": "Allow breaking words in the middle to prevent columns from becoming too narrow.",
   "command.selectTheme.title": "Select Markdown Theme",
   "command.showCurrentTheme.title": "Show Current Theme",
+  "command.toggleLightTheme.title": "Toggle Light Theme",
   "Expand content": "Expand content",
   "Collapse content": "Collapse content",
   "Debug tools": "Debug tools",

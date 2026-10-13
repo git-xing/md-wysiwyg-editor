@@ -110,6 +110,8 @@ export const listSpreadNormalizePlugin = $prose((ctx) => {
                     });
                 }
             }
+            // 多步事务中，前面 step 的位置可能超出最终文档范围（如撤销整篇替换）
+            maxTo = Math.min(maxTo, newState.doc.content.size);
             if (minFrom > maxTo) return null;
 
             const tr = newState.tr;

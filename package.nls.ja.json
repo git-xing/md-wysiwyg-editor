@@ -38,6 +38,7 @@
   "config.tableWrap.aggressive": "列が狭くなりすぎないように、単語の途中での改行を許可します。",
   "command.selectTheme.title": "Markdownテーマを選択",
   "command.showCurrentTheme.title": "現在のテーマを表示",
+  "command.toggleLightTheme.title": "ライトテーマを切り替え",
   "Expand content": "コンテンツを展開",
   "Collapse content": "コンテンツを折りたたむ",
   "Debug tools": "デバッグツール",

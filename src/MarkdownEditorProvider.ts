@@ -790,13 +790,7 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
                         // 写盘完成后再记录时间，确保 FileWatcher 触发时时间戳是准确的
                         // （如果在 save 之前记录，FileWatcher 延迟 > 1500ms 时保护会失效）
                         this._lastSaveTimes.set(uriKey, Date.now());
-                        const panel = this._webviewPanels.get(uriKey);
-                        if (panel) {
-                            panel.webview.postMessage({
-                                type: "lineMapUpdate",
-                                lineMap: computeLineMap(document.getText()),
-                            });
-                        }
+                        this._postLineMapUpdate(document, uriKey);
                     } finally {
                         cts.dispose();
                     }
@@ -862,6 +856,13 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
 
             // 路径 B：VSCode Claude 扩展
             if (!success) {
+                // Suppress line sync from the temporary text editor: it opens with the
+                // cursor on line 1, which would scroll the WYSIWYG view back to the top
+                this.suppressNavFromTextEditor();
+                // Keep onDidChangeTabs from swapping the temporary text editor back to WYSIWYG
+                MarkdownEditorProvider.suppressAutoSwitch.add(
+                    document.uri.toString(),
+                );
                 // Fix 3：临时文本编辑器在同列打开（避免新建列导致布局闪烁）
                 // 使用 preview: false 避免替换处于预览状态的 custom editor tab
                 const textDoc = await vscode.workspace.openTextDocument(
@@ -902,6 +903,7 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
                         "claude-vscode.editor.openLast",
                     );
                     await new Promise((r) => setTimeout(r, 700));
+                    this.suppressNavFromTextEditor();
                     await vscode.window.showTextDocument(textDoc, {
                         viewColumn: textEditor.viewColumn,
                         preview: false,
@@ -935,6 +937,13 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
         } catch (_e) {
             console.log("[sendToClaudeChat] 失败:", _e);
         }
+        setTimeout(
+            () =>
+                MarkdownEditorProvider.suppressAutoSwitch.delete(
+                    document.uri.toString(),
+                ),
+            500,
+        );
 
         if (!success) {
             // 路径 C：兜底 VSCode 内置 chat
@@ -968,13 +977,7 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
         }
         this._lastSaveTimes.set(uriKey, Date.now());
         await document.save(cancellation);
-        const panel = this._webviewPanels.get(uriKey);
-        if (panel) {
-            panel.webview.postMessage({
-                type: "lineMapUpdate",
-                lineMap: computeLineMap(document.getText()),
-            });
-        }
+        this._postLineMapUpdate(document, uriKey);
     }
 
     async saveCustomDocumentAs(
@@ -1256,6 +1259,31 @@ export class MarkdownEditorProvider implements vscode.CustomEditorProvider<Markd
         }
 
         return vscode.Uri.file(resolved);
+    }
+
+    /**
+     * 保存后同步 WebView 的行号映射和源码快照。
+     * 源码快照必须一起更新：「发送选区到 Claude」按它搜索行号，只刷新 lineMap 会在编辑后得到过期行号。
+     */
+    private _postLineMapUpdate(
+        document: MarkdownDocument,
+        uriKey: string,
+    ): void {
+        const panel = this._webviewPanels.get(uriKey);
+        if (!panel) {
+            return;
+        }
+        const text = document.getText();
+        panel.webview.postMessage({
+            type: "lineMapUpdate",
+            lineMap: computeLineMap(text),
+            content: this._prepareContentForDisplay(
+                text,
+                document,
+                panel,
+                uriKey,
+            ),
+        });
     }
 
     private _prepareContentForDisplay(

@@ -23,6 +23,7 @@ import {
     createEditor,
     getEditorView,
     registerSelectionChangeHandler,
+    replaceContent,
     setLogTableSel,
 } from "./editor";
 import type { EditorView } from "@milkdown/prose/view";
@@ -204,6 +205,12 @@ async function initEditor(
         handleRenameImage,
     );
     toc.refresh();
+}
+
+function applyExternalContent(markdown: string): void {
+    replaceContent(markdown);
+    toc.refresh();
+    findBar.refresh();
 }
 
 // ── 初始化事件管理器 ──────────────────────────────────────────
@@ -426,6 +433,7 @@ const handlers = createMessageHandlers({
         scrollToSourceLine,
         getFirstVisibleSourceLine,
         initEditor,
+        applyExternalContent,
         retryScroll,
         getEditorView,
     },

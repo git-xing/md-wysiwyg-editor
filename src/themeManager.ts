@@ -322,6 +322,8 @@ export async function getThemeColors(themePath: string): Promise<ThemeColors> {
         const defaults: Record<string, string> = {
             "editor.background": isLight ? "#ffffff" : "#1e1e1e",
             "editor.foreground": isLight ? "#333333" : "#d4d4d4",
+            // 内置浅色主题（Light Modern / Light+）未定义此项；若不提供，表格偶数行会沿用 VSCode 当前深色主题的值
+            "editor.lineHighlightBackground": "rgba(128, 128, 128, 0.04)",
             "checkbox.background": isLight ? "#ffffff" : "#3c3c3c",
             "checkbox.foreground": isLight ? "#333333" : "#cccccc",
             "checkbox.border": isLight ? "#919191" : "#3c3c3c",
